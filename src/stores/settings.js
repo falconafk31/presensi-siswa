@@ -24,6 +24,7 @@ export const useSettingsStore = defineStore('settings', () => {
         kop_baris3: defaultData.kop_baris3 || '',
         kop_baris4: defaultData.kop_baris4 || '',
         kop_baris5: defaultData.kop_baris5 || '',
+        hari_libur_mingguan: defaultData.hari_libur_mingguan || [0, 6],
         favicon_url: defaultData.favicon_url || ''
       }
     } finally {

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, CalendarOff, Loader2, CheckCheck } from 'lucide-vue-next'
+import { Save, CalendarOff, Loader2, CheckCheck, TriangleAlert } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,7 @@ import { logActivity } from '@/lib/activityLog'
 import { todayISO, formatTanggalPanjang, isWeekend } from '@/lib/dates'
 import { STATUS_PRESENSI } from '@/config/constants'
 import { useSettingsStore } from '@/stores/settings'
+import BaseModal from '@/components/BaseModal.vue'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -25,9 +26,17 @@ watch(daftarKelas, (newDaftar) => {
     kelas.value = newDaftar[0]
   }
 }, { immediate: true })
+
+// Kunci kelas agar tidak bisa diretas lewat frontend untuk Guru
+watch(kelas, (newKelas) => {
+  if (!auth.isAdmin && auth.kelas && newKelas !== auth.kelas) {
+    kelas.value = auth.kelas
+  }
+})
 const hariLibur = ref(false)
 const loading = ref(false)
 const saving = ref(false)
+const showConfirmModal = ref(false)
 
 const segColor = {
   Hadir: 'bg-emerald-600',
@@ -96,7 +105,16 @@ function setSemua(status) {
   presensi.value = map
 }
 
+function triggerSimpan() {
+  if (isSubmitted.value) {
+    showConfirmModal.value = true
+  } else {
+    simpan()
+  }
+}
+
 async function simpan() {
+  showConfirmModal.value = false
   if (hariLibur.value) return
   if (!students.value.length) {
     toast.error('Tidak ada siswa untuk disimpan')
@@ -255,7 +273,7 @@ onMounted(loadStudents)
         <button
           class="btn-primary px-8 py-3 text-base shadow-emerald-500/30 shadow-lg"
           :disabled="saving"
-          @click="simpan"
+          @click="triggerSimpan"
         >
           <Save v-if="!saving" class="h-5 w-5" />
           <Loader2 v-else class="h-5 w-5 animate-spin" />
@@ -263,5 +281,26 @@ onMounted(loadStudents)
         </button>
       </div>
     </div>
+
+    <!-- Confirm Update Modal -->
+    <BaseModal v-model="showConfirmModal" title="Perbarui Presensi">
+      <div class="p-6 text-center">
+        <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+          <TriangleAlert class="h-6 w-6 text-amber-600" />
+        </div>
+        <h3 class="mb-2 text-lg font-bold text-gray-800">Perbarui Data Presensi?</h3>
+        <p class="text-sm text-gray-600">
+          Data presensi untuk kelas <strong>{{ kelas }}</strong> pada tanggal ini sudah disubmit sebelumnya. Apakah Anda yakin ingin memperbarui data dengan inputan terbaru?
+        </p>
+      </div>
+      <div class="flex items-center gap-3 border-t border-gray-100 p-4 bg-gray-50/50">
+        <button class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100" @click="showConfirmModal = false">
+          Batal
+        </button>
+        <button class="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-600" :disabled="saving" @click="simpan">
+          Ya, Perbarui
+        </button>
+      </div>
+    </BaseModal>
   </div>
 </template>

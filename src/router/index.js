@@ -75,6 +75,30 @@ const routes = [
         component: () => import('@/views/PengaturanView.vue'),
         meta: { adminOnly: true },
       },
+      {
+        path: 'dashboard-perpus',
+        name: 'dashboard-perpus',
+        component: () => import('@/views/DashboardPerpusView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
+        path: 'buku',
+        name: 'buku',
+        component: () => import('@/views/BukuView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
+        path: 'peminjaman',
+        name: 'peminjaman',
+        component: () => import('@/views/PeminjamanView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
+        path: 'rekap-perpus',
+        name: 'rekap-perpus',
+        component: () => import('@/views/RekapPerpusView.vue'),
+        meta: { perpusOnly: true },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
@@ -94,6 +118,9 @@ router.beforeEach((to) => {
     return { name: 'dashboard' }
   }
   if (to.meta.adminOnly && !auth.isAdmin) {
+    return { name: 'dashboard' }
+  }
+  if (to.meta.perpusOnly && !auth.canManagePerpus) {
     return { name: 'dashboard' }
   }
 })

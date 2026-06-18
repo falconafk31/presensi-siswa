@@ -11,18 +11,23 @@ export function exportExcelBulanan({
   summary,
   liburSet,
   submittedDatesSet,
+  waliKelas,
+  nipWaliKelas,
 }) {
   const wsData = []
 
   // Header 1: Title
   wsData.push([`REKAPITULASI KEHADIRAN SISWA KELAS ${kelas}`])
   wsData.push([`Bulan: ${namaBulan(month)} ${year}`])
+  if (waliKelas) {
+    wsData.push([`Wali Kelas: ${waliKelas}` + (nipWaliKelas ? ` (NIP. ${nipWaliKelas})` : '')])
+  }
   wsData.push([])
 
   // Header Table
   const headRow = ['No', 'NISN', 'Nama Siswa']
   days.forEach(d => headRow.push(String(Number(d.slice(8, 10)))))
-  headRow.push('Hadir', 'Izin', 'Sakit', 'Alfa', '% Hadir')
+  headRow.push('H', 'I', 'S', 'A', '%H', '%I', '%S', '%A')
   wsData.push(headRow)
 
   // Body Table
@@ -34,8 +39,8 @@ export function exportExcelBulanan({
       else if (submittedDatesSet && !submittedDatesSet.has(d)) row.push('-')
       else row.push(m[d] || 'H')
     })
-    const sum = summary[s.nisn] || { H: 0, I: 0, S: 0, A: 0, persen: 0 }
-    row.push(sum.H, sum.I, sum.S, sum.A, `${sum.persen}%`)
+    const sum = summary[s.nisn] || { H: 0, I: 0, S: 0, A: 0, persenH: 0, persenI: 0, persenS: 0, persenA: 0 }
+    row.push(sum.H, sum.I, sum.S, sum.A, `${sum.persenH}%`, `${sum.persenI}%`, `${sum.persenS}%`, `${sum.persenA}%`)
     wsData.push(row)
   })
 
@@ -52,7 +57,10 @@ export function exportExcelBulanan({
     { wch: 6 },  // I
     { wch: 6 },  // S
     { wch: 6 },  // A
-    { wch: 10 }, // %
+    { wch: 6 },  // %H
+    { wch: 6 },  // %I
+    { wch: 6 },  // %S
+    { wch: 6 },  // %A
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, `Rekap ${namaBulan(month)}`)
@@ -64,18 +72,23 @@ export function exportExcelSemester({
   semesterText,
   students,
   summary,
+  waliKelas,
+  nipWaliKelas,
 }) {
   const wsData = []
 
   wsData.push([`REKAPITULASI KEHADIRAN SEMESTER KELAS ${kelas}`])
   wsData.push([`Periode: ${semesterText}`])
+  if (waliKelas) {
+    wsData.push([`Wali Kelas: ${waliKelas}` + (nipWaliKelas ? ` (NIP. ${nipWaliKelas})` : '')])
+  }
   wsData.push([])
 
-  const headRow = ['No', 'NISN', 'Nama Siswa', 'Hadir', 'Izin', 'Sakit', 'Alfa', '% Hadir']
+  const headRow = ['No', 'NISN', 'Nama Siswa', 'H', 'I', 'S', 'A', '%H', '%I', '%S', '%A']
   wsData.push(headRow)
 
   students.forEach((s, i) => {
-    const sum = summary[s.nisn] || { H: 0, I: 0, S: 0, A: 0, persen: 0 }
+    const sum = summary[s.nisn] || { H: 0, I: 0, S: 0, A: 0, persenH: 0, persenI: 0, persenS: 0, persenA: 0 }
     wsData.push([
       i + 1,
       s.nisn,
@@ -84,7 +97,10 @@ export function exportExcelSemester({
       sum.I,
       sum.S,
       sum.A,
-      `${sum.persen}%`
+      `${sum.persenH}%`,
+      `${sum.persenI}%`,
+      `${sum.persenS}%`,
+      `${sum.persenA}%`
     ])
   })
 
@@ -95,11 +111,14 @@ export function exportExcelSemester({
     { wch: 5 },
     { wch: 15 },
     { wch: 35 },
-    { wch: 8 },
-    { wch: 8 },
-    { wch: 8 },
-    { wch: 8 },
-    { wch: 10 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, `Rekap Semester`)

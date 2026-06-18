@@ -24,7 +24,7 @@ async function loadImageDataUrl(url) {
     canvas.height = height
     const ctx = canvas.getContext('2d')
     ctx.drawImage(bmp, 0, 0, width, height)
-    return canvas.toDataURL('image/jpeg', 0.8)
+    return canvas.toDataURL('image/png')
   } catch {
     return null
   }
@@ -35,6 +35,7 @@ export async function generateRekapPDF({
   period,
   kelas,
   waliKelas,
+  nipWaliKelas,
   year,
   month,
   days,
@@ -49,7 +50,7 @@ export async function generateRekapPDF({
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
-  const margin = 12
+  const margin = 8
 
   // ---------- KOP SURAT ----------
   if (settings?.logo_url) {
@@ -131,7 +132,10 @@ export async function generateRekapPDF({
       { content: 'I' },
       { content: 'S' },
       { content: 'A' },
-      { content: '% Hadir' },
+      { content: '%H' },
+      { content: '%I' },
+      { content: '%S' },
+      { content: '%A' },
     ],
   ]
 
@@ -151,15 +155,18 @@ export async function generateRekapPDF({
       sum.I,
       sum.S,
       sum.A,
-      `${sum.persen}%`,
+      `${sum.persenH}%`,
+      `${sum.persenI}%`,
+      `${sum.persenS}%`,
+      `${sum.persenA}%`,
     ]
   })
 
   const dayColCount = days.length
   const columnStyles = {
-    0: { cellWidth: 8, halign: 'center' },
-    1: { cellWidth: 20, halign: 'center' },
-    2: { cellWidth: 35, halign: 'left' },
+    0: { cellWidth: 6, halign: 'center' },
+    1: { cellWidth: 16, halign: 'center' },
+    2: { cellWidth: 47, halign: 'left', cellPadding: 1 },
   }
   
   // Tentukan warna kolom libur (Tanggal Merah)
@@ -168,18 +175,21 @@ export async function generateRekapPDF({
     const isUnsubmitted = submittedDatesSet && !submittedDatesSet.has(days[i])
     
     columnStyles[3 + i] = { 
-      cellWidth: 5.2, 
+      cellWidth: 4.6, 
       halign: 'center',
       fillColor: isHoliday ? [255, 230, 230] : (isUnsubmitted ? [240, 240, 240] : undefined),
       textColor: isHoliday ? [200, 0, 0] : (isUnsubmitted ? [150, 150, 150] : undefined)
     }
   }
   const sumStart = 3 + dayColCount
-  columnStyles[sumStart] = { cellWidth: 8, halign: 'center', fontStyle: 'bold' }
-  columnStyles[sumStart + 1] = { cellWidth: 8, halign: 'center' }
-  columnStyles[sumStart + 2] = { cellWidth: 8, halign: 'center' }
-  columnStyles[sumStart + 3] = { cellWidth: 8, halign: 'center' }
-  columnStyles[sumStart + 4] = { cellWidth: 14, halign: 'center', fontStyle: 'bold' }
+  columnStyles[sumStart] = { cellWidth: 6, fontStyle: 'bold' }
+  columnStyles[sumStart + 1] = { cellWidth: 6 }
+  columnStyles[sumStart + 2] = { cellWidth: 6 }
+  columnStyles[sumStart + 3] = { cellWidth: 6 }
+  columnStyles[sumStart + 4] = { cellWidth: 9.5, fontStyle: 'bold' }
+  columnStyles[sumStart + 5] = { cellWidth: 9.5 }
+  columnStyles[sumStart + 6] = { cellWidth: 9.5 }
+  columnStyles[sumStart + 7] = { cellWidth: 9.5 }
 
   autoTable(doc, {
     head,
@@ -187,8 +197,8 @@ export async function generateRekapPDF({
     startY: lineY + 18.5,
     margin: { left: margin, right: margin },
     theme: 'grid',
-    styles: { font: 'times', fontSize: 7, cellPadding: 0.8, lineColor: [120, 120, 120], lineWidth: 0.1 },
-    headStyles: { fillColor: [6, 78, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    styles: { font: 'times', fontSize: 8, cellPadding: 0.8, lineColor: [120, 120, 120], lineWidth: 0.1, halign: 'center', textColor: [0, 0, 0] },
+    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
     columnStyles,
   })
 
@@ -230,12 +240,15 @@ export async function generateRekapPDF({
   doc.text('Wali Kelas', colKanan, y + 5, { align: 'center' })
 
   doc.setFont('times', 'bold')
-  doc.text(settings?.kepala_sekolah || '_________________', colKiri, y + 28, { align: 'center' })
-  doc.text(waliKelas || '_________________', colKanan, y + 28, { align: 'center' })
+  doc.text(settings?.kepala_sekolah || '_________________', colKiri, y + 30, { align: 'center' })
+  doc.text(waliKelas || '_________________', colKanan, y + 30, { align: 'center' })
   doc.setFont('times', 'normal')
-  doc.setFontSize(9)
+  doc.setFontSize(10)
   if (settings?.nip_kepala_sekolah) {
-    doc.text(`NIP. ${settings.nip_kepala_sekolah}`, colKiri, y + 33, { align: 'center' })
+    doc.text(`NIP. ${settings.nip_kepala_sekolah}`, colKiri, y + 35, { align: 'center' })
+  }
+  if (nipWaliKelas) {
+    doc.text(`NIP. ${nipWaliKelas}`, colKanan, y + 35, { align: 'center' })
   }
 
   const fileName = `Rekap_Absensi_Kelas-${kelas}_${namaBulan(month)}_${year}.pdf`

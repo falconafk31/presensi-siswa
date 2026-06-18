@@ -13,7 +13,8 @@ import { usePeriodStore } from '@/stores/period'
 const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
 
-const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '' })
+const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', hari_libur_mingguan: [0, 6] })
 const savingSettings = ref(false)
 const uploading = ref(false)
 const fileInput = ref(null)
@@ -41,9 +42,21 @@ function removeKelas(k) {
   form.value.daftar_kelas = form.value.daftar_kelas.filter(x => x !== k)
 }
 
+function toggleHariLibur(index) {
+  const libur = form.value.hari_libur_mingguan || []
+  if (libur.includes(index)) {
+    form.value.hari_libur_mingguan = libur.filter(h => h !== index)
+  } else {
+    form.value.hari_libur_mingguan = [...libur, index]
+  }
+}
+
 async function loadSettings() {
   const s = await settingsStore.fetchSettings()
-  if (s) form.value = { ...form.value, ...s }
+  if (s) {
+    form.value = { ...form.value, ...s }
+    if (!form.value.hari_libur_mingguan) form.value.hari_libur_mingguan = [0, 6]
+  }
 }
 
 async function loadPeriods() {
@@ -369,6 +382,22 @@ onMounted(() => {
                 <GraduationCap class="h-4 w-4" /> Proses Kenaikan
               </button>
             </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="mb-3 text-sm font-semibold text-gray-700">Hari Libur Mingguan</h3>
+          <p class="mb-3 text-xs text-gray-500">Pilih hari apa saja yang merupakan hari libur rutin mingguan (akan ditandai merah di kalender dan rekapitulasi).</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <label v-for="(hari, idx) in NAMA_HARI" :key="idx" class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors">
+              <input 
+                type="checkbox" 
+                :checked="(form.hari_libur_mingguan || []).includes(idx)" 
+                @change="toggleHariLibur(idx)"
+                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" 
+              />
+              <span class="text-gray-700">{{ hari }}</span>
+            </label>
           </div>
         </div>
       </div>

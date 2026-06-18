@@ -1,6 +1,6 @@
-# 🏫 Sistem Presensi Madrasah (Modern Web App)
+# 🏫 Sistem Presensi & Perpustakaan Madrasah (Modern Web App)
 
-Aplikasi Sistem Presensi berbasis web modern yang dirancang khusus untuk instansi pendidikan (Madrasah/Sekolah). Proyek ini merupakan hasil migrasi dari sistem *legacy* (Google Apps Script + Alpine.js + Spreadsheet) menjadi arsitektur modern yang lebih cepat, skalabel, dan aman.
+Aplikasi Sistem Informasi terintegrasi berbasis web modern yang dirancang khusus untuk instansi pendidikan (Madrasah/Sekolah). Sistem ini menangani **Presensi Akademik** dan **Manajemen Perpustakaan (Sirkulasi Buku)** dalam satu portal terpadu. Proyek ini merupakan hasil migrasi dan pengembangan dari sistem *legacy* (Google Apps Script) menjadi arsitektur modern yang lebih cepat, skalabel, dan aman.
 
 ## 🚀 Tech Stack
 
@@ -23,19 +23,29 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 
 ## ✨ Fitur Utama
 
+### 📊 Sistem Presensi & Administrasi
 1.  **Dashboard Real-time:** Visualisasi statistik kehadiran harian dan tren bulanan menggunakan grafik interaktif.
-2.  **Manajemen Data Master (CRUD):** Pengelolaan data Siswa dan Guru (Wali Kelas) secara terpusat.
+2.  **Manajemen Data Master (CRUD):** Pengelolaan data Siswa dan Guru (Wali Kelas) secara terpusat dengan dukungan *Upload* Excel massal.
 3.  **Input Presensi Cerdas:**
     * Validasi otomatis terhadap Kalender Akademik (mencegah input pada hari libur).
+    * Kunci Kelas (Security Lock): Guru hanya dapat mengakses dan mengisi kelas ampuan mereka.
     * Antarmuka *Segmented Control* (Hadir/Izin/Sakit/Alfa) untuk input cepat massal.
 4.  **Rekapitulasi & Ekspor Laporan:**
     * Pembuatan matriks kehadiran bulanan dan semester.
-    * Cetak dokumen PDF yang dilengkapi dengan **Kop Surat Resmi Kementerian Agama**, penanda hari libur otomatis (warna merah), dan kolom tanda tangan.
-    * Ekspor data ke format **Excel (.xlsx)**.
-5.  **Pengaturan Dinamis & Cerdas:** 
-    * Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat).
-    * **Favicon Otomatis:** Menggunakan logo sekolah sebagai favicon secara dinamis tanpa perlu modifikasi *codebase*.
-    * **Kenaikan Kelas Otomatis:** Sistem canggih yang otomatis mendeteksi kelas awalan 6 untuk diluluskan dan menaikkan kelas lainnya, lengkap dengan riwayat kelas (*snapshot*).
+    * Cetak dokumen PDF yang dilengkapi dengan **Kop Surat Resmi Kementerian Agama**, penanda hari libur otomatis (warna merah), dan auto-stretch kolom presisi.
+    * Ekspor data ke format **Excel (.xlsx)** lengkap dengan Nama Wali Kelas dan NIP.
+
+### 📚 Sistem Perpustakaan (Modul Baru)
+1.  **Katalog Buku:** Manajemen data buku (Judul, Pengarang, Penerbit, Tahun, Stok).
+2.  **Sirkulasi Cerdas:** Peminjaman dan Pengembalian dengan auto-kalkulasi stok secara *real-time*.
+3.  **Laporan Perpustakaan:** Ekspor riwayat sirkulasi dan status peminjaman aktif ke PDF secara mudah.
+4.  **Hak Akses Khusus:** Terdapat hak akses **Pustakawan** khusus untuk mengelola fitur perpustakaan.
+
+### ⚙️ Engine Inti
+1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat).
+2.  **Progressive Web App (PWA):** Dukungan penuh PWA yang memungkinkan aplikasi ini **di-instal secara native** ke Home Screen smartphone/desktop, lengkap dengan *Service Worker Caching* untuk akses ultra-cepat.
+3.  **Kenaikan Kelas Otomatis:** Sistem yang otomatis meluluskan siswa tingkat akhir dan menaikkan kelas lainnya secara masif.
+4.  **Performa Ekstra Cepat:** Penggunaan *Client-Side Pagination* (50 baris per halaman) pada data skala besar menjamin layar bebas *freeze*.
 
 ## 🎨 Design System
 
@@ -58,7 +68,7 @@ Ikuti langkah-langkah berikut untuk menjalankan proyek ini di mesin lokal Anda m
 ```bash
 # Clone repository ini (jika sudah di-push ke GitHub)
 git clone <url-repo-anda>
-cd min-blora-presensi
+cd presensi-siswa
 
 # Install semua dependensi NPM
 npm install
@@ -79,8 +89,13 @@ npm run dev
 Buka `http://localhost:5173` di *browser*. 
 * Login Admin: `admin / admin123`
 * Login Guru: `guru1 / guru123` (jika menggunakan data *seed*)
+* Hak Akses tersedia: **Admin**, **Guru**, dan **Pustakawan**
 
-## 📄 Lisensi
+### 5. Deployment ke Vercel (Produksi)
+Proyek ini sudah dilengkapi dengan `vercel.json` untuk menjamin lalu lintas *Vue Router* berjalan lancar tanpa *Error 404* saat pengguna melakukan *refresh* di URL anak (contoh: `/siswa` atau `/rekap`).
+- Cukup hubungkan *repository* Github Anda ke Dashboard Vercel.
+- *Build command* yang berjalan otomatis adalah `npm run build` dan foldernya adalah `dist`.
+- Vercel akan otomatis mengenali konfigurasi tersebut!
 
 Proyek ini dapat digunakan, dimodifikasi, dan didistribusikan secara **bebas** (Free to use / Open Source) untuk keperluan pendidikan maupun instansi Anda.
 

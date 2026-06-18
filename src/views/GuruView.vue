@@ -21,7 +21,7 @@ const showDelete = ref(false)
 const saving = ref(false)
 const editing = ref(false)
 
-const emptyForm = () => ({ id: null, username: '', password: '', nama: '', role: 'Guru', kelas: '' })
+const emptyForm = () => ({ id: null, username: '', password: '', nama: '', role: 'Guru', kelas: '', nip: '' })
 const form = ref(emptyForm())
 const target = ref(null)
 
@@ -36,7 +36,7 @@ function openUpload() {
 
 function downloadTemplate() {
   const ws = xlsx.utils.json_to_sheet([
-    { Username: 'guru_mat', Password: 'password123', Nama: 'Fulan SPd', Role: 'Guru', 'Wali Kelas': '1A' }
+    { Username: 'guru_mat', Password: 'password123', Nama: 'Fulan SPd', Role: 'Guru', 'Wali Kelas': '1A', 'NIP': '198001012010011001' }
   ])
   const wb = xlsx.utils.book_new()
   xlsx.utils.book_append_sheet(wb, ws, 'Template Guru')
@@ -67,7 +67,8 @@ async function processUpload() {
         password: String(r.Password || '').trim(),
         nama: String(r.Nama || '').trim(),
         role: role,
-        kelas: r['Wali Kelas'] && role === 'Guru' ? String(r['Wali Kelas']).trim().toUpperCase() : null
+        kelas: r['Wali Kelas'] && role === 'Guru' ? String(r['Wali Kelas']).trim().toUpperCase() : null,
+        nip: r.NIP ? String(r.NIP).trim() : null
       }
     }).filter(r => r.username && r.nama && r.password)
 
@@ -91,7 +92,7 @@ async function load() {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, nama, role, kelas')
+      .select('id, username, nama, role, kelas, nip')
       .order('role')
       .order('nama')
     if (error) throw error
@@ -130,7 +131,8 @@ async function save() {
       username: form.value.username,
       nama: form.value.nama,
       role: form.value.role,
-      kelas: form.value.role === 'Guru' ? form.value.kelas || null : null,
+      kelas: form.value.role === 'Guru' ? (form.value.kelas || null) : null,
+      nip: form.value.nip || null
     }
     if (editing.value) {
       if (form.value.password) payload.password = form.value.password
@@ -196,7 +198,7 @@ onMounted(() => {
       <table class="min-w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
-            <th class="px-3 py-2">Nama</th>
+            <th class="px-3 py-3 font-semibold">Nama / NIP</th>
             <th class="px-3 py-2">Username</th>
             <th class="px-3 py-2">Role</th>
             <th class="px-3 py-2">Wali Kelas</th>
@@ -206,7 +208,10 @@ onMounted(() => {
         <tbody class="divide-y divide-gray-100">
           <tr v-if="loading"><td colspan="5" class="py-6 text-center text-gray-400">Memuat...</td></tr>
           <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
-            <td class="px-3 py-2 font-medium text-gray-800">{{ u.nama }}</td>
+            <td class="px-3 py-2">
+              <div class="font-medium text-gray-800">{{ u.nama }}</div>
+              <div v-if="u.nip" class="text-xs text-gray-500">NIP: {{ u.nip }}</div>
+            </td>
             <td class="px-3 py-2 text-gray-500">{{ u.username }}</td>
             <td class="px-3 py-2"><StatusBadge :label="u.role" :color="u.role === 'Admin' ? 'amber' : 'green'" /></td>
             <td class="px-3 py-2">{{ u.kelas ? `Kelas ${u.kelas}` : '-' }}</td>
@@ -237,11 +242,16 @@ onMounted(() => {
           </label>
           <input v-model="form.password" type="text" class="input-field" placeholder="••••••" />
         </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-600">NIP (Opsional)</label>
+          <input v-model="form.nip" type="text" class="input-field" placeholder="Masukkan NIP jika ada" />
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600">Role</label>
             <select v-model="form.role" class="input-field">
               <option value="Guru">Guru</option>
+              <option value="Pustakawan">Pustakawan</option>
               <option value="Admin">Admin</option>
             </select>
           </div>

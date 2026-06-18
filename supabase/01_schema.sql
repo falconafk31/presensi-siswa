@@ -14,7 +14,7 @@ create table if not exists public.users (
   username    text not null unique,
   password    text not null,
   nama        text not null,
-  role        text not null default 'Guru' check (role in ('Admin', 'Guru')),
+  role        text not null default 'Guru' check (role in ('Admin', 'Guru', 'Pustakawan')),
   kelas       text,
   created_at  timestamptz not null default now()
 );
@@ -112,6 +112,7 @@ create table if not exists public.app_settings (
   kop_baris3          text,
   kop_baris4          text,
   kop_baris5          text,
+  hari_libur_mingguan jsonb default '[0, 6]'::jsonb,
   updated_at          timestamptz not null default now()
 );
 
@@ -145,3 +146,43 @@ drop trigger if exists trg_attendance_updated_at on public.attendance_logs;
 create trigger trg_attendance_updated_at
   before update on public.attendance_logs
   for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------
+-- 9. books (Katalog Perpustakaan)
+-- ---------------------------------------------------------------------
+create table if not exists public.books (
+  id            uuid primary key default gen_random_uuid(),
+  judul         text not null,
+  pengarang     text,
+  penerbit      text,
+  tahun_terbit  text,
+  isbn          text,
+  stok          int not null default 1,
+  kategori      text,
+  created_at    timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------
+-- 10. book_loans (Sirkulasi Peminjaman Buku)
+-- ---------------------------------------------------------------------
+create table if not exists public.book_loans (
+  id                         uuid primary key default gen_random_uuid(),
+  book_id                    uuid not null references public.books (id) on delete restrict,
+  student_nisn               text not null references public.students (nisn) on update cascade on delete cascade,
+  tanggal_pinjam             date not null default current_date,
+  tanggal_kembali_seharusnya date not null,
+  tanggal_kembali_aktual     date,
+  status                     text not null default 'dipinjam' check (status in ('dipinjam', 'dikembalikan', 'terlambat', 'hilang')),
+  guru_input                 text,
+  created_at                 timestamptz not null default now(),
+  updated_at                 timestamptz not null default now()
+);
+
+create index if not exists idx_book_loans_status on public.book_loans (status);
+create index if not exists idx_book_loans_student on public.book_loans (student_nisn);
+
+drop trigger if exists trg_book_loans_updated_at on public.book_loans;
+create trigger trg_book_loans_updated_at
+  before update on public.book_loans
+  for each row execute function public.set_updated_at();
+

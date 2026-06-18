@@ -1,3 +1,5 @@
+import { useSettingsStore } from '@/stores/settings'
+
 // Util tanggal — semua dalam zona waktu lokal (WIB), format YYYY-MM-DD.
 
 export function toISODate(d) {
@@ -34,7 +36,13 @@ export function dayName(iso) {
 
 export function isWeekend(iso) {
   const d = new Date(iso + 'T00:00:00').getDay()
-  return d === 0 || d === 6
+  try {
+    const store = useSettingsStore()
+    const libur = store.settings?.hari_libur_mingguan || [0, 6]
+    return libur.includes(d)
+  } catch {
+    return d === 0 || d === 6
+  }
 }
 
 export function formatTanggalPanjang(iso) {

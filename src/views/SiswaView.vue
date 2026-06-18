@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
 import { Plus, Pencil, LogOut, Search, UserPlus, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
@@ -107,6 +107,21 @@ const filtered = computed(() => {
     const okStatus = !filterStatus.value || s.status === filterStatus.value
     return okSearch && okKelas && okStatus
   })
+})
+
+const itemsPerPage = 50
+const currentPage = ref(1)
+
+// Reset halaman ke 1 setiap kali filter berubah
+watch([search, filterKelas, filterStatus], () => {
+  currentPage.value = 1
+})
+
+const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage))
+
+const paginated = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filtered.value.slice(start, start + itemsPerPage)
 })
 
 async function load() {
@@ -293,8 +308,8 @@ onMounted(() => {
         </thead>
         <tbody class="divide-y divide-gray-100">
           <tr v-if="loading"><td colspan="6" class="py-6 text-center text-gray-400">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="6" class="py-6 text-center text-gray-400">Tidak ada data.</td></tr>
-          <tr v-for="s in filtered" :key="s.id" class="hover:bg-gray-50">
+          <tr v-else-if="!paginated.length"><td colspan="6" class="py-6 text-center text-gray-400">Tidak ada data.</td></tr>
+          <tr v-for="s in paginated" :key="s.id" class="hover:bg-gray-50">
             <td class="px-3 py-2 text-gray-500">{{ s.nisn }}</td>
             <td class="px-3 py-2 font-medium text-gray-800">{{ s.nama }}</td>
             <td class="px-3 py-2">{{ s.jk }}</td>
@@ -325,6 +340,30 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between text-sm text-gray-600">
+      <div>
+        Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, filtered.length) }} dari {{ filtered.length }} siswa
+      </div>
+      <div class="flex gap-2">
+        <button 
+          class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+        >
+          Sebelumnya
+        </button>
+        <div class="flex items-center px-2 font-medium">{{ currentPage }} / {{ totalPages }}</div>
+        <button 
+          class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
+          :disabled="currentPage === totalPages"
+          @click="currentPage++"
+        >
+          Selanjutnya
+        </button>
+      </div>
     </div>
 
     <!-- Form tambah/edit -->

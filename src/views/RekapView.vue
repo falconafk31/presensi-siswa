@@ -22,6 +22,13 @@ watch(daftarKelas, (newDaftar) => {
     kelas.value = newDaftar[0]
   }
 }, { immediate: true })
+
+// Kunci kelas agar tidak bisa diretas lewat frontend untuk Guru
+watch(kelas, (newKelas) => {
+  if (!auth.isAdmin && auth.kelas && newKelas !== auth.kelas) {
+    kelas.value = auth.kelas
+  }
+})
 const month = ref(now.getMonth() + 1)
 const year = ref(now.getFullYear())
 
@@ -63,8 +70,11 @@ const summary = computed(() => {
       else if (v === 'A') A++
     }
     const totalTercatat = H + I + S + A
-    const persen = totalTercatat ? Math.round((H / totalTercatat) * 100) : 0
-    out[s.nisn] = { H, I, S, A, persen }
+    const persenH = totalTercatat ? Math.round((H / totalTercatat) * 100) : 0
+    const persenI = totalTercatat ? Math.round((I / totalTercatat) * 100) : 0
+    const persenS = totalTercatat ? Math.round((S / totalTercatat) * 100) : 0
+    const persenA = totalTercatat ? Math.round((A / totalTercatat) * 100) : 0
+    out[s.nisn] = { H, I, S, A, persenH, persenI, persenS, persenA }
   }
   return out
 })
@@ -126,11 +136,26 @@ async function exportPDF() {
     const { generateRekapPDF } = await import('@/lib/pdfRekap')
     const matrixForPdf = {}
     for (const s of students.value) matrixForPdf[s.nisn] = matrix.value[s.nisn] || {}
+    
+    // Ambil nama dan nip wali kelas berdasarkan kelas yang dipilih
+    let namaWali = auth.isAdmin ? '' : auth.user?.nama
+    let nipWali = ''
+    try {
+      const { data: guru } = await supabase.from('users').select('nama, nip').eq('kelas', kelas.value).limit(1)
+      if (guru && guru.length > 0) {
+        namaWali = guru[0].nama
+        nipWali = guru[0].nip || ''
+      }
+    } catch {
+      // Abaikan jika error, gunakan default
+    }
+
     const fileName = await generateRekapPDF({
       settings: settingsStore.settings,
       period: periodStore.activePeriod,
       kelas: kelas.value,
-      waliKelas: auth.isAdmin ? '' : auth.user?.nama,
+      waliKelas: namaWali,
+      nipWaliKelas: nipWali,
       year: year.value,
       month: month.value,
       days: days.value,
@@ -155,6 +180,19 @@ async function exportExcel() {
   }
   exportingExcel.value = true
   try {
+    // Ambil nama dan nip wali kelas berdasarkan kelas yang dipilih
+    let namaWali = auth.isAdmin ? '' : auth.user?.nama
+    let nipWali = ''
+    try {
+      const { data: guru } = await supabase.from('users').select('nama, nip').eq('kelas', kelas.value).limit(1)
+      if (guru && guru.length > 0) {
+        namaWali = guru[0].nama
+        nipWali = guru[0].nip || ''
+      }
+    } catch {
+      // Abaikan jika error, gunakan default
+    }
+
     const { exportExcelBulanan } = await import('@/lib/excelExport')
     exportExcelBulanan({
       kelas: kelas.value,
@@ -166,6 +204,8 @@ async function exportExcel() {
       summary: summary.value,
       liburSet: liburSet.value,
       submittedDatesSet: submittedDatesSet.value,
+      waliKelas: namaWali,
+      nipWaliKelas: nipWali,
     })
     toast.success('Berhasil mengekspor Excel')
   } catch (e) {
@@ -241,7 +281,10 @@ onMounted(() => {
             <th class="border border-emerald-900 bg-emerald-700 px-1.5 py-1.5">I</th>
             <th class="border border-emerald-900 bg-emerald-700 px-1.5 py-1.5">S</th>
             <th class="border border-emerald-900 bg-emerald-700 px-1.5 py-1.5">A</th>
-            <th class="border border-emerald-900 bg-emerald-700 px-2 py-1.5">% Hadir</th>
+            <th class="border border-emerald-900 bg-emerald-700 px-1.5 py-1.5 text-[10px]">%H</th>
+            <th class="border border-emerald-900 bg-sky-700 px-1.5 py-1.5 text-[10px]">%I</th>
+            <th class="border border-emerald-900 bg-amber-700 px-1.5 py-1.5 text-[10px]">%S</th>
+            <th class="border border-emerald-900 bg-rose-700 px-1.5 py-1.5 text-[10px]">%A</th>
           </tr>
         </thead>
         <tbody>
@@ -273,12 +316,10 @@ onMounted(() => {
             <td class="border border-gray-200 bg-sky-50 px-1 py-1">{{ summary[s.nisn].I }}</td>
             <td class="border border-gray-200 bg-amber-50 px-1 py-1">{{ summary[s.nisn].S }}</td>
             <td class="border border-gray-200 bg-rose-50 px-1 py-1">{{ summary[s.nisn].A }}</td>
-            <td
-              class="border border-gray-200 px-2 py-1 font-bold"
-              :class="summary[s.nisn].persen < 75 ? 'bg-rose-100 text-rose-700' : 'text-emerald-700'"
-            >
-              {{ summary[s.nisn].persen }}%
-            </td>
+            <td class="border border-gray-200 bg-emerald-50 px-1 py-1 font-bold text-emerald-700 text-[10px]">{{ summary[s.nisn].persenH }}%</td>
+            <td class="border border-gray-200 bg-sky-50 px-1 py-1 font-bold text-sky-700 text-[10px]">{{ summary[s.nisn].persenI }}%</td>
+            <td class="border border-gray-200 bg-amber-50 px-1 py-1 font-bold text-amber-700 text-[10px]">{{ summary[s.nisn].persenS }}%</td>
+            <td class="border border-gray-200 bg-rose-50 px-1 py-1 font-bold text-rose-700 text-[10px]">{{ summary[s.nisn].persenA }}%</td>
           </tr>
         </tbody>
       </table>

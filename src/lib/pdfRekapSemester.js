@@ -21,7 +21,7 @@ async function loadImageDataUrl(url) {
     canvas.height = height
     const ctx = canvas.getContext('2d')
     ctx.drawImage(bmp, 0, 0, width, height)
-    return canvas.toDataURL('image/jpeg', 0.8)
+    return canvas.toDataURL('image/png')
   } catch {
     return null
   }
@@ -31,6 +31,7 @@ export async function generateRekapSemesterPDF({
   settings,
   kelas,
   waliKelas,
+  nipWaliKelas,
   tahun,
   semester,
   students,
@@ -41,7 +42,7 @@ export async function generateRekapSemesterPDF({
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
-  const margin = 15
+  const margin = 9
 
   // ---------- KOP SURAT ----------
   if (settings?.logo_url) {
@@ -114,7 +115,10 @@ export async function generateRekapSemesterPDF({
       { content: 'Izin' },
       { content: 'Sakit' },
       { content: 'Alfa' },
-      { content: '% Hadir' },
+      { content: '%H' },
+      { content: '%I' },
+      { content: '%S' },
+      { content: '%A' },
     ],
   ]
 
@@ -128,7 +132,10 @@ export async function generateRekapSemesterPDF({
       sum.I,
       sum.S,
       sum.A,
-      `${sum.persen}%`,
+      `${sum.persenH}%`,
+      `${sum.persenI}%`,
+      `${sum.persenS}%`,
+      `${sum.persenA}%`,
     ]
   })
 
@@ -138,17 +145,20 @@ export async function generateRekapSemesterPDF({
     startY: lineY + 22,
     margin: { left: margin, right: margin },
     theme: 'grid',
-    styles: { font: 'times', fontSize: 10, cellPadding: 1.5, lineColor: [120, 120, 120], lineWidth: 0.1 },
-    headStyles: { fillColor: [6, 78, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    styles: { font: 'times', fontSize: 11, cellPadding: 1.5, lineColor: [120, 120, 120], lineWidth: 0.1, halign: 'center', textColor: [0, 0, 0] },
+    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 25, halign: 'center' },
-      2: { halign: 'left' },
-      3: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
-      4: { cellWidth: 15, halign: 'center' },
-      5: { cellWidth: 15, halign: 'center' },
-      6: { cellWidth: 15, halign: 'center' },
-      7: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 20, halign: 'center' },
+      2: { cellWidth: 52, halign: 'left', cellPadding: 1.5 },
+      3: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+      4: { cellWidth: 12, halign: 'center' },
+      5: { cellWidth: 12, halign: 'center' },
+      6: { cellWidth: 12, halign: 'center' },
+      7: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+      8: { cellWidth: 16, halign: 'center' },
+      9: { cellWidth: 16, halign: 'center' },
+      10: { cellWidth: 16, halign: 'center' },
     },
   })
 
@@ -183,6 +193,9 @@ export async function generateRekapSemesterPDF({
   doc.setFontSize(10)
   if (settings?.nip_kepala_sekolah) {
     doc.text(`NIP. ${settings.nip_kepala_sekolah}`, colKiri, y + 35, { align: 'center' })
+  }
+  if (nipWaliKelas) {
+    doc.text(`NIP. ${nipWaliKelas}`, colKanan, y + 35, { align: 'center' })
   }
 
   const fileName = `Rekap_Semester_${semester}_${tahun}_Kelas-${kelas}.pdf`

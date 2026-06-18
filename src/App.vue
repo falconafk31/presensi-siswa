@@ -2,6 +2,7 @@
 import { watch, onMounted } from 'vue'
 import { Toaster } from 'vue-sonner'
 import { useSettingsStore } from '@/stores/settings'
+import PWAPrompt from '@/components/PWAPrompt.vue'
 
 const settingsStore = useSettingsStore()
 
@@ -27,4 +28,5 @@ watch(() => settingsStore.settings?.logo_url, (url) => {
 <template>
   <RouterView />
   <Toaster position="top-right" rich-colors />
+  <PWAPrompt />
 </template>

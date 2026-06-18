@@ -26,6 +26,8 @@ alter table public.academic_periods  enable row level security;
 alter table public.class_history     enable row level security;
 alter table public.app_settings      enable row level security;
 alter table public.activity_logs     enable row level security;
+alter table public.books             enable row level security;
+alter table public.book_loans        enable row level security;
 
 -- Helper: buat policy "allow all untuk anon+authenticated" pada satu tabel
 do $$
@@ -33,7 +35,8 @@ declare
   t text;
   tbls text[] := array[
     'users', 'students', 'attendance_logs', 'academic_calendar',
-    'academic_periods', 'class_history', 'app_settings', 'activity_logs'
+    'academic_periods', 'class_history', 'app_settings', 'activity_logs',
+    'books', 'book_loans'
   ];
 begin
   foreach t in array tbls loop

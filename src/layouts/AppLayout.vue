@@ -16,7 +16,11 @@ const periodStore = usePeriodStore()
 const sidebarOpen = ref(false)
 
 const visibleNav = computed(() =>
-  navItems.filter((item) => !item.adminOnly || auth.isAdmin)
+  navItems.filter((item) => {
+    if (item.adminOnly && !auth.isAdmin) return false
+    if (item.perpusOnly && !auth.canManagePerpus) return false
+    return true
+  })
 )
 
 onMounted(() => {
@@ -71,17 +75,24 @@ function closeSidebar() {
       </div>
 
       <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        <RouterLink
-          v-for="item in visibleNav"
-          :key="item.label"
-          :to="item.to"
-          class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"
-          active-class="bg-white/15 text-white"
-          @click="closeSidebar"
-        >
-          <component :is="item.icon" class="h-4 w-4 shrink-0" />
-          {{ item.label }}
-        </RouterLink>
+        <template v-for="(item, idx) in visibleNav" :key="idx">
+          <div
+            v-if="item.isHeader"
+            class="mb-2 mt-4 px-3 text-[10px] font-bold uppercase tracking-wider text-white/50"
+          >
+            {{ item.label }}
+          </div>
+          <RouterLink
+            v-else
+            :to="item.to"
+            class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"
+            exact-active-class="bg-white/15 text-white"
+            @click="closeSidebar"
+          >
+            <component :is="item.icon" class="h-4 w-4 shrink-0" />
+            {{ item.label }}
+          </RouterLink>
+        </template>
       </nav>
 
       <div class="border-t border-white/10 p-3">
