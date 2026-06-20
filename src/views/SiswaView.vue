@@ -5,6 +5,8 @@ import { Plus, Pencil, LogOut, Search, UserPlus, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import SkeletonLoader from '@/components/SkeletonLoader.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { todayISO } from '@/lib/dates'
@@ -22,6 +24,8 @@ const filterStatus = ref('aktif')
 
 const showForm = ref(false)
 const showMutasi = ref(false)
+const showConfirmDelete = ref(false)
+const siswaToDelete = ref(null)
 const saving = ref(false)
 const editing = ref(false)
 
@@ -246,16 +250,26 @@ async function prosesMutasi() {
   }
 }
 
-async function hapus(s) {
-  if (!confirm(`Yakin ingin MENGHAPUS PERMANEN siswa ${s.nama} (${s.nisn})?\nSeluruh data presensinya juga akan terhapus!`)) return
+function confirmHapus(s) {
+  siswaToDelete.value = s
+  showConfirmDelete.value = true
+}
+
+async function hapus() {
+  if (!siswaToDelete.value) return
+  saving.value = true
   try {
-    const { error } = await supabase.from('students').delete().eq('id', s.id)
+    const { error } = await supabase.from('students').delete().eq('id', siswaToDelete.value.id)
     if (error) throw error
-    await logActivity({ aksi: 'hapus_siswa', tabel_terkait: 'students', record_id: s.id, detail: { nisn: s.nisn, nama: s.nama } })
+    await logActivity({ aksi: 'hapus_siswa', tabel_terkait: 'students', record_id: siswaToDelete.value.id, detail: { nisn: siswaToDelete.value.nisn, nama: siswaToDelete.value.nama } })
     toast.success('Siswa berhasil dihapus')
+    showConfirmDelete.value = false
     await load()
   } catch (e) {
     toast.error('Gagal menghapus: ' + e.message)
+  } finally {
+    saving.value = false
+    siswaToDelete.value = null
   }
 }
 
@@ -296,8 +310,15 @@ onMounted(() => {
       </select>
     </div>
 
-    <div class="card overflow-x-auto">
-      <table class="min-w-full text-sm">
+    <!-- Desktop Table -->
+    <div class="card overflow-x-auto hidden md:block">
+      <SkeletonLoader v-if="loading" type="table" :rows="5" />
+      <EmptyState 
+        v-else-if="!paginated.length" 
+        title="Tidak ada siswa" 
+        description="Data siswa kosong atau tidak ditemukan dengan filter yang dipilih."
+      />
+      <table v-else class="min-w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
             <th class="px-3 py-2">NISN</th>
@@ -309,8 +330,6 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-if="loading"><td colspan="6" class="py-6 text-center text-gray-400">Memuat...</td></tr>
-          <tr v-else-if="!paginated.length"><td colspan="6" class="py-6 text-center text-gray-400">Tidak ada data.</td></tr>
           <tr v-for="s in paginated" :key="s.id" class="hover:bg-gray-50">
             <td class="px-3 py-2 text-gray-500">{{ s.nisn }}</td>
             <td class="px-3 py-2 font-medium text-gray-800">{{ s.nama }}</td>
@@ -319,21 +338,21 @@ onMounted(() => {
             <td class="px-3 py-2"><StatusBadge :label="s.status" :color="statusColor[s.status]" /></td>
             <td class="px-3 py-2">
               <div class="flex justify-end gap-1">
-                <button class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100" title="Edit" @click="openEdit(s)">
+                <button class="rounded-lg p-2 text-gray-500 hover:bg-gray-100" title="Edit" @click="openEdit(s)">
                   <Pencil class="h-4 w-4" />
                 </button>
                 <button
                   v-if="s.active"
-                  class="rounded-lg p-1.5 text-amber-500 hover:bg-amber-50"
+                  class="rounded-lg p-2 text-amber-500 hover:bg-amber-50"
                   title="Mutasi keluar"
                   @click="openMutasi(s)"
                 >
                   <LogOut class="h-4 w-4" />
                 </button>
                 <button
-                  class="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                  class="rounded-lg p-2 text-rose-500 hover:bg-rose-50"
                   title="Hapus Permanen"
-                  @click="hapus(s)"
+                  @click="confirmHapus(s)"
                 >
                   <Trash2 class="h-4 w-4" />
                 </button>
@@ -342,6 +361,40 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile Card List -->
+    <div class="md:hidden">
+      <SkeletonLoader v-if="loading" type="card" :rows="3" />
+      <EmptyState 
+        v-else-if="!paginated.length" 
+        title="Tidak ada siswa" 
+        description="Data siswa kosong atau tidak ditemukan dengan filter yang dipilih."
+      />
+      <div v-else class="space-y-3">
+        <div v-for="s in paginated" :key="s.id" class="card p-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-medium text-gray-800 text-base">{{ s.nama }}</div>
+            <StatusBadge :label="s.status" :color="statusColor[s.status]" />
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4">
+            <div><span class="font-medium">NISN:</span> {{ s.nisn }}</div>
+            <div><span class="font-medium">Kelas:</span> {{ s.kelas || '-' }}</div>
+            <div><span class="font-medium">JK:</span> {{ s.jk === 'L' ? 'Laki-laki' : 'Perempuan' }}</div>
+          </div>
+          <div class="flex items-center justify-end gap-2 border-t border-gray-100 pt-3">
+            <button class="flex-1 rounded-lg border border-gray-200 py-1.5 text-center text-xs font-medium hover:bg-gray-50 flex items-center justify-center gap-1 text-gray-600" @click="openEdit(s)">
+              <Pencil class="h-3 w-3" /> Edit
+            </button>
+            <button v-if="s.active" class="flex-1 rounded-lg border border-amber-200 py-1.5 text-center text-xs font-medium hover:bg-amber-50 flex items-center justify-center gap-1 text-amber-600" @click="openMutasi(s)">
+              <LogOut class="h-3 w-3" /> Mutasi
+            </button>
+            <button class="flex-1 rounded-lg border border-rose-200 py-1.5 text-center text-xs font-medium hover:bg-rose-50 flex items-center justify-center gap-1 text-rose-600" @click="confirmHapus(s)">
+              <Trash2 class="h-3 w-3" /> Hapus
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Pagination Controls -->
@@ -434,6 +487,33 @@ onMounted(() => {
       <template #footer>
         <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showMutasi = false">Batal</button>
         <button class="btn-primary" :disabled="saving" @click="prosesMutasi">{{ saving ? 'Memproses...' : 'Proses Mutasi' }}</button>
+      </template>
+    </BaseModal>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <BaseModal v-model="showConfirmDelete" title="Hapus Siswa Permanen" max-width="max-w-md">
+      <div v-if="siswaToDelete" class="space-y-4">
+        <div class="rounded-xl bg-rose-50 p-4 border border-rose-100">
+          <div class="flex items-start gap-3">
+            <div class="rounded-full bg-rose-100 p-2 text-rose-600">
+              <Trash2 class="h-5 w-5" />
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-rose-800">Peringatan Penghapusan</h4>
+              <p class="mt-1 text-sm text-rose-600">
+                Apakah Anda yakin ingin menghapus siswa <strong>{{ siswaToDelete.nama }}</strong> ({{ siswaToDelete.nisn }}) secara permanen?
+                Seluruh rekam data presensi yang terkait juga akan dihapus.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showConfirmDelete = false">Batal</button>
+        <button class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-70 flex items-center gap-2" :disabled="saving" @click="hapus">
+          <Trash2 v-if="!saving" class="h-4 w-4" />
+          {{ saving ? 'Menghapus...' : 'Hapus Permanen' }}
+        </button>
       </template>
     </BaseModal>
 

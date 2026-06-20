@@ -23,14 +23,14 @@ watch(
 
 <template>
   <Teleport to="body">
-    <Transition name="fade">
+    <Transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+        class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4 backdrop-blur-sm"
         @click.self="close"
       >
         <div
-          class="w-full rounded-t-2xl bg-white shadow-md sm:rounded-2xl"
+          class="modal-content w-full rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
           :class="maxWidth"
         >
           <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
@@ -52,12 +52,27 @@ watch(
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
+.modal-enter-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.fade-enter-from,
-.fade-leave-to {
+.modal-enter-active .modal-content {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.modal-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.modal-leave-active .modal-content {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-enter-from,
+.modal-leave-to {
   opacity: 0;
+}
+.modal-enter-from .modal-content {
+  transform: scale(0.95) translateY(10px);
+}
+.modal-leave-to .modal-content {
+  transform: scale(0.95) translateY(10px);
 }
 </style>

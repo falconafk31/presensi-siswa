@@ -374,9 +374,6 @@ onMounted(() => {
               <input v-model="form.nip_kepala_sekolah" class="input-field" />
             </div>
           </div>
-          <button class="btn-primary w-full" :disabled="savingSettings" @click="saveSettings">
-            <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan' }}
-          </button>
         </div>
       </div>
 
@@ -483,6 +480,13 @@ onMounted(() => {
               <span class="text-gray-700">{{ hari }}</span>
             </label>
           </div>
+        </div>
+        
+        <!-- Tombol Simpan (Dipindahkan ke bawah untuk UX lebih baik) -->
+        <div class="flex justify-end pt-2 mb-6">
+          <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
+            <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan' }}
+          </button>
         </div>
         
         <!-- Pemeliharaan Database (Danger Zone) -->

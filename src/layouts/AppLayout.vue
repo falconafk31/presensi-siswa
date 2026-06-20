@@ -85,8 +85,8 @@ function closeSidebar() {
           <RouterLink
             v-else
             :to="item.to"
-            class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"
-            exact-active-class="bg-white/15 text-white"
+            class="flex items-center gap-3 rounded-r-xl border-l-4 border-transparent px-3 py-2.5 text-sm font-medium text-white/80 transition-all hover:bg-white/10"
+            exact-active-class="bg-white/10 !border-gold text-gold pl-4"
             @click="closeSidebar"
           >
             <component :is="item.icon" class="h-4 w-4 shrink-0" />

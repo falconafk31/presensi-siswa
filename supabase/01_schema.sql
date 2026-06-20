@@ -107,7 +107,7 @@ create table if not exists public.app_settings (
   kepala_sekolah      text,
   nip_kepala_sekolah  text,
   logo_url            text,
-  daftar_kelas        jsonb default '[]'::jsonb,
+  daftar_kelas    jsonb not null default '["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B", "6A", "6B"]'::jsonb,
   kop_baris2          text,
   kop_baris3          text,
   kop_baris4          text,

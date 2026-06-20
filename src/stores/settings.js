@@ -19,7 +19,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const defaultData = data || {}
       settings.value = {
         ...defaultData,
-        daftar_kelas: defaultData.daftar_kelas || ['1', '2', '3', '4', '5', '6'],
+        daftar_kelas: defaultData.daftar_kelas || ['1A', '1B', '2A', '2B', '3A', '3B', '4A', '4B', '5A', '5B', '6A', '6B'],
         kop_baris2: defaultData.kop_baris2 || '',
         kop_baris3: defaultData.kop_baris3 || '',
         kop_baris4: defaultData.kop_baris4 || '',
