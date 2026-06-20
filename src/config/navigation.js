@@ -14,6 +14,8 @@ import {
   BookOpen,
   Library,
   PieChart,
+  UsersRound,
+  HelpCircle
 } from 'lucide-vue-next'
 
 // adminOnly: true -> hanya tampil untuk role 'Admin'
@@ -27,6 +29,7 @@ export const navItems = [
   
   { isHeader: true, label: 'PERPUSTAKAAN', perpusOnly: true },
   { to: { name: 'dashboard-perpus' }, label: 'Dashboard Perpus', icon: PieChart, perpusOnly: true },
+  { to: { name: 'kunjungan-perpus' }, label: 'Kunjungan Perpus', icon: UsersRound, perpusOnly: true },
   { to: { name: 'buku' }, label: 'Katalog Buku', icon: Book, perpusOnly: true },
   { to: { name: 'peminjaman' }, label: 'Sirkulasi Buku', icon: BookOpen, perpusOnly: true },
   { to: { name: 'rekap-perpus' }, label: 'Laporan Perpus', icon: Library, perpusOnly: true },
@@ -38,4 +41,7 @@ export const navItems = [
   { to: { name: 'riwayat-kelas' }, label: 'Riwayat Kelas', icon: History, adminOnly: true },
   { to: { name: 'aktivitas' }, label: 'Log Aktivitas', icon: ScrollText, adminOnly: true },
   { to: { name: 'pengaturan' }, label: 'Pengaturan', icon: Settings, adminOnly: true },
+  
+  { isHeader: true, label: 'BANTUAN' },
+  { to: { name: 'panduan' }, label: 'Panduan Penggunaan', icon: HelpCircle },
 ]

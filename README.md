@@ -34,18 +34,24 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
     * Pembuatan matriks kehadiran bulanan dan semester.
     * Cetak dokumen PDF yang dilengkapi dengan **Kop Surat Resmi Kementerian Agama**, penanda hari libur otomatis (warna merah), dan auto-stretch kolom presisi.
     * Ekspor data ke format **Excel (.xlsx)** lengkap dengan Nama Wali Kelas dan NIP.
+5.  **Panduan Penggunaan Built-in:** Buku manual digital interaktif terpadu di dalam aplikasi untuk memandu setiap *role* (Admin, Guru, Pustakawan).
 
 ### 📚 Sistem Perpustakaan (Modul Baru)
 1.  **Katalog Buku:** Manajemen data buku (Judul, Pengarang, Penerbit, Tahun, Stok).
 2.  **Sirkulasi Cerdas:** Peminjaman dan Pengembalian dengan auto-kalkulasi stok secara *real-time*.
-3.  **Laporan Perpustakaan:** Ekspor riwayat sirkulasi dan status peminjaman aktif ke PDF secara mudah.
-4.  **Hak Akses Khusus:** Terdapat hak akses **Pustakawan** khusus untuk mengelola fitur perpustakaan.
+3.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah.
+4.  **Hak Akses Khusus:** Mendukung *role* **Pustakawan** murni, serta *role* **Guru & Pustakawan** bagi guru wali kelas yang juga ditugaskan mengurus perpustakaan.
 
 ### ⚙️ Engine Inti
 1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat).
 2.  **Progressive Web App (PWA):** Dukungan penuh PWA yang memungkinkan aplikasi ini **di-instal secara native** ke Home Screen smartphone/desktop, lengkap dengan *Service Worker Caching* untuk akses ultra-cepat.
-3.  **Kenaikan Kelas Otomatis:** Sistem yang otomatis meluluskan siswa tingkat akhir dan menaikkan kelas lainnya secara masif.
-4.  **Performa Ekstra Cepat:** Penggunaan *Client-Side Pagination* (50 baris per halaman) pada data skala besar menjamin layar bebas *freeze*.
+3.  **Manajemen Tingkat Lanjut & Zona Berbahaya:**
+    * **Kenaikan Kelas Otomatis:** Sistem yang otomatis meluluskan siswa tingkat akhir dan menaikkan kelas lainnya secara masif di akhir tahun.
+    * **Reset Database (Wipe):** Fungsi *reset* sekali klik khusus Admin untuk menghapus data absensi/log lama, memastikan database Supabase tier gratis tetap lega.
+4.  **Performa Ekstra Cepat (Optimized):** 
+    * Penggunaan *Client-Side Pagination* (25 baris per halaman) pada data statistik mengefisienkan *rendering* tabel.
+    * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, membuat ukuran pemuatan awal halaman menjadi instan.
+    * Konfigurasi anti-crash `cross-env NODE_OPTIONS` untuk kelancaran *build* & *development*.
 
 ## 🎨 Design System
 
@@ -67,7 +73,7 @@ Ikuti langkah-langkah berikut untuk menjalankan proyek ini di mesin lokal Anda m
 ### 2. Clone Repository & Install Dependensi
 ```bash
 # Clone repository ini (jika sudah di-push ke GitHub)
-git clone <url-repo-anda>
+git clone https://github.com/falconafk31/presensi-siswa.git
 cd presensi-siswa
 
 # Install semua dependensi NPM
@@ -89,7 +95,7 @@ npm run dev
 Buka `http://localhost:5173` di *browser*. 
 * Login Admin: `admin / admin123`
 * Login Guru: `guru1 / guru123` (jika menggunakan data *seed*)
-* Hak Akses tersedia: **Admin**, **Guru**, dan **Pustakawan**
+* Hak Akses tersedia: **Admin**, **Guru**, **Pustakawan**, dan **Guru & Pustakawan**.
 
 ### 5. Deployment ke Vercel (Produksi)
 Proyek ini sudah dilengkapi dengan `vercel.json` untuk menjamin lalu lintas *Vue Router* berjalan lancar tanpa *Error 404* saat pengguna melakukan *refresh* di URL anak (contoh: `/siswa` atau `/rekap`).

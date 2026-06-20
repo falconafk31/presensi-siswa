@@ -50,6 +50,4 @@ min-blora-presensi/
     └── stores/auth.js        # Pinia auth store (login ke tabel users)
 ```
 
-## Berikutnya (Langkah 2)
-Setup database Supabase: 8 tabel, RLS, bucket Storage untuk logo, dan seed data.
-Bilang "lanjut langkah 2" untuk aku siapkan SQL schema-nya.
+

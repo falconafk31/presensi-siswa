@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2 } from 'lucide-vue-next'
+import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -26,6 +26,19 @@ const savingPeriod = ref(false)
 
 const showKenaikan = ref(false)
 const prosesKenaikan = ref(false)
+
+const showResetAbsensi = ref(false)
+const prosesResetAbsensi = ref(false)
+const konfirmasiResetAbsensi = ref('')
+
+const showResetLog = ref(false)
+const prosesResetLog = ref(false)
+
+const showResetPerpusKunjungan = ref(false)
+const prosesResetPerpusKunjungan = ref(false)
+
+const showResetPerpusPinjaman = ref(false)
+const prosesResetPerpusPinjaman = ref(false)
 
 const newKelas = ref('')
 
@@ -160,7 +173,7 @@ async function jalankanKenaikan() {
     if (error) throw error
 
     // Ambil wali kelas per kelas untuk snapshot.
-    const { data: guru } = await supabase.from('users').select('nama, kelas').eq('role', 'Guru')
+    const { data: guru } = await supabase.from('users').select('nama, kelas').in('role', ['Guru', 'Guru & Pustakawan'])
     const waliByKelas = {}
     for (const g of guru || []) if (g.kelas) waliByKelas[g.kelas] = g.nama
 
@@ -236,6 +249,77 @@ async function jalankanKenaikan() {
     toast.error('Gagal: ' + e.message)
   } finally {
     prosesKenaikan.value = false
+  }
+}
+
+async function jalankanResetAbsensi() {
+  if (konfirmasiResetAbsensi.value !== 'HAPUS SEMUA') {
+    toast.error('Ketik HAPUS SEMUA untuk konfirmasi')
+    return
+  }
+  
+  prosesResetAbsensi.value = true
+  try {
+    const { error } = await supabase.from('attendance_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Trick to delete all rows
+    if (error) throw error
+    
+    toast.success('Seluruh data absensi berhasil dihapus')
+    await logActivity({ aksi: 'reset_data_absensi', tabel_terkait: 'attendance_logs' })
+    showResetAbsensi.value = false
+    konfirmasiResetAbsensi.value = ''
+  } catch (e) {
+    toast.error('Gagal menghapus data absensi: ' + e.message)
+  } finally {
+    prosesResetAbsensi.value = false
+  }
+}
+
+async function jalankanResetLog() {
+  prosesResetLog.value = true
+  try {
+    const { error } = await supabase.from('activity_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Trick to delete all rows
+    if (error) throw error
+    
+    toast.success('Seluruh log aktivitas berhasil dibersihkan')
+    showResetLog.value = false
+  } catch (e) {
+    toast.error('Gagal membersihkan log: ' + e.message)
+  } finally {
+    prosesResetLog.value = false
+  }
+}
+
+async function jalankanResetPerpusKunjungan() {
+  prosesResetPerpusKunjungan.value = true
+  try {
+    const { error } = await supabase.from('library_visits').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (error) throw error
+    toast.success('Seluruh data kunjungan perpustakaan berhasil dihapus')
+    await logActivity({ aksi: 'reset_data_kunjungan_perpus', tabel_terkait: 'library_visits' })
+    showResetPerpusKunjungan.value = false
+  } catch (e) {
+    toast.error('Gagal menghapus kunjungan perpus: ' + e.message)
+  } finally {
+    prosesResetPerpusKunjungan.value = false
+  }
+}
+
+async function jalankanResetPerpusPinjaman() {
+  prosesResetPerpusPinjaman.value = true
+  try {
+    const { error } = await supabase.from('book_loans').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    if (error) throw error
+    
+    // Status semua buku harus di reset ke tersedia (jika ada flag)
+    // Dalam desain kita stok buku dan loan saling terhubung by query, jadi menghapus loan otomatis membuat buku tersedia lagi
+    
+    toast.success('Seluruh data riwayat peminjaman buku berhasil dihapus')
+    await logActivity({ aksi: 'reset_data_pinjaman_perpus', tabel_terkait: 'book_loans' })
+    showResetPerpusPinjaman.value = false
+  } catch (e) {
+    toast.error('Gagal menghapus data peminjaman buku: ' + e.message)
+  } finally {
+    prosesResetPerpusPinjaman.value = false
   }
 }
 
@@ -400,6 +484,56 @@ onMounted(() => {
             </label>
           </div>
         </div>
+        
+        <!-- Pemeliharaan Database (Danger Zone) -->
+        <div class="card border border-rose-200 bg-rose-50/20">
+          <h3 class="mb-3 text-sm font-semibold text-rose-700 flex items-center gap-2">
+            <AlertTriangle class="h-4 w-4" /> Zona Berbahaya
+          </h3>
+          <p class="mb-4 text-xs text-rose-600/80">Tindakan di bawah ini tidak dapat dibatalkan. Berhati-hatilah dalam menghapus data.</p>
+          
+          <div class="space-y-3">
+            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">Reset Data Absensi</p>
+                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat presensi siswa dari awal sampai akhir.</p>
+              </div>
+              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetAbsensi = true">
+                <Trash2 class="h-3.5 w-3.5" /> Hapus Absensi
+              </button>
+            </div>
+            
+            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">Bersihkan Log Aktivitas</p>
+                <p class="text-xs text-gray-500">Hapus riwayat aktivitas pengguna (Log App) untuk menghemat ruang.</p>
+              </div>
+              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetLog = true">
+                <Trash2 class="h-3.5 w-3.5" /> Hapus Log
+              </button>
+            </div>
+            
+            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">Reset Data Kunjungan Perpustakaan</p>
+                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat buku tamu perpustakaan.</p>
+              </div>
+              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetPerpusKunjungan = true">
+                <Trash2 class="h-3.5 w-3.5" /> Hapus Kunjungan
+              </button>
+            </div>
+            
+            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">Reset Riwayat Peminjaman Buku</p>
+                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat sirkulasi peminjaman & pengembalian buku.</p>
+              </div>
+              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetPerpusPinjaman = true">
+                <Trash2 class="h-3.5 w-3.5" /> Hapus Peminjaman
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -443,6 +577,89 @@ onMounted(() => {
           <Loader2 v-if="prosesKenaikan" class="h-4 w-4 animate-spin" />
           <GraduationCap v-else class="h-4 w-4" />
           {{ prosesKenaikan ? 'Memproses...' : 'Ya, Proses' }}
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Modal Konfirmasi Reset Absensi -->
+    <BaseModal v-model="showResetAbsensi" title="Peringatan Keras!" max-width="max-w-md">
+      <div class="space-y-4">
+        <div class="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">
+          <p class="font-bold mb-1">Anda akan MENGHAPUS SELURUH data presensi!</p>
+          <p>Tindakan ini akan mengosongkan tabel presensi dari awal aplikasi ini digunakan. Data yang sudah dihapus tidak dapat dikembalikan lagi.</p>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-600">Ketik "HAPUS SEMUA" untuk konfirmasi:</label>
+          <input v-model="konfirmasiResetAbsensi" class="input-field border-rose-200 focus:border-rose-500 focus:ring-rose-500" placeholder="HAPUS SEMUA" />
+        </div>
+      </div>
+      <template #footer>
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetAbsensi = false">Batal</button>
+        <button 
+          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50" 
+          :disabled="prosesResetAbsensi || konfirmasiResetAbsensi !== 'HAPUS SEMUA'" 
+          @click="jalankanResetAbsensi"
+        >
+          <Loader2 v-if="prosesResetAbsensi" class="h-4 w-4 animate-spin" />
+          <Trash2 v-else class="h-4 w-4" />
+          {{ prosesResetAbsensi ? 'Menghapus...' : 'Ya, Hapus Permanen' }}
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Modal Konfirmasi Reset Log -->
+    <BaseModal v-model="showResetLog" title="Bersihkan Log Aktivitas" max-width="max-w-sm">
+      <div class="text-sm text-gray-600">
+        <p>Apakah Anda yakin ingin menghapus seluruh rekaman log aktivitas aplikasi? Ini tidak akan menghapus data master (siswa, guru, absensi, dll) dan murni hanya riwayat saja.</p>
+      </div>
+      <template #footer>
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetLog = false">Batal</button>
+        <button 
+          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
+          :disabled="prosesResetLog" 
+          @click="jalankanResetLog"
+        >
+          <Loader2 v-if="prosesResetLog" class="h-4 w-4 animate-spin" />
+          <Trash2 v-else class="h-4 w-4" />
+          {{ prosesResetLog ? 'Membersihkan...' : 'Bersihkan' }}
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Modal Konfirmasi Reset Perpus Kunjungan -->
+    <BaseModal v-model="showResetPerpusKunjungan" title="Reset Kunjungan Perpustakaan" max-width="max-w-sm">
+      <div class="text-sm text-gray-600">
+        <p>Anda akan menghapus SELURUH riwayat buku tamu perpustakaan. Apakah Anda yakin melanjutkan?</p>
+      </div>
+      <template #footer>
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetPerpusKunjungan = false">Batal</button>
+        <button 
+          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
+          :disabled="prosesResetPerpusKunjungan" 
+          @click="jalankanResetPerpusKunjungan"
+        >
+          <Loader2 v-if="prosesResetPerpusKunjungan" class="h-4 w-4 animate-spin" />
+          <Trash2 v-else class="h-4 w-4" />
+          {{ prosesResetPerpusKunjungan ? 'Menghapus...' : 'Ya, Hapus' }}
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Modal Konfirmasi Reset Perpus Pinjaman -->
+    <BaseModal v-model="showResetPerpusPinjaman" title="Reset Sirkulasi Peminjaman" max-width="max-w-sm">
+      <div class="text-sm text-gray-600">
+        <p>Anda akan menghapus SELURUH riwayat peminjaman buku (termasuk yang sedang dipinjam). Buku yang dihapus riwayatnya akan otomatis berstatus tersedia kembali. Lanjutkan?</p>
+      </div>
+      <template #footer>
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetPerpusPinjaman = false">Batal</button>
+        <button 
+          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
+          :disabled="prosesResetPerpusPinjaman" 
+          @click="jalankanResetPerpusPinjaman"
+        >
+          <Loader2 v-if="prosesResetPerpusPinjaman" class="h-4 w-4 animate-spin" />
+          <Trash2 v-else class="h-4 w-4" />
+          {{ prosesResetPerpusPinjaman ? 'Menghapus...' : 'Ya, Hapus' }}
         </button>
       </template>
     </BaseModal>

@@ -124,3 +124,43 @@ export function exportExcelSemester({
   XLSX.utils.book_append_sheet(wb, ws, `Rekap Semester`)
   XLSX.writeFile(wb, `Rekap_Semester_Kelas-${kelas}.xlsx`)
 }
+
+export function exportExcelKunjungan({
+  topStudents,
+  periodeText,
+}) {
+  const wsData = []
+
+  wsData.push([`REKAPITULASI KUNJUNGAN PERPUSTAKAAN`])
+  wsData.push([`Periode: ${periodeText}`])
+  wsData.push([])
+
+  const headRow = ['No', 'Nama Siswa', 'Kelas', 'Jumlah Kunjungan']
+  wsData.push(headRow)
+
+  if (!topStudents || topStudents.length === 0) {
+    wsData.push(['-', 'Belum ada data kunjungan pada periode ini', '-', '-'])
+  } else {
+    topStudents.forEach((s, i) => {
+      wsData.push([
+        i + 1,
+        s.nama,
+        s.kelas || '-',
+        s.count
+      ])
+    })
+  }
+
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+  ws['!cols'] = [
+    { wch: 5 },  // No
+    { wch: 35 }, // Nama
+    { wch: 15 }, // Kelas
+    { wch: 20 }, // Jumlah
+  ]
+
+  XLSX.utils.book_append_sheet(wb, ws, `Kunjungan`)
+  XLSX.writeFile(wb, `Rekap_Kunjungan_Perpus_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}

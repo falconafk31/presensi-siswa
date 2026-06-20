@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { todayISO } from '@/lib/dates'
 import { useSettingsStore } from '@/stores/settings'
-import * as xlsx from 'xlsx'
 import { FileUp } from 'lucide-vue-next'
 
 const settingsStore = useSettingsStore()
@@ -46,9 +45,11 @@ function openUpload() {
   showUpload.value = true
 }
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const xlsx = await import('xlsx')
   const ws = xlsx.utils.json_to_sheet([
-    { NISN: '1234567890', Nama: 'Fulan', JK: 'L', Kelas: '1A' }
+    { NISN: '1234567890', Nama: 'Ahmad Siswa', L: 'L', Kelas: '1A' },
+    { NISN: '1234567891', Nama: 'Siti Siswi', P: 'P', Kelas: '1A' },
   ])
   const wb = xlsx.utils.book_new()
   xlsx.utils.book_append_sheet(wb, ws, 'Template Siswa')
@@ -63,6 +64,7 @@ async function processUpload() {
   if (!selectedFile.value) return
   uploadingExcel.value = true
   try {
+    const xlsx = await import('xlsx')
     const data = await selectedFile.value.arrayBuffer()
     const wb = xlsx.read(data)
     const ws = wb.Sheets[wb.SheetNames[0]]

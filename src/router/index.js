@@ -99,6 +99,18 @@ const routes = [
         component: () => import('@/views/RekapPerpusView.vue'),
         meta: { perpusOnly: true },
       },
+      {
+        path: 'kunjungan-perpus',
+        name: 'kunjungan-perpus',
+        component: () => import('@/views/KunjunganPerpusView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
+        path: 'panduan',
+        name: 'panduan',
+        component: () => import('@/views/PanduanView.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },

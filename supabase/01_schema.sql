@@ -186,3 +186,15 @@ create trigger trg_book_loans_updated_at
   before update on public.book_loans
   for each row execute function public.set_updated_at();
 
+-- ---------------------------------------------------------------------
+-- 11. library_visits (Kunjungan Perpustakaan)
+-- ---------------------------------------------------------------------
+create table if not exists public.library_visits (
+  id            uuid primary key default gen_random_uuid(),
+  student_nisn  text not null references public.students (nisn) on update cascade on delete cascade,
+  tanggal       date not null default current_date,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists idx_library_visits_tanggal on public.library_visits (tanggal);
+create index if not exists idx_library_visits_student on public.library_visits (student_nisn);

@@ -13,7 +13,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'Admin')
-  const isPustakawan = computed(() => user.value?.role === 'Pustakawan')
+  const isPustakawan = computed(() => user.value?.role === 'Pustakawan' || user.value?.role === 'Guru & Pustakawan')
   const canManagePerpus = computed(() => isAdmin.value || isPustakawan.value)
   const kelas = computed(() => user.value?.kelas ?? null)
 

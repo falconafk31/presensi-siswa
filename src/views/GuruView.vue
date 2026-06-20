@@ -8,7 +8,6 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { useSettingsStore } from '@/stores/settings'
-import * as xlsx from 'xlsx'
 import { FileUp } from 'lucide-vue-next'
 
 const settingsStore = useSettingsStore()
@@ -34,7 +33,8 @@ function openUpload() {
   showUpload.value = true
 }
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const xlsx = await import('xlsx')
   const ws = xlsx.utils.json_to_sheet([
     { Username: 'guru_mat', Password: 'password123', Nama: 'Fulan SPd', Role: 'Guru', 'Wali Kelas': '1A', 'NIP': '198001012010011001' }
   ])
@@ -51,6 +51,7 @@ async function processUpload() {
   if (!selectedFile.value) return
   uploadingExcel.value = true
   try {
+    const xlsx = await import('xlsx')
     const data = await selectedFile.value.arrayBuffer()
     const wb = xlsx.read(data)
     const ws = wb.Sheets[wb.SheetNames[0]]
@@ -60,14 +61,19 @@ async function processUpload() {
 
     const toInsert = rows.map(r => {
       const roleText = String(r.Role || 'Guru').trim()
-      // Normalize role
-      const role = roleText.toLowerCase() === 'admin' ? 'Admin' : 'Guru'
+      let role = 'Guru'
+      if (roleText.toLowerCase() === 'admin') role = 'Admin'
+      else if (roleText.toLowerCase() === 'pustakawan') role = 'Pustakawan'
+      else if (roleText.toLowerCase() === 'guru & pustakawan' || roleText.toLowerCase() === 'guru dan pustakawan') role = 'Guru & Pustakawan'
+      
+      const requiresKelas = role === 'Guru' || role === 'Guru & Pustakawan'
+      
       return {
         username: String(r.Username || '').trim(),
         password: String(r.Password || '').trim(),
         nama: String(r.Nama || '').trim(),
         role: role,
-        kelas: r['Wali Kelas'] && role === 'Guru' ? String(r['Wali Kelas']).trim().toUpperCase() : null,
+        kelas: r['Wali Kelas'] && requiresKelas ? String(r['Wali Kelas']).trim().toUpperCase() : null,
         nip: r.NIP ? String(r.NIP).trim() : null
       }
     }).filter(r => r.username && r.nama && r.password)
@@ -131,7 +137,7 @@ async function save() {
       username: form.value.username,
       nama: form.value.nama,
       role: form.value.role,
-      kelas: form.value.role === 'Guru' ? (form.value.kelas || null) : null,
+      kelas: (form.value.role === 'Guru' || form.value.role === 'Guru & Pustakawan') ? (form.value.kelas || null) : null,
       nip: form.value.nip || null
     }
     if (editing.value) {
@@ -250,12 +256,13 @@ onMounted(() => {
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600">Role</label>
             <select v-model="form.role" class="input-field">
-              <option value="Guru">Guru</option>
-              <option value="Pustakawan">Pustakawan</option>
+              <option value="Guru">Guru (Wali Kelas)</option>
+              <option value="Pustakawan">Pustakawan (Non-Guru)</option>
+              <option value="Guru & Pustakawan">Guru & Pustakawan</option>
               <option value="Admin">Admin</option>
             </select>
           </div>
-          <div v-if="form.role === 'Guru'">
+          <div v-if="form.role === 'Guru' || form.role === 'Guru & Pustakawan'">
             <label class="mb-1 block text-xs font-medium text-gray-600">Wali Kelas</label>
             <select v-model="form.kelas" class="input-field">
               <option value="">- (tanpa kelas)</option>
