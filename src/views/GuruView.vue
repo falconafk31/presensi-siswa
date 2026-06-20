@@ -5,13 +5,20 @@ import { UserPlus, Pencil, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { TriangleAlert } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { useSettingsStore } from '@/stores/settings'
 import { FileUp } from 'lucide-vue-next'
+import { createClient } from '@supabase/supabase-js'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
+
+// Secondary client agar signUp tidak me-logout sesi Admin saat ini
+const authClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+})
 
 const users = ref([])
 const loading = ref(false)
@@ -140,23 +147,34 @@ async function save() {
       kelas: (form.value.role === 'Guru' || form.value.role === 'Guru & Pustakawan') ? (form.value.kelas || null) : null,
       nip: form.value.nip || null
     }
+
     if (editing.value) {
-      if (form.value.password) payload.password = form.value.password
+      // Hanya update profil di public.users (Password tidak bisa diubah dari sini)
       const { error } = await supabase.from('users').update(payload).eq('id', form.value.id)
       if (error) throw error
       await logActivity({ aksi: 'update_guru', tabel_terkait: 'users', record_id: form.value.id, detail: { username: form.value.username, kelas: payload.kelas } })
-      toast.success('Akun diperbarui')
+      toast.success('Profil diperbarui')
     } else {
-      payload.password = form.value.password
-      const { data, error } = await supabase.from('users').insert(payload).select().single()
+      // Buat akun baru via Supabase Auth API
+      const { data, error } = await authClient.auth.signUp({
+        email: `${form.value.username}@minblora.id`,
+        password: form.value.password,
+        options: {
+          data: {
+            username: form.value.username,
+            nama: form.value.nama,
+            role: form.value.role,
+            kelas: payload.kelas
+          }
+        }
+      })
       if (error) throw error
-      await logActivity({ aksi: 'tambah_guru', tabel_terkait: 'users', record_id: data.id, detail: { username: form.value.username } })
-      toast.success('Akun guru ditambahkan')
+      toast.success('Akun guru berhasil didaftarkan')
     }
     showForm.value = false
     await load()
   } catch (e) {
-    toast.error('Gagal: ' + (e.message?.includes('duplicate') ? 'Username sudah dipakai' : e.message))
+    toast.error('Gagal: ' + (e.message?.includes('duplicate') || e.message?.includes('already registered') ? 'Username sudah dipakai' : e.message))
   } finally {
     saving.value = false
   }
@@ -168,19 +186,8 @@ function confirmDelete(u) {
 }
 
 async function doDelete() {
-  saving.value = true
-  try {
-    const { error } = await supabase.from('users').delete().eq('id', target.value.id)
-    if (error) throw error
-    await logActivity({ aksi: 'hapus_guru', tabel_terkait: 'users', record_id: target.value.id, detail: { username: target.value.username } })
-    toast.success('Akun dihapus')
-    showDelete.value = false
-    await load()
-  } catch (e) {
-    toast.error('Gagal: ' + e.message)
-  } finally {
-    saving.value = false
-  }
+  toast.info('Demi keamanan, penghapusan akun guru hanya bisa dilakukan melalui Supabase Dashboard (Authentication > Users).', { duration: 5000 })
+  showDelete.value = false
 }
 
 onMounted(() => {
@@ -242,10 +249,8 @@ onMounted(() => {
           <label class="mb-1 block text-xs font-medium text-gray-600">Username</label>
           <input v-model="form.username" class="input-field" />
         </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">
-            Password {{ editing ? '(kosongkan jika tidak diganti)' : '' }}
-          </label>
+        <div v-if="!editing">
+          <label class="mb-1 block text-xs font-medium text-gray-600">Password</label>
           <input v-model="form.password" type="text" class="input-field" placeholder="••••••" />
         </div>
         <div>
@@ -277,13 +282,24 @@ onMounted(() => {
       </template>
     </BaseModal>
 
-    <BaseModal v-model="showDelete" title="Hapus Akun" max-width="max-w-sm">
-      <p class="text-sm text-gray-600">Yakin menghapus akun <strong>{{ target?.nama }}</strong>?</p>
+    <BaseModal v-model="showDelete" title="Informasi Penghapusan Akun">
+      <div class="space-y-4 py-2">
+        <div class="flex items-center justify-center text-amber-500">
+          <TriangleAlert class="h-12 w-12" />
+        </div>
+        <p class="text-center text-sm text-gray-600">
+          Untuk menjaga keamanan data tingkat tinggi, penghapusan akun <strong>{{ target?.nama }}</strong> hanya dapat dilakukan melalui <strong>Supabase Dashboard</strong>.
+        </p>
+        <div class="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+          <strong>Langkah-langkah:</strong><br/>
+          1. Buka Supabase Dashboard<br/>
+          2. Masuk ke menu <strong>Authentication &gt; Users</strong><br/>
+          3. Cari email <code>{{ target?.username }}@minblora.id</code><br/>
+          4. Klik tombol Delete user. Data profil di aplikasi akan otomatis terhapus.
+        </div>
+      </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showDelete = false">Batal</button>
-        <button class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" :disabled="saving" @click="doDelete">
-          <Trash2 class="h-4 w-4" /> Hapus
-        </button>
+        <button class="btn-secondary w-full" @click="showDelete = false">Saya Mengerti</button>
       </template>
     </BaseModal>
 

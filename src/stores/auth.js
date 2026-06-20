@@ -1,15 +1,9 @@
 import { defineStore } from 'pinia'
-import { useStorage } from '@vueuse/core'
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = useStorage('presensi.user', null, localStorage, {
-    serializer: {
-      read: (v) => (v ? JSON.parse(v) : null),
-      write: (v) => JSON.stringify(v),
-    },
-  })
+  const user = ref(null)
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'Admin')
@@ -17,24 +11,56 @@ export const useAuthStore = defineStore('auth', () => {
   const canManagePerpus = computed(() => isAdmin.value || isPustakawan.value)
   const kelas = computed(() => user.value?.kelas ?? null)
 
-  async function login(username, password) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, nama, role, kelas')
-      .eq('username', username)
-      .eq('password', password)
-      .maybeSingle()
-
-    if (error) throw new Error(error.message)
-    if (!data) throw new Error('Username atau password salah')
-
-    user.value = data
-    return data
+  async function fetchProfile(auth_id) {
+    const { data, error } = await supabase.from('users').select('*').eq('auth_id', auth_id).single()
+    if (!error && data) {
+      user.value = data
+    } else {
+      user.value = null
+    }
   }
 
-  function logout() {
+  // Initialize session on load
+  async function initialize() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      await fetchProfile(session.user.id)
+    }
+    
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await fetchProfile(session.user.id)
+      } else {
+        user.value = null
+      }
+    })
+  }
+
+  async function login(username, password) {
+    const email = `${username}@minblora.id`
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Username atau password salah')
+      }
+      throw new Error(error.message)
+    }
+
+    await fetchProfile(data.user.id)
+    return user.value
+  }
+
+  async function logout() {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw new Error(error.message)
     user.value = null
   }
 
-  return { user, isAuthenticated, isAdmin, isPustakawan, canManagePerpus, kelas, login, logout }
+  return { user, isAuthenticated, isAdmin, isPustakawan, canManagePerpus, kelas, login, logout, initialize }
 })

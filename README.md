@@ -97,7 +97,15 @@ Buka `http://localhost:5173` di *browser*.
 * Login Guru: `guru1 / guru123` (jika menggunakan data *seed*)
 * Hak Akses tersedia: **Admin**, **Guru**, **Pustakawan**, dan **Guru & Pustakawan**.
 
-### 5. Deployment ke Vercel (Produksi)
+### 5. Mengubah Username Admin / Menambah Admin Baru
+Sistem keamanan Supabase secara ketat menggunakan email untuk identitas (*under the hood* menggunakan ekstensi `@minblora.id`). Jika Anda ingin mengubah username `admin` menjadi nama lain (misal: `kepsek`):
+1. **Login** menggunakan akun Admin bawaan.
+2. Buka menu **Guru & Wali Kelas**.
+3. Klik **+ Tambah Akun** dan buat akun baru dengan username `kepsek`, lalu set **Role = Admin**.
+4. Logout, kemudian login kembali menggunakan akun `kepsek` yang baru saja dibuat.
+5. Hapus akun `admin` yang lama jika sudah tidak diperlukan.
+
+### 6. Deployment ke Vercel (Produksi)
 Proyek ini sudah dilengkapi dengan `vercel.json` untuk menjamin lalu lintas *Vue Router* berjalan lancar tanpa *Error 404* saat pengguna melakukan *refresh* di URL anak (contoh: `/siswa` atau `/rekap`).
 - Cukup hubungkan *repository* Github Anda ke Dashboard Vercel.
 - *Build command* yang berjalan otomatis adalah `npm run build` dan foldernya adalah `dist`.
