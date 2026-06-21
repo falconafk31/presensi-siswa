@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { Menu, X, LogOut, CalendarRange, Printer, ScanLine } from 'lucide-vue-next'
+import { Menu, X, LogOut, CalendarRange, Printer, ScanLine, Download } from 'lucide-vue-next'
 import { navItems, betaNavItems } from '@/config/navigation'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -26,10 +26,29 @@ const visibleNav = computed(() => {
   })
 })
 
+const deferredPrompt = ref(null)
+
 onMounted(() => {
   if (!settingsStore.settings) settingsStore.fetchSettings()
   if (!periodStore.activePeriod) periodStore.fetchActivePeriod()
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault()
+    deferredPrompt.value = e
+  })
 })
+
+async function installPWA() {
+  if (deferredPrompt.value) {
+    deferredPrompt.value.prompt()
+    const { outcome } = await deferredPrompt.value.userChoice
+    if (outcome === 'accepted') {
+      deferredPrompt.value = null
+    }
+  } else {
+    toast.info('Aplikasi sudah terpasang, atau browser saat ini tidak mendukung instalasi.')
+  }
+}
 
 function handleLogout() {
   auth.logout()
@@ -118,6 +137,14 @@ const currentRouteName = computed(() => {
             {{ auth.user?.role }}<span v-if="auth.kelas"> · Kelas {{ auth.kelas }}</span>
           </p>
         </div>
+        <button
+          class="mb-2 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition shadow-md"
+          :class="deferredPrompt ? 'bg-gold text-primary hover:opacity-90' : 'bg-white/5 text-white/40 cursor-not-allowed'"
+          @click="installPWA"
+        >
+          <Download class="h-4 w-4" />
+          Install Aplikasi
+        </button>
         <button
           class="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"
           @click="handleLogout"
