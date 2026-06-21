@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { Menu, X, LogOut, CalendarRange, Printer, ScanLine, Download } from 'lucide-vue-next'
+import { Menu, X, LogOut, CalendarRange, Printer, ScanLine, RefreshCw } from 'lucide-vue-next'
 import { navItems } from '@/config/navigation'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -26,28 +26,34 @@ const visibleNav = computed(() => {
   })
 })
 
-const deferredPrompt = ref(null)
-
 onMounted(() => {
   if (!settingsStore.settings) settingsStore.fetchSettings()
   if (!periodStore.activePeriod) periodStore.fetchActivePeriod()
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
-    deferredPrompt.value = e
-  })
 })
 
-async function installPWA() {
-  if (deferredPrompt.value) {
-    deferredPrompt.value.prompt()
-    const { outcome } = await deferredPrompt.value.userChoice
-    if (outcome === 'accepted') {
-      deferredPrompt.value = null
+async function clearCacheAndReload() {
+  toast.info('Membersihkan cache aplikasi...')
+  
+  // 1. Hapus Service Workers
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    for (let registration of registrations) {
+      await registration.unregister()
     }
-  } else {
-    toast.info('Aplikasi sudah terpasang, atau browser saat ini tidak mendukung instalasi.')
   }
+
+  // 2. Hapus Cache Storage (PWA)
+  if ('caches' in window) {
+    const keys = await caches.keys()
+    for (let key of keys) {
+      await caches.delete(key)
+    }
+  }
+
+  // 3. Muat Ulang Paksa
+  setTimeout(() => {
+    window.location.reload()
+  }, 1000)
 }
 
 function handleLogout() {
@@ -138,12 +144,11 @@ const currentRouteName = computed(() => {
           </p>
         </div>
         <button
-          class="mb-2 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition shadow-md"
-          :class="deferredPrompt ? 'bg-gold text-primary hover:opacity-90' : 'bg-white/5 text-white/40 cursor-not-allowed'"
-          @click="installPWA"
+          class="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"
+          @click="clearCacheAndReload"
         >
-          <Download class="h-4 w-4" />
-          Install Aplikasi
+          <RefreshCw class="h-4 w-4" />
+          Refresh App
         </button>
         <button
           class="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10"

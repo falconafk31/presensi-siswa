@@ -7,18 +7,15 @@ import './style.css'
 import { useAuthStore } from './stores/auth'
 
 import { toast } from 'vue-sonner'
-import { registerSW } from 'virtual:pwa-register'
 
-const updateSW = registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    // Optionally show a toast to the user that an update is available
-    console.log('Update available')
-  },
-  onOfflineReady() {
-    console.log('App ready to work offline')
-  },
-})
+// Hapus secara paksa semua Service Worker yang tersangkut (menyebabkan blank putih)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (let registration of registrations) {
+      registration.unregister()
+    }
+  })
+}
 
 const app = createApp(App)
 app.use(createPinia())
