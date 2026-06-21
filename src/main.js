@@ -26,7 +26,7 @@ app.use(createPinia())
 // Global Error Handler to prevent white screen of death
 app.config.errorHandler = (err, instance, info) => {
   console.error('Global Error Caught:', err, info)
-  toast.error('Terjadi kesalahan internal. Silakan muat ulang halaman jika masalah berlanjut.')
+  toast.error(`Terjadi kesalahan internal: ${err?.message || err}. Silakan muat ulang halaman.`)
 }
 
 const auth = useAuthStore()
