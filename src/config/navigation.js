@@ -15,7 +15,8 @@ import {
   Library,
   PieChart,
   UsersRound,
-  HelpCircle
+  HelpCircle,
+  Printer
 } from 'lucide-vue-next'
 
 // adminOnly: true -> hanya tampil untuk role 'Admin'

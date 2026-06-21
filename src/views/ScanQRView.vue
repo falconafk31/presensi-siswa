@@ -4,9 +4,11 @@ import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/dates'
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { CheckCircle2, XCircle, ScanLine, Clock } from 'lucide-vue-next'
+import { CheckCircle2, XCircle, ScanLine, Clock, ArrowLeft } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const scannerRef = ref(null)
 let html5QrcodeScanner = null
 
@@ -37,6 +39,15 @@ function playTone(frequency, duration, type = 'sine') {
 }
 
 onMounted(() => {
+  // Pancing AudioContext agar aktif dengan interaksi pertama (wajib untuk iOS/Chrome ketat)
+  const unlockAudio = () => {
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    document.removeEventListener('click', unlockAudio)
+    document.removeEventListener('touchstart', unlockAudio)
+  }
+  document.addEventListener('click', unlockAudio)
+  document.addEventListener('touchstart', unlockAudio)
+
   initScanner()
   fetchTodayHistory()
 })
@@ -201,11 +212,14 @@ function formatTime(ms) {
   <div>
     <PageHeader title="Scan Kunjungan" subtitle="Gunakan kamera untuk memindai QR Code Kartu Pelajar">
       <template #actions>
-        <button v-if="scanning" class="rounded-xl px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm transition" @click="stopScanner">
+        <button class="rounded-xl px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition flex items-center gap-2" @click="router.push({ name: 'kunjungan-perpus' })">
+          <ArrowLeft class="w-4 h-4" /> Kembali
+        </button>
+        <button v-if="scanning" class="rounded-xl px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm transition flex items-center gap-2" @click="stopScanner">
           Matikan Kamera
         </button>
-        <button v-else class="btn-primary" @click="initScanner">
-          Nyalakan Kamera
+        <button v-else class="btn-primary flex items-center gap-2" @click="initScanner">
+          <ScanLine class="w-4 h-4" /> Nyalakan Kamera
         </button>
       </template>
     </PageHeader>
