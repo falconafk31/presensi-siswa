@@ -5,6 +5,8 @@ import { UserPlus, Pencil, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import SkeletonLoader from '@/components/SkeletonLoader.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { TriangleAlert } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
@@ -208,7 +210,13 @@ onMounted(() => {
     </PageHeader>
 
     <div class="card overflow-x-auto">
-      <table class="min-w-full text-sm">
+      <SkeletonLoader v-if="loading" type="table" :rows="4" />
+      <EmptyState 
+        v-else-if="!users.length" 
+        title="Belum ada akun guru" 
+        description="Tambahkan akun guru dan wali kelas melalui tombol di atas."
+      />
+      <table v-else class="min-w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
             <th class="px-3 py-3 font-semibold">Nama / NIP</th>
@@ -219,7 +227,6 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-if="loading"><td colspan="5" class="py-6 text-center text-gray-400">Memuat...</td></tr>
           <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
             <td class="px-3 py-2">
               <div class="font-medium text-gray-800">{{ u.nama }}</div>

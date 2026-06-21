@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle } from 'lucide-vue-next'
+import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle, Building2, CalendarDays, ArrowUpCircle, ShieldAlert } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -41,6 +41,14 @@ const showResetPerpusPinjaman = ref(false)
 const prosesResetPerpusPinjaman = ref(false)
 
 const newKelas = ref('')
+
+const activeSettingsTab = ref('identitas')
+const settingsTabs = [
+  { id: 'identitas', label: 'Identitas', icon: Building2 },
+  { id: 'akademik', label: 'Akademik', icon: CalendarDays },
+  { id: 'kenaikan', label: 'Kenaikan Kelas', icon: ArrowUpCircle },
+  { id: 'pemeliharaan', label: 'Pemeliharaan', icon: ShieldAlert },
+]
 
 function addKelas() {
   const k = newKelas.value.trim().toUpperCase()
@@ -334,7 +342,37 @@ onMounted(() => {
   <div>
     <PageHeader title="Pengaturan" subtitle="Identitas madrasah, tahun ajaran, dan kenaikan kelas" />
 
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <!-- Tab Navigation -->
+    <div class="card mb-4 p-0 overflow-hidden">
+      <div class="border-b border-gray-200 bg-gray-50/50">
+        <nav class="-mb-px flex overflow-x-auto" aria-label="Tabs">
+          <button
+            v-for="tab in settingsTabs"
+            :key="tab.id"
+            @click="activeSettingsTab = tab.id"
+            :class="[
+              activeSettingsTab === tab.id
+                ? 'border-emerald-500 text-emerald-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
+              'group inline-flex items-center border-b-2 py-3 px-4 sm:px-6 text-sm font-medium transition-colors whitespace-nowrap'
+            ]"
+          >
+            <component
+              :is="tab.icon"
+              :class="[
+                activeSettingsTab === tab.id ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500',
+                '-ml-0.5 mr-2 h-4 w-4'
+              ]"
+              aria-hidden="true"
+            />
+            <span>{{ tab.label }}</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Tab: Identitas -->
+    <div v-if="activeSettingsTab === 'identitas'" class="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-in fade-in duration-300">
       <!-- Identitas Madrasah -->
       <div class="card">
         <h3 class="mb-4 text-sm font-semibold text-gray-700">Identitas Madrasah</h3>
@@ -404,91 +442,109 @@ onMounted(() => {
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="card">
-          <h3 class="mb-3 text-sm font-semibold text-gray-700">Daftar Kelas</h3>
-          <div class="mb-3 flex gap-2">
-            <input v-model="newKelas" @keyup.enter="addKelas" class="input-field" placeholder="Misal: 1A, 1B" />
-            <button class="btn-primary shrink-0" @click="addKelas"><Plus class="h-4 w-4" /> Tambah</button>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <span v-for="k in form.daftar_kelas" :key="k" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 border border-emerald-200">
-              {{ k }}
-              <button class="text-emerald-400 hover:text-emerald-600" @click="removeKelas(k)">&times;</button>
-            </span>
-            <span v-if="!form.daftar_kelas?.length" class="text-xs text-gray-400">Belum ada kelas.</span>
-          </div>
+      <!-- Tombol Simpan Identitas -->
+      <div class="flex justify-end pt-2 lg:col-span-2">
+        <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
+          <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Identitas & Kop' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab: Akademik -->
+    <div v-else-if="activeSettingsTab === 'akademik'" class="space-y-4 animate-in fade-in duration-300">
+
+      <!-- Daftar Kelas -->
+      <div class="card">
+        <h3 class="mb-3 text-sm font-semibold text-gray-700">Daftar Kelas</h3>
+        <div class="mb-3 flex gap-2">
+          <input v-model="newKelas" @keyup.enter="addKelas" class="input-field" placeholder="Misal: 1A, 1B" />
+          <button class="btn-primary shrink-0" @click="addKelas"><Plus class="h-4 w-4" /> Tambah</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <span v-for="k in form.daftar_kelas" :key="k" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 border border-emerald-200">
+            {{ k }}
+            <button class="text-emerald-400 hover:text-emerald-600" @click="removeKelas(k)">&times;</button>
+          </span>
+          <span v-if="!form.daftar_kelas?.length" class="text-xs text-gray-400">Belum ada kelas.</span>
         </div>
       </div>
 
-      <!-- Tahun Ajaran + Kenaikan -->
-      <div class="space-y-4 lg:col-span-2">
-        <div class="card">
-          <div class="mb-3 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-700">Tahun Ajaran & Semester</h3>
-            <button class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs hover:bg-gray-50" @click="showPeriodForm = true">
-              <Plus class="h-3.5 w-3.5" /> Tambah
-            </button>
-          </div>
-          <div class="space-y-2">
-            <div v-for="p in periods" :key="p.id" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2">
-              <div>
-                <p class="text-sm font-medium text-gray-800">{{ p.tahun_ajaran }} <span class="text-gray-400">·</span> {{ p.semester }}</p>
-              </div>
-              <button
-                class="inline-flex items-center gap-1.5 text-sm"
-                :class="p.is_active ? 'font-semibold text-primary' : 'text-gray-400 hover:text-gray-600'"
-                @click="!p.is_active && setActive(p)"
-              >
-                <CheckCircle2 v-if="p.is_active" class="h-4 w-4" />
-                <Circle v-else class="h-4 w-4" />
-                {{ p.is_active ? 'Aktif' : 'Jadikan aktif' }}
-              </button>
-            </div>
-            <p v-if="!periods.length" class="text-sm text-gray-400">Belum ada periode.</p>
-          </div>
-        </div>
-
-        <div class="card border border-amber-200 bg-amber-50/40">
-          <div class="flex items-start gap-3">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-amber-700">
-              <GraduationCap class="h-5 w-5" />
-            </div>
-            <div class="flex-1">
-              <h3 class="text-sm font-semibold text-gray-800">Kenaikan Kelas Otomatis</h3>
-              <p class="mt-0.5 text-xs text-gray-500">
-                Promosikan semua siswa (angka depan kelas ditambah 1, misal 1A → 2A). Kelas berawalan 6 → lulus & nonaktif. Snapshot riwayat kelas akan disimpan.
-              </p>
-              <button class="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600" @click="showKenaikan = true">
-                <GraduationCap class="h-4 w-4" /> Proses Kenaikan
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 class="mb-3 text-sm font-semibold text-gray-700">Hari Libur Mingguan</h3>
-          <p class="mb-3 text-xs text-gray-500">Pilih hari apa saja yang merupakan hari libur rutin mingguan (akan ditandai merah di kalender dan rekapitulasi).</p>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <label v-for="(hari, idx) in NAMA_HARI" :key="idx" class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors">
-              <input 
-                type="checkbox" 
-                :checked="(form.hari_libur_mingguan || []).includes(idx)" 
-                @change="toggleHariLibur(idx)"
-                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" 
-              />
-              <span class="text-gray-700">{{ hari }}</span>
-            </label>
-          </div>
-        </div>
-        
-        <!-- Tombol Simpan (Dipindahkan ke bawah untuk UX lebih baik) -->
-        <div class="flex justify-end pt-2 mb-6">
-          <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
-            <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan' }}
+      <!-- Tahun Ajaran -->
+      <div class="card">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-gray-700">Tahun Ajaran & Semester</h3>
+          <button class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs hover:bg-gray-50" @click="showPeriodForm = true">
+            <Plus class="h-3.5 w-3.5" /> Tambah
           </button>
         </div>
-        
+        <div class="space-y-2">
+          <div v-for="p in periods" :key="p.id" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2">
+            <div>
+              <p class="text-sm font-medium text-gray-800">{{ p.tahun_ajaran }} <span class="text-gray-400">·</span> {{ p.semester }}</p>
+            </div>
+            <button
+              class="inline-flex items-center gap-1.5 text-sm"
+              :class="p.is_active ? 'font-semibold text-primary' : 'text-gray-400 hover:text-gray-600'"
+              @click="!p.is_active && setActive(p)"
+            >
+              <CheckCircle2 v-if="p.is_active" class="h-4 w-4" />
+              <Circle v-else class="h-4 w-4" />
+              {{ p.is_active ? 'Aktif' : 'Jadikan aktif' }}
+            </button>
+          </div>
+          <p v-if="!periods.length" class="text-sm text-gray-400">Belum ada periode.</p>
+        </div>
+      </div>
+
+      <!-- Hari Libur Mingguan -->
+      <div class="card">
+        <h3 class="mb-3 text-sm font-semibold text-gray-700">Hari Libur Mingguan</h3>
+        <p class="mb-3 text-xs text-gray-500">Pilih hari apa saja yang merupakan hari libur rutin mingguan (akan ditandai merah di kalender dan rekapitulasi).</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <label v-for="(hari, idx) in NAMA_HARI" :key="idx" class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors">
+            <input
+              type="checkbox"
+              :checked="(form.hari_libur_mingguan || []).includes(idx)"
+              @change="toggleHariLibur(idx)"
+              class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span class="text-gray-700">{{ hari }}</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Tombol Simpan Akademik -->
+      <div class="flex justify-end pt-2">
+        <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
+          <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Akademik' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab: Kenaikan Kelas -->
+    <div v-else-if="activeSettingsTab === 'kenaikan'" class="space-y-4 animate-in fade-in duration-300">
+      <div class="card border border-amber-200 bg-amber-50/40">
+        <div class="flex items-start gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-amber-700">
+            <GraduationCap class="h-5 w-5" />
+          </div>
+          <div class="flex-1">
+            <h3 class="text-sm font-semibold text-gray-800">Kenaikan Kelas Otomatis</h3>
+            <p class="mt-0.5 text-xs text-gray-500">
+              Promosikan semua siswa (angka depan kelas ditambah 1, misal 1A → 2A). Kelas berawalan 6 → lulus & nonaktif. Snapshot riwayat kelas akan disimpan.
+            </p>
+            <button class="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600" @click="showKenaikan = true">
+              <GraduationCap class="h-4 w-4" /> Proses Kenaikan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Pemeliharaan -->
+    <div v-else-if="activeSettingsTab === 'pemeliharaan'" class="space-y-4 animate-in fade-in duration-300">
         <!-- Pemeliharaan Database (Danger Zone) -->
         <div class="card border border-rose-200 bg-rose-50/20">
           <h3 class="mb-3 text-sm font-semibold text-rose-700 flex items-center gap-2">
@@ -538,10 +594,9 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </div>
     </div>
 
-    <!-- Modal tambah periode -->
+    <!-- Modals (always available) -->
     <BaseModal v-model="showPeriodForm" title="Tambah Tahun Ajaran" max-width="max-w-md">
       <div class="space-y-3">
         <div>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { Menu, X, LogOut, CalendarRange } from 'lucide-vue-next'
 import { navItems } from '@/config/navigation'
@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { usePeriodStore } from '@/stores/period'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
@@ -38,6 +39,19 @@ function handleLogout() {
 function closeSidebar() {
   sidebarOpen.value = false
 }
+
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 11) return 'Selamat Pagi'
+  if (h < 15) return 'Selamat Siang'
+  if (h < 18) return 'Selamat Sore'
+  return 'Selamat Malam'
+})
+
+const currentRouteName = computed(() => {
+  const item = navItems.find(n => n.to && route.matched.some(r => r.name === n.to.name))
+  return item?.label || 'Dashboard'
+})
 </script>
 
 <template>
@@ -121,6 +135,12 @@ function closeSidebar() {
         <button class="lg:hidden" @click="sidebarOpen = true">
           <Menu class="h-6 w-6 text-primary" />
         </button>
+        <div class="hidden sm:block">
+          <p class="text-sm font-medium text-gray-800">
+            {{ greeting }}, {{ auth.user?.nama?.split(' ')[0] }} 👋
+          </p>
+          <p class="text-xs text-gray-400">{{ currentRouteName }}</p>
+        </div>
         <div class="flex-1" />
         <div
           class="flex items-center gap-2 rounded-xl bg-primary-accent px-3 py-1.5 text-xs font-medium text-primary"

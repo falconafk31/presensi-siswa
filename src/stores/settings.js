@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref(null)
   const loading = ref(false)
+  let _inflight = null
 
-  async function fetchSettings() {
+  async function _doFetch() {
     loading.value = true
     try {
       const { data, error } = await supabase
@@ -31,6 +32,14 @@ export const useSettingsStore = defineStore('settings', () => {
       loading.value = false
     }
     return settings.value
+  }
+
+  // Deduplicate concurrent calls — if a fetch is already in-flight, reuse it
+  async function fetchSettings(force = false) {
+    if (!force && settings.value) return settings.value
+    if (_inflight) return _inflight
+    _inflight = _doFetch().finally(() => { _inflight = null })
+    return _inflight
   }
 
   return { settings, loading, fetchSettings }

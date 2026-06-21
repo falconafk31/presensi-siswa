@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, CalendarOff, Loader2, CheckCheck, TriangleAlert } from 'lucide-vue-next'
+import { Save, CalendarOff, Loader2, CheckCheck, TriangleAlert, Search } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -49,6 +49,13 @@ const ringkasan = computed(() => {
   const r = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
   for (const s of students.value) r[presensi.value[s.nisn]] = (r[presensi.value[s.nisn]] || 0) + 1
   return r
+})
+
+const searchSiswa = ref('')
+const filteredStudents = computed(() => {
+  if (!searchSiswa.value.trim()) return students.value
+  const q = searchSiswa.value.toLowerCase()
+  return students.value.filter(s => s.nama.toLowerCase().includes(q) || s.nisn.includes(q))
 })
 
 async function cekKalender() {
@@ -232,16 +239,30 @@ onMounted(loadStudents)
         Belum ada siswa aktif di kelas {{ kelas }}.
       </div>
 
+      <template v-else>
+        <!-- Search siswa -->
+        <div class="relative mb-3">
+          <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input v-model="searchSiswa" class="input-field pl-9" placeholder="Cari nama siswa..." />
+        </div>
+
+        <div v-if="!filteredStudents.length" class="card text-center text-sm text-gray-400">
+          Tidak ditemukan siswa dengan nama "{{ searchSiswa }}".
+        </div>
+
       <div v-else class="space-y-2">
         <div
-          v-for="(s, i) in students"
+          v-for="(s, i) in filteredStudents"
           :key="s.nisn"
           class="card flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div class="flex items-center gap-3">
-            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-accent text-xs font-semibold text-primary">
-              {{ i + 1 }}
-            </span>
+            <div
+              :class="s.jk === 'L' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shrink-0"
+            >
+              {{ s.nama.charAt(0) }}
+            </div>
             <div>
               <p class="font-medium text-gray-800">{{ s.nama }}</p>
               <p class="text-xs text-gray-400">{{ s.nisn }} · {{ s.jk === 'L' ? 'Laki-laki' : 'Perempuan' }}</p>
@@ -263,7 +284,7 @@ onMounted(loadStudents)
           </div>
         </div>
       </div>
-      
+      </template>
     </template>
 
     <!-- Sticky Footer for Save Button -->
