@@ -30,6 +30,9 @@ function initScanner() {
     { 
       fps: 10, 
       qrbox: { width: 250, height: 250 },
+      videoConstraints: {
+        facingMode: "environment"
+      },
       formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
       rememberLastUsedCamera: true
     },
@@ -164,8 +167,8 @@ function formatTime(ms) {
       <!-- Scanner Column -->
       <div class="lg:col-span-2 space-y-4">
         <div class="card p-4">
-          <div class="aspect-video w-full bg-black rounded-xl overflow-hidden relative shadow-inner">
-            <div id="qr-reader" class="w-full h-full object-cover"></div>
+          <div class="min-h-[400px] md:min-h-0 md:aspect-video w-full bg-black rounded-xl overflow-hidden relative shadow-inner">
+            <div id="qr-reader" class="w-full h-full"></div>
             
             <!-- Overlay when not scanning -->
             <div v-if="!scanning" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/80 text-white backdrop-blur-sm z-10">
