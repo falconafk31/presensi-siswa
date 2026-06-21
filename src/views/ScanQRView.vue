@@ -13,8 +13,28 @@ let html5QrcodeScanner = null
 const scanning = ref(false)
 const lastScanned = ref(null)
 const recentScans = ref([]) // History of scans in this session
-const audioSuccess = new Audio('https://actions.google.com/sounds/v1/ui/ding.ogg')
-const audioError = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg')
+
+// Web Audio API untuk suara offline yang 100% andal
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+
+function playTone(frequency, duration, type = 'sine') {
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const oscillator = audioCtx.createOscillator()
+  const gainNode = audioCtx.createGain()
+  
+  oscillator.type = type
+  oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime)
+  
+  // Fade out effect
+  gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
+  gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration)
+  
+  oscillator.connect(gainNode)
+  gainNode.connect(audioCtx.destination)
+  
+  oscillator.start()
+  oscillator.stop(audioCtx.currentTime + duration)
+}
 
 onMounted(() => {
   initScanner()
@@ -161,13 +181,14 @@ function addToHistory(record) {
 }
 
 function playSuccess() {
-  audioSuccess.currentTime = 0
-  audioSuccess.play().catch(e => console.log('Audio play failed:', e))
+  // Nada naik bahagia (Success)
+  playTone(880, 0.1, 'sine')
+  setTimeout(() => playTone(1760, 0.2, 'sine'), 100)
 }
 
 function playError() {
-  audioError.currentTime = 0
-  audioError.play().catch(e => console.log('Audio play failed:', e))
+  // Nada rendah/buzz (Error)
+  playTone(300, 0.3, 'sawtooth')
 }
 
 function formatTime(ms) {
