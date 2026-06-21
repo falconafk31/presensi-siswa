@@ -9,6 +9,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'Admin')
   const isPustakawan = computed(() => user.value?.role === 'Pustakawan' || user.value?.role === 'Guru & Pustakawan')
   const canManagePerpus = computed(() => isAdmin.value || isPustakawan.value)
+  const isGuru = computed(() => user.value?.role === 'Guru' || user.value?.role === 'Guru & Pustakawan')
+  const canManagePresensi = computed(() => isAdmin.value || isGuru.value)
   const kelas = computed(() => user.value?.kelas ?? null)
 
   async function fetchProfile(auth_id) {
@@ -62,5 +64,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  return { user, isAuthenticated, isAdmin, isPustakawan, canManagePerpus, kelas, login, logout, initialize }
+  return { user, isAuthenticated, isAdmin, isPustakawan, canManagePerpus, isGuru, canManagePresensi, kelas, login, logout, initialize }
 })

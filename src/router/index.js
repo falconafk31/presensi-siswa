@@ -18,21 +18,25 @@ const routes = [
         path: '',
         name: 'dashboard',
         component: () => import('@/views/DashboardView.vue'),
+        meta: { presensiOnly: true },
       },
       {
         path: 'presensi',
         name: 'presensi',
         component: () => import('@/views/InputPresensiView.vue'),
+        meta: { presensiOnly: true },
       },
       {
         path: 'rekap',
         name: 'rekap',
         component: () => import('@/views/RekapView.vue'),
+        meta: { presensiOnly: true },
       },
       {
         path: 'rekap-semester',
         name: 'rekap-semester',
         component: () => import('@/views/RekapSemesterView.vue'),
+        meta: { presensiOnly: true },
       },
       {
         path: 'siswa',
@@ -56,6 +60,7 @@ const routes = [
         path: 'statistik',
         name: 'statistik',
         component: () => import('@/views/StatistikView.vue'),
+        meta: { presensiOnly: true },
       },
       {
         path: 'riwayat-kelas',
@@ -127,6 +132,7 @@ router.beforeEach((to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.name === 'login' && auth.isAuthenticated) {
+    if (auth.user?.role === 'Pustakawan') return { name: 'dashboard-perpus' }
     return { name: 'dashboard' }
   }
   if (to.meta.adminOnly && !auth.isAdmin) {
@@ -134,6 +140,17 @@ router.beforeEach((to) => {
   }
   if (to.meta.perpusOnly && !auth.canManagePerpus) {
     return { name: 'dashboard' }
+  }
+  if (to.meta.presensiOnly && !auth.canManagePresensi) {
+    return { name: 'dashboard-perpus' }
+  }
+})
+
+// Handle ChunkLoadError for PWA cache mismatch during deployments
+router.onError((error, to) => {
+  if (error.message.includes('Failed to fetch dynamically imported module') || error.name === 'ChunkLoadError') {
+    console.warn('Chunk load error detected, reloading page to fetch latest version...', error)
+    window.location.href = to.fullPath
   }
 })
 

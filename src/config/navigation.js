@@ -20,12 +20,12 @@ import {
 
 // adminOnly: true -> hanya tampil untuk role 'Admin'
 export const navItems = [
-  { isHeader: true, label: 'MAIN MENU' },
-  { to: { name: 'dashboard' }, label: 'Dashboard', icon: LayoutDashboard },
-  { to: { name: 'presensi' }, label: 'Input Presensi', icon: ClipboardCheck },
-  { to: { name: 'rekap' }, label: 'Rekap Bulanan', icon: FileSpreadsheet },
-  { to: { name: 'rekap-semester' }, label: 'Rekap Semester', icon: CalendarCheck },
-  { to: { name: 'statistik' }, label: 'Statistik Kehadiran', icon: TriangleAlert },
+  { isHeader: true, label: 'MAIN MENU', presensiOnly: true },
+  { to: { name: 'dashboard' }, label: 'Dashboard', icon: LayoutDashboard, presensiOnly: true },
+  { to: { name: 'presensi' }, label: 'Input Presensi', icon: ClipboardCheck, presensiOnly: true },
+  { to: { name: 'rekap' }, label: 'Rekap Bulanan', icon: FileSpreadsheet, presensiOnly: true },
+  { to: { name: 'rekap-semester' }, label: 'Rekap Semester', icon: CalendarCheck, presensiOnly: true },
+  { to: { name: 'statistik' }, label: 'Statistik Kehadiran', icon: TriangleAlert, presensiOnly: true },
   
   { isHeader: true, label: 'PERPUSTAKAAN', perpusOnly: true },
   { to: { name: 'dashboard-perpus' }, label: 'Dashboard Perpus', icon: PieChart, perpusOnly: true },
