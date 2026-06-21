@@ -18,6 +18,7 @@ const audioError = new Audio('https://actions.google.com/sounds/v1/alarms/beep_s
 
 onMounted(() => {
   initScanner()
+  fetchTodayHistory()
 })
 
 onUnmounted(() => {
@@ -30,9 +31,6 @@ function initScanner() {
     { 
       fps: 10, 
       qrbox: { width: 250, height: 250 },
-      videoConstraints: {
-        facingMode: "environment"
-      },
       formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
       rememberLastUsedCamera: true
     },
@@ -48,6 +46,35 @@ function stopScanner() {
       console.error("Failed to clear html5QrcodeScanner. ", error)
     })
     scanning.value = false
+  }
+}
+
+async function fetchTodayHistory() {
+  try {
+    const today = todayISO()
+    const { data, error } = await supabase
+      .from('library_visits')
+      .select('created_at, student_nisn, students(nama, kelas)')
+      .eq('tanggal', today)
+      .order('created_at', { ascending: false })
+      .limit(5)
+      
+    if (error) throw error
+    
+    if (data) {
+      recentScans.value = data.map(v => ({
+        success: true,
+        time: new Date(v.created_at).getTime(),
+        message: 'Kunjungan tercatat di database',
+        student: {
+          nama: v.students?.nama || 'Siswa',
+          kelas: v.students?.kelas || '-',
+          nisn: v.student_nisn
+        }
+      }))
+    }
+  } catch (err) {
+    console.error('Gagal memuat riwayat:', err)
   }
 }
 
