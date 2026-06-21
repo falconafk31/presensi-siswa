@@ -32,8 +32,11 @@ const editing = ref(false)
 const emptyForm = () => ({
   id: null,
   nisn: '',
+  nism: '',
   nama: '',
   jk: 'L',
+  tempat_lahir: '',
+  tanggal_lahir: '',
   kelas: daftarKelas.value[0] || '1',
   tanggal_masuk: todayISO(),
   keterangan: '',
@@ -52,8 +55,8 @@ function openUpload() {
 async function downloadTemplate() {
   const xlsx = await import('xlsx')
   const ws = xlsx.utils.json_to_sheet([
-    { NISN: '1234567890', Nama: 'Ahmad Siswa', L: 'L', Kelas: '1A' },
-    { NISN: '1234567891', Nama: 'Siti Siswi', P: 'P', Kelas: '1A' },
+    { NISN: '1234567890', NISM: '12345', Nama: 'Ahmad Siswa', JK: 'L', TempatLahir: 'Blora', TanggalLahir: '2014-08-15', Kelas: '1A' },
+    { NISN: '1234567891', NISM: '12346', Nama: 'Siti Siswi', JK: 'P', TempatLahir: 'Semarang', TanggalLahir: '2014-09-20', Kelas: '1A' },
   ])
   const wb = xlsx.utils.book_new()
   xlsx.utils.book_append_sheet(wb, ws, 'Template Siswa')
@@ -78,8 +81,11 @@ async function processUpload() {
 
     const toInsert = rows.map(r => ({
       nisn: String(r.NISN || '').trim(),
+      nism: r.NISM ? String(r.NISM).trim() : null,
       nama: String(r.Nama || '').trim(),
       jk: String(r.JK || 'L').trim().toUpperCase(),
+      tempat_lahir: r.TempatLahir ? String(r.TempatLahir).trim() : null,
+      tanggal_lahir: r.TanggalLahir ? String(r.TanggalLahir).trim() : null,
       kelas: String(r.Kelas || '1').trim().toUpperCase(),
       status: 'aktif',
       active: true,
@@ -158,8 +164,11 @@ function openEdit(s) {
   form.value = {
     id: s.id,
     nisn: s.nisn,
+    nism: s.nism || '',
     nama: s.nama,
     jk: s.jk || 'L',
+    tempat_lahir: s.tempat_lahir || '',
+    tanggal_lahir: s.tanggal_lahir || '',
     kelas: s.kelas || daftarKelas.value[0] || '1',
     tanggal_masuk: s.tanggal_masuk || todayISO(),
     keterangan: s.keterangan || '',
@@ -178,8 +187,11 @@ async function save() {
       const { error } = await supabase
         .from('students')
         .update({
+          nism: form.value.nism || null,
           nama: form.value.nama,
           jk: form.value.jk,
+          tempat_lahir: form.value.tempat_lahir || null,
+          tanggal_lahir: form.value.tanggal_lahir || null,
           kelas: form.value.kelas,
           tanggal_masuk: form.value.tanggal_masuk,
           keterangan: form.value.keterangan,
@@ -193,8 +205,11 @@ async function save() {
         .from('students')
         .insert({
           nisn: form.value.nisn,
+          nism: form.value.nism || null,
           nama: form.value.nama,
           jk: form.value.jk,
+          tempat_lahir: form.value.tempat_lahir || null,
+          tanggal_lahir: form.value.tanggal_lahir || null,
           kelas: form.value.kelas,
           status: 'aktif',
           active: true,
@@ -424,13 +439,29 @@ onMounted(() => {
     <!-- Form tambah/edit -->
     <BaseModal v-model="showForm" :title="editing ? 'Edit Siswa' : 'Siswa Baru / Pindahan Masuk'">
       <div class="space-y-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">NISN</label>
-          <input v-model="form.nisn" class="input-field" :disabled="editing" placeholder="10 digit" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600">NISN</label>
+            <input v-model="form.nisn" class="input-field" :disabled="editing" placeholder="10 digit" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600">NISM (Opsional)</label>
+            <input v-model="form.nism" class="input-field" placeholder="18 digit" />
+          </div>
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-600">Nama Lengkap</label>
           <input v-model="form.nama" class="input-field" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600">Tempat Lahir</label>
+            <input v-model="form.tempat_lahir" class="input-field" placeholder="Kota" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal Lahir</label>
+            <input v-model="form.tanggal_lahir" type="date" class="input-field" />
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>

@@ -45,3 +45,18 @@ export const navItems = [
   { isHeader: true, label: 'BANTUAN' },
   { to: { name: 'panduan' }, label: 'Panduan Penggunaan', icon: HelpCircle },
 ]
+
+export const betaNavItems = [
+  {
+    to: { name: 'cetak-kartu' },
+    icon: 'Printer',
+    label: 'Cetak ID Card',
+    perpusOnly: true,
+  },
+  {
+    to: { name: 'scan-qr' },
+    icon: 'ScanLine',
+    label: 'Scan Kunjungan',
+    perpusOnly: true,
+  },
+]

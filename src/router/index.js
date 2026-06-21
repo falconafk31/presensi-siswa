@@ -87,6 +87,18 @@ const routes = [
         meta: { perpusOnly: true },
       },
       {
+        path: 'cetak-kartu',
+        name: 'cetak-kartu',
+        component: () => import('@/views/CetakKartuView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
+        path: 'scan-qr',
+        name: 'scan-qr',
+        component: () => import('@/views/ScanQRView.vue'),
+        meta: { perpusOnly: true },
+      },
+      {
         path: 'buku',
         name: 'buku',
         component: () => import('@/views/BukuView.vue'),
