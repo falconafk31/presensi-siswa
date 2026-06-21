@@ -5,8 +5,10 @@ import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/PageHeader.vue'
 import { logActivity } from '@/lib/activityLog'
-import { Users, Search, Plus, Trash2, CalendarDays } from 'lucide-vue-next'
+import { Users, Search, Plus, Trash2, CalendarDays, ScanLine } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(true)
 
@@ -125,8 +127,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Kunjungan Perpustakaan" subtitle="Buku Tamu / Rekam Kunjungan Siswa Harian" />
+  <div class="space-y-6">
+    <PageHeader title="Kunjungan Perpus" subtitle="Pencatatan data pengunjung perpustakaan harian">
+      <template #actions>
+        <button class="btn-primary flex items-center gap-2" @click="router.push({ name: 'scan-qr' })">
+          <ScanLine class="w-4 h-4" /> Buka Scanner QR
+        </button>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- Panel Input -->

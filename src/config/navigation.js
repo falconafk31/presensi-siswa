@@ -33,6 +33,7 @@ export const navItems = [
   { to: { name: 'buku' }, label: 'Katalog Buku', icon: Book, perpusOnly: true },
   { to: { name: 'peminjaman' }, label: 'Sirkulasi Buku', icon: BookOpen, perpusOnly: true },
   { to: { name: 'rekap-perpus' }, label: 'Laporan Perpus', icon: Library, perpusOnly: true },
+  { to: { name: 'cetak-kartu' }, label: 'Cetak ID Card', icon: Printer, perpusOnly: true },
   
   { isHeader: true, label: 'ADMINISTRASI', adminOnly: true },
   { to: { name: 'siswa' }, label: 'Data Siswa', icon: Users, adminOnly: true },
@@ -44,19 +45,4 @@ export const navItems = [
   
   { isHeader: true, label: 'BANTUAN' },
   { to: { name: 'panduan' }, label: 'Panduan Penggunaan', icon: HelpCircle },
-]
-
-export const betaNavItems = [
-  {
-    to: { name: 'cetak-kartu' },
-    icon: 'Printer',
-    label: 'Cetak ID Card',
-    perpusOnly: true,
-  },
-  {
-    to: { name: 'scan-qr' },
-    icon: 'ScanLine',
-    label: 'Scan Kunjungan',
-    perpusOnly: true,
-  },
 ]

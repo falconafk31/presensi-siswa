@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { Menu, X, LogOut, CalendarRange, Printer, ScanLine, Download } from 'lucide-vue-next'
-import { navItems, betaNavItems } from '@/config/navigation'
+import { navItems } from '@/config/navigation'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { usePeriodStore } from '@/stores/period'
@@ -17,7 +17,7 @@ const periodStore = usePeriodStore()
 const sidebarOpen = ref(false)
 
 const visibleNav = computed(() => {
-  const allNav = [...navItems, { isHeader: true, label: '🚀 FITUR BETA' }, ...betaNavItems]
+  const allNav = [...navItems]
   return allNav.filter((item) => {
     if (item.adminOnly && !auth.isAdmin) return false
     if (item.perpusOnly && !auth.canManagePerpus) return false
