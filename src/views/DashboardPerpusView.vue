@@ -2,12 +2,12 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { Book, BookOpen, AlertTriangle, CheckCircle2, Library, Users, CalendarDays, BarChart2, TrendingUp } from 'lucide-vue-next'
 import { Line } from 'vue-chartjs'
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Title, Tooltip, Legend, Filler } from 'chart.js'
 import PageHeader from '@/components/PageHeader.vue'
 import { supabase } from '@/lib/supabase'
 import { namaBulan } from '@/lib/dates'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Title, Tooltip, Legend, Filler)
 
 const loading = ref(true)
 
