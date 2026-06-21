@@ -151,14 +151,13 @@ router.beforeEach((to) => {
     return { name: 'dashboard' }
   }
   if (to.meta.perpusOnly && !auth.canManagePerpus) {
-    return { name: 'dashboard' }
+    return { name: auth.isAdmin ? 'dashboard' : 'login' }
   }
   if (to.meta.presensiOnly && !auth.canManagePresensi) {
     return { name: 'dashboard-perpus' }
   }
 })
 
-// Handle ChunkLoadError for PWA cache mismatch during deployments
 router.onError((error, to) => {
   if (error.message.includes('Failed to fetch dynamically imported module') || error.name === 'ChunkLoadError') {
     console.warn('Chunk load error detected, reloading page to fetch latest version...', error)
