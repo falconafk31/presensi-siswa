@@ -38,10 +38,10 @@ export function isWeekend(iso) {
   const d = new Date(iso + 'T00:00:00').getDay()
   try {
     const store = useSettingsStore()
-    const libur = store.settings?.hari_libur_mingguan || [0, 6]
+    const libur = store.settings?.hari_libur_mingguan || [0] // Default hanya hari Minggu
     return libur.includes(d)
   } catch {
-    return d === 0 || d === 6
+    return d === 0 // Default hanya hari Minggu
   }
 }
 

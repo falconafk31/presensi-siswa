@@ -31,21 +31,22 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
     * Kunci Kelas (Security Lock): Guru hanya dapat mengakses dan mengisi kelas ampuan mereka.
     * Antarmuka *Segmented Control* (Hadir/Izin/Sakit/Alfa) untuk input cepat massal.
 4.  **Rekapitulasi & Ekspor Laporan:**
+    * Rekapitulasi dilengkapi dengan indikator **Total Hari Efektif**, **Total Hari Libur**, dan rumus persentase yang transparan untuk akuntabilitas pelaporan ke orang tua dan sekolah.
     * Pembuatan matriks kehadiran bulanan dan semester.
     * Cetak dokumen PDF yang dilengkapi dengan **Kop Surat Resmi Kementerian Agama**, penanda hari libur otomatis (warna merah), dan auto-stretch kolom presisi.
     * Ekspor data ke format **Excel (.xlsx)** lengkap dengan Nama Wali Kelas dan NIP.
-5.  **Panduan Penggunaan Built-in:** Buku manual digital interaktif terpadu di dalam aplikasi untuk memandu setiap *role* (Admin, Guru, Pustakawan).
+5.  **Panduan Penggunaan Built-in:** Buku manual digital interaktif terpadu di dalam aplikasi untuk memandu setiap *role* (Admin, Guru, Pustakawan). Memiliki panduan solusi penanganan *Cache / Blank Screen*.
 
 ### 📚 Sistem Perpustakaan (Modul Baru)
 1.  **Katalog Buku:** Manajemen data buku (Judul, Pengarang, Penerbit, Tahun, Stok).
 2.  **Sirkulasi Cerdas:** Peminjaman dan Pengembalian dengan auto-kalkulasi stok secara *real-time*.
-3.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah.
-4.  **Hak Akses Khusus:** Mendukung *role* **Pustakawan** murni, serta *role* **Guru & Pustakawan** bagi guru wali kelas yang juga ditugaskan mengurus perpustakaan.
+3.  **Kunjungan Scanner QR:** Pencatatan kunjungan kilat menggunakan *Barcode / QR Scanner* (dukungan kamera HP/Laptop) lengkap dengan feedback suara (berhasil/gagal).
+4.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah.
+5.  **Hak Akses Khusus:** Mendukung *role* **Pustakawan** murni, serta *role* **Guru & Pustakawan** bagi guru wali kelas yang juga ditugaskan mengurus perpustakaan.
 
 ### ⚙️ Engine Inti
-1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat).
-2.  **Progressive Web App (PWA):** Dukungan penuh PWA yang memungkinkan aplikasi ini **di-instal secara native** ke Home Screen smartphone/desktop, lengkap dengan *Service Worker Caching* untuk akses ultra-cepat.
-3.  **Manajemen Tingkat Lanjut & Zona Berbahaya:**
+1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat) dan pengaturan **Hari Libur Mingguan** yang fleksibel.
+2.  **Manajemen Tingkat Lanjut & Zona Berbahaya:**
     * **Kenaikan Kelas Otomatis:** Sistem yang otomatis meluluskan siswa tingkat akhir dan menaikkan kelas lainnya secara masif di akhir tahun.
     * **Reset Database (Wipe):** Fungsi *reset* sekali klik khusus Admin untuk menghapus data absensi/log lama, memastikan database Supabase tier gratis tetap lega.
 4.  **Performa Ekstra Cepat (Optimized):** 

@@ -204,19 +204,20 @@ export async function generateRekapPDF({
 
   // ---------- FOOTER REKAPITULASI HARI ----------
   let y = doc.lastAutoTable.finalY + 8
-  const totalLibur = liburSet.size
-  const hadirEfektif = days.length - totalLibur
+  const totalLibur = liburSet ? liburSet.size : 0
+  const hadirEfektif = days.filter(d => !liburSet?.has(d) && submittedDatesSet?.has(d)).length
   
   doc.setFontSize(9)
   doc.setFont('times', 'bold')
-  doc.text(`Total Hari Efektif: ${hadirEfektif} Hari   |   Total Libur: ${totalLibur} Hari`, pageW / 2, y, { align: 'center' })
+  doc.text(`Total Hari Efektif Diabsen: ${hadirEfektif} Hari   |   Total Libur: ${totalLibur} Hari`, pageW / 2, y, { align: 'center' })
   
   doc.setFont('times', 'normal')
   doc.setFontSize(8)
   doc.text(`Keterangan: H = Hadir, I = Izin, S = Sakit, A = Alfa, L = Libur/Akhir Pekan, - = Belum Diabsen`, pageW / 2, y + 4, { align: 'center' })
+  doc.text(`*Catatan: Persentase kehadiran diukur berdasarkan proporsi kehadiran terhadap hari efektif Kegiatan Belajar Mengajar (KBM).`, pageW / 2, y + 8, { align: 'center' })
 
   // ---------- TANDA TANGAN ----------
-  y += 15
+  y += 18
   const pageH = doc.internal.pageSize.getHeight()
   if (y > pageH - 40) {
     doc.addPage('a4', 'landscape')

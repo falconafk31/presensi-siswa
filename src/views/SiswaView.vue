@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { todayISO } from '@/lib/dates'
 import { useSettingsStore } from '@/stores/settings'
-import { FileUp } from 'lucide-vue-next'
+import { FileUp, FileDown } from 'lucide-vue-next'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
@@ -298,6 +298,9 @@ onMounted(() => {
   <div>
     <PageHeader title="Data Siswa" subtitle="Kelola data siswa, siswa baru/pindahan, dan mutasi keluar">
       <template #actions>
+        <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50" @click="exportDataSiswa" title="Download data sesuai filter saat ini ke Excel">
+          <FileDown class="h-4 w-4" /> Download Data
+        </button>
         <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50" @click="openUpload">
           <FileUp class="h-4 w-4" /> Upload Excel
         </button>

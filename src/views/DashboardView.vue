@@ -54,7 +54,11 @@ const isBelumAbsen = ref(false)
 
 async function fetchTotalSiswa() {
   let q = supabase.from('students').select('id', { count: 'exact', head: true }).eq('active', true)
-  if (kelasFilter.value) q = q.eq('kelas', kelasFilter.value)
+  if (kelasFilter.value) {
+    q = q.eq('kelas', kelasFilter.value)
+  } else if (auth.isAdmin && daftarKelas.value.length > 0) {
+    q = q.in('kelas', daftarKelas.value)
+  }
   const { count } = await q
   totalSiswa.value = count || 0
 }
@@ -72,7 +76,11 @@ async function fetchToday() {
   let qAct = supabase.from('activity_logs').select('record_id').eq('aksi', 'input_presensi').like('record_id', `${today}:%`)
   const { data: acts } = await qAct
   let classesSub = (acts || []).map(a => a.record_id.split(':')[1])
-  if (kelasFilter.value) classesSub = classesSub.filter(c => c === kelasFilter.value)
+  if (kelasFilter.value) {
+    classesSub = classesSub.filter(c => c === kelasFilter.value)
+  } else if (auth.isAdmin && daftarKelas.value.length > 0) {
+    classesSub = classesSub.filter(c => daftarKelas.value.includes(c))
+  }
 
   if (classesSub.length === 0) {
     counts.value = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
@@ -126,7 +134,11 @@ async function fetchMonthly() {
     if (liburSet.has(d)) return { day: dayNumber(d), hadir: 0 }
     
     let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
-    if (kelasFilter.value) kSub = kSub.filter(c => c === kelasFilter.value)
+    if (kelasFilter.value) {
+      kSub = kSub.filter(c => c === kelasFilter.value)
+    } else if (auth.isAdmin && daftarKelas.value.length > 0) {
+      kSub = kSub.filter(c => daftarKelas.value.includes(c))
+    }
     if (kSub.length === 0) return { day: dayNumber(d), hadir: null } // Belum absen
 
     // Idealnya kita hitung totalSiswa harian dari kelas-kelas yang disubmit (kSub),
@@ -140,7 +152,8 @@ async function fetchMonthly() {
 async function loadAll() {
   loading.value = true
   try {
-    if (!settingsStore.settings) await settingsStore.fetchSettings()
+    // Selalu ambil pengaturan terbaru dari server agar Sinkron (menghindari butuh F5 manual)
+    await settingsStore.fetchSettings()
     await Promise.all([fetchTotalSiswa(), fetchToday(), fetchMonthly()])
   } finally {
     loading.value = false

@@ -80,7 +80,7 @@ const tabs = [
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="border border-gray-200 rounded-xl p-4">
                 <h4 class="font-bold text-gray-800 mb-2">Rekap Bulanan</h4>
-                <p class="text-sm text-gray-600 mb-3">Pilih menu <strong>Rekap Bulanan</strong>, tentukan bulan dan tahun. Klik cetak PDF atau Download Excel. Format Excel bisa Anda modifikasi sendiri kop suratnya jika perlu.</p>
+                <p class="text-sm text-gray-600 mb-3">Pilih menu <strong>Rekap Bulanan</strong>, tentukan bulan dan tahun. Klik cetak PDF atau Download Excel. Laporan akan otomatis mencantumkan transparansi hari efektif, hari libur, dan rumus perhitungan persentase kehadiran.</p>
               </div>
               <div class="border border-gray-200 rounded-xl p-4">
                 <h4 class="font-bold text-gray-800 mb-2">Rekap Semester</h4>
@@ -118,6 +118,7 @@ const tabs = [
               <p><strong>1. Kunjungan Harian:</strong> Buka menu <em>Kunjungan Perpus</em>. Cukup pilih nama siswa yang datang mengunjungi perpustakaan pada hari itu lalu simpan. Ini penting untuk laporan akreditasi perpustakaan.</p>
               <p><strong>2. Peminjaman Buku:</strong> Buka menu <em>Sirkulasi Buku</em>. Klik Tambah Peminjaman. Pilih Siswa dan Buku yang dipinjam. Sistem otomatis mencatat hari ini sebagai tanggal pinjam dan memotong stok buku.</p>
               <p><strong>3. Pengembalian:</strong> Saat siswa mengembalikan buku, cari namanya di daftar Sirkulasi yang berstatus "Dipinjam". Klik tombol <strong>Selesaikan/Kembalikan</strong>. Stok buku akan kembali otomatis.</p>
+              <p><strong>4. Menggunakan Barcode Scanner:</strong> Di halaman Kunjungan Perpus, terdapat tombol "Buka Scanner QR". Arahkan kamera ke kartu siswa untuk mencatat kunjungan super cepat. Gunakan tombol "⬅️ Kembali" di pojok kanan atas untuk keluar dari mode scanner.</p>
             </div>
           </div>
         </div>
@@ -158,6 +159,17 @@ const tabs = [
           
           <div class="bg-gray-100 p-4 rounded-xl text-sm text-gray-600">
             <strong>Tips Admin:</strong> Menu <strong>Log Aktivitas</strong> dapat digunakan untuk memantau siapa saja yang rajin mengisi presensi dan jam berapa mereka mengisinya. Anda bisa menegur wali kelas yang sering terlambat mengisi presensi.
+          </div>
+
+          <div>
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
+              <ShieldCheck class="w-5 h-5 text-indigo-500"/> Solusi Layar Blank (White Screen)
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">Jika ada guru atau perangkat yang mengalami layar putih blank saat membuka aplikasi, itu terjadi karena *Cache* versi lama yang tersangkut di HP mereka.</p>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
+              <li><strong>Solusi 1:</strong> Minta guru tersebut untuk menekan tombol <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-medium">Refresh App (Clear Cache)</span> yang berwarna merah di bagian paling bawah *Sidebar* menu kiri.</li>
+              <li><strong>Solusi 2:</strong> Jika tombol tidak muncul (hanya layar putih utuh), minta guru untuk menghapus *Cache / Site Data* dari pengaturan *Browser* Google Chrome di HP mereka (klik ikon Gembok di sebelah *link* URL).</li>
+            </ul>
           </div>
         </div>
 

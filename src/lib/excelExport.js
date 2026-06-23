@@ -44,6 +44,15 @@ export function exportExcelBulanan({
     wsData.push(row)
   })
 
+  // Footer Keterangan
+  const totalLibur = liburSet ? liburSet.size : 0
+  const hadirEfektif = days.filter(d => !liburSet?.has(d) && submittedDatesSet?.has(d)).length
+
+  wsData.push([])
+  wsData.push(['', '', `Total Hari Efektif Diabsen: ${hadirEfektif} Hari`])
+  wsData.push(['', '', `Total Libur: ${totalLibur} Hari`])
+  wsData.push(['', '', `*Catatan: Persentase kehadiran diukur berdasarkan proporsi kehadiran terhadap hari efektif Kegiatan Belajar Mengajar (KBM).`])
+
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.aoa_to_sheet(wsData)
 
