@@ -8,7 +8,6 @@ import { Plus, CheckCircle2, Clock, AlertTriangle, Loader2, Search, Download } f
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import { exportPdfSirkulasi } from '@/lib/pdfSirkulasi'
-import { exportExcelSirkulasi } from '@/lib/excelExport'
 import { useSettingsStore } from '@/stores/settings'
 
 const auth = useAuthStore()

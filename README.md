@@ -25,7 +25,7 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 
 ### 📊 Sistem Presensi & Administrasi
 1.  **Dashboard Real-time:** Visualisasi statistik kehadiran harian dan tren bulanan menggunakan grafik interaktif.
-2.  **Manajemen Data Master (CRUD):** Pengelolaan data Siswa dan Guru (Wali Kelas) secara terpusat dengan dukungan *Upload* Excel massal.
+2.  **Manajemen Data Master (CRUD):** Pengelolaan data Siswa dan Guru (Wali Kelas) secara terpusat dengan antarmuka unggah (Upload) Excel bergaya *Drag-and-Drop* (*Glassmorphism*) yang modern.
 3.  **Input Presensi Cerdas:**
     * Validasi otomatis terhadap Kalender Akademik (mencegah input pada hari libur).
     * Kunci Kelas (Security Lock): Guru hanya dapat mengakses dan mengisi kelas ampuan mereka.
@@ -41,18 +41,19 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 1.  **Katalog Buku:** Manajemen data buku (Judul, Pengarang, Penerbit, Tahun, Stok).
 2.  **Sirkulasi Cerdas:** Peminjaman dan Pengembalian dengan auto-kalkulasi stok secara *real-time*.
 3.  **Kunjungan Scanner QR:** Pencatatan kunjungan kilat menggunakan *Barcode / QR Scanner* (dukungan kamera HP/Laptop) lengkap dengan feedback suara (berhasil/gagal).
-4.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah.
+4.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah. Judul laporan kini menggunakan Nama Perpustakaan khusus (*custom*) dari menu Pengaturan.
+5.  **Cetak Kartu Perpustakaan Premium:** Menghasilkan ID Card fisik yang sepenuhnya dioptimalkan dengan CSS Grid, tipografi bersih (Inter Font), *watermark* terpusat, dan gradien warna eksklusif yang siap cetak.
 5.  **Hak Akses Khusus:** Mendukung *role* **Pustakawan** murni, serta *role* **Guru & Pustakawan** bagi guru wali kelas yang juga ditugaskan mengurus perpustakaan.
 
 ### ⚙️ Engine Inti
-1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat) dan pengaturan **Hari Libur Mingguan** yang fleksibel.
+1.  **Pengaturan Dinamis & Cerdas:** Konfigurasi identitas sekolah (Nama, Kepala Sekolah, Kop Surat, **Nama Kustom Perpustakaan**) dan pengaturan **Hari Libur Mingguan** yang fleksibel.
 2.  **Manajemen Tingkat Lanjut & Zona Berbahaya:**
     * **Kenaikan Kelas Otomatis:** Sistem yang otomatis meluluskan siswa tingkat akhir dan menaikkan kelas lainnya secara masif di akhir tahun.
     * **Reset Database (Wipe):** Fungsi *reset* sekali klik khusus Admin untuk menghapus data absensi/log lama, memastikan database Supabase tier gratis tetap lega.
-4.  **Performa Ekstra Cepat (Optimized):** 
+4.  **Arsitektur Bersih (Pure SPA):** 
     * Penggunaan *Client-Side Pagination* (25 baris per halaman) pada data statistik mengefisienkan *rendering* tabel.
     * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, membuat ukuran pemuatan awal halaman menjadi instan.
-    * Konfigurasi anti-crash `cross-env NODE_OPTIONS` untuk kelancaran *build* & *development*.
+    * Sistem bersih dari ketergantungan PWA sehingga terhindar dari konflik *cache* ganda, menjadikan aplikasi jauh lebih stabil sebagai *Single Page Application* standar.
 
 ## 🎨 Design System
 
