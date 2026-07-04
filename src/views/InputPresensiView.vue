@@ -92,13 +92,11 @@ async function loadStudents() {
     for (const l of logs || []) map[l.student_nisn] = l.status
     presensi.value = map
 
-    const { data: act } = await supabase
-      .from('activity_logs')
-      .select('id')
-      .eq('aksi', 'input_presensi')
-      .eq('record_id', `${tanggal.value}:${kelas.value}`)
-      .limit(1)
-    isSubmitted.value = (act && act.length > 0)
+    const [{ data: act }, { data: attLog }] = await Promise.all([
+      supabase.from('activity_logs').select('id').eq('aksi', 'input_presensi').eq('record_id', `${tanggal.value}:${kelas.value}`).limit(1),
+      supabase.from('attendance_logs').select('id').eq('date', tanggal.value).eq('kelas', kelas.value).limit(1)
+    ])
+    isSubmitted.value = (act && act.length > 0) || (attLog && attLog.length > 0)
   } catch (e) {
     toast.error('Gagal memuat siswa: ' + e.message)
   } finally {
@@ -137,7 +135,6 @@ async function simpan() {
         kelas: kelas.value,
         guru_input: auth.user?.nama || null,
       }))
-      .filter((r) => r.status !== 'Hadir')
 
     // Hapus semua log kelas ini di tanggal ini agar jika diubah ke Hadir, record lamanya hilang
     const { error: delErr } = await supabase

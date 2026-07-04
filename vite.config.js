@@ -11,4 +11,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-chart': ['chart.js', 'vue-chartjs'],
+          'vendor-qrcode': ['qrcode.vue'],
+        }
+      }
+    }
+  }
 })

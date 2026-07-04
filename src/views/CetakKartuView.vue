@@ -7,8 +7,6 @@ import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
 import SkeletonLoader from '@/components/SkeletonLoader.vue'
 import QRCodeVue from 'qrcode.vue'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
@@ -54,6 +52,11 @@ async function handleDownloadPDF() {
   try {
     const cards = document.querySelectorAll('.id-card')
     if (!cards.length) return
+
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf')
+    ])
 
     const pdf = new jsPDF('p', 'mm', 'a4')
     

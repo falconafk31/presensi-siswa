@@ -90,11 +90,38 @@ async function processUpload() {
 
     if (!toInsert.length) throw new Error('Tidak ada data valid (Username, Password, Nama wajib)')
 
-    const { error } = await supabase.from('users').upsert(toInsert, { onConflict: 'username' })
-    if (error) throw error
+    let successCount = 0
+    let failCount = 0
 
-    await logActivity({ aksi: 'import_guru', tabel_terkait: 'users', detail: { jumlah: toInsert.length } })
-    toast.success(`${toInsert.length} akun berhasil diupload`)
+    for (const user of toInsert) {
+      const { error } = await authClient.auth.signUp({
+        email: `${user.username}@minblora.id`,
+        password: user.password,
+        options: {
+          data: {
+            username: user.username,
+            nama: user.nama,
+            role: user.role,
+            kelas: user.kelas,
+            nip: user.nip
+          }
+        }
+      })
+      if (error) {
+        console.error('Failed to upload user:', user.username, error)
+        failCount++
+      } else {
+        successCount++
+      }
+    }
+
+    if (successCount > 0) {
+      await logActivity({ aksi: 'import_guru', tabel_terkait: 'users', detail: { jumlah: successCount } })
+      toast.success(`${successCount} akun berhasil diupload` + (failCount > 0 ? ` (${failCount} gagal/sudah ada)` : ''))
+    } else {
+      throw new Error('Semua baris gagal diupload (kemungkinan username sudah dipakai)')
+    }
+    
     showUpload.value = false
     await load()
   } catch(e) {
@@ -168,7 +195,8 @@ async function save() {
             username: form.value.username,
             nama: form.value.nama,
             role: form.value.role,
-            kelas: payload.kelas
+            kelas: payload.kelas,
+            nip: payload.nip
           }
         }
       })

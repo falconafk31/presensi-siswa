@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
@@ -39,38 +40,80 @@ const form = ref({
 const searchSiswa = ref('')
 const searchBuku = ref('')
 
-const filteredStudents = computed(() => {
-  if (!searchSiswa.value) return []
-  const q = searchSiswa.value.toLowerCase()
-  return students.value.filter(s => s.nama.toLowerCase().includes(q) || s.nisn.includes(q)).slice(0, 5)
-})
+const searchSiswaResult = ref([])
+const searchBukuResult = ref([])
+const searchingSiswa = ref(false)
+const searchingBuku = ref(false)
 
-const filteredBooks = computed(() => {
-  if (!searchBuku.value) return []
-  const q = searchBuku.value.toLowerCase()
-  return books.value.filter(b => b.judul.toLowerCase().includes(q)).slice(0, 5)
-})
+const filteredStudents = computed(() => searchSiswaResult.value)
+const filteredBooks = computed(() => searchBukuResult.value)
+
+watchDebounced(searchSiswa, async (newVal) => {
+  if (!newVal || form.value.student_nisn) {
+    searchSiswaResult.value = []
+    return
+  }
+  searchingSiswa.value = true
+  try {
+    const { data } = await supabase
+      .from('students')
+      .select('nisn, nama, kelas')
+      .eq('active', true)
+      .or(`nama.ilike.%${newVal}%,nisn.ilike.%${newVal}%`)
+      .limit(5)
+    searchSiswaResult.value = data || []
+  } finally {
+    searchingSiswa.value = false
+  }
+}, { debounce: 500 })
+
+watchDebounced(searchBuku, async (newVal) => {
+  if (!newVal || form.value.book_id) {
+    searchBukuResult.value = []
+    return
+  }
+  searchingBuku.value = true
+  try {
+    const { data: b } = await supabase
+      .from('books')
+      .select('id, judul, stok')
+      .ilike('judul', `%${newVal}%`)
+      .limit(5)
+      
+    if (!b || b.length === 0) {
+      searchBukuResult.value = []
+      return
+    }
+    
+    const bookIds = b.map(book => book.id)
+    const { data: l } = await supabase
+      .from('book_loans')
+      .select('book_id')
+      .in('book_id', bookIds)
+      .eq('status', 'dipinjam')
+      
+    const borrowedCounts = {}
+    if (l) {
+      l.forEach(loan => {
+        borrowedCounts[loan.book_id] = (borrowedCounts[loan.book_id] || 0) + 1
+      })
+    }
+    
+    searchBukuResult.value = b.map(book => ({
+      ...book,
+      tersedia: book.stok - (borrowedCounts[book.id] || 0)
+    }))
+  } finally {
+    searchingBuku.value = false
+  }
+}, { debounce: 500 })
+
+// We still need to fetch some books if we need it for validation during submit
+// But actually, we already have the selected book in the form from the search result.
+const selectedBookObj = ref(null)
 
 async function fetchMasterData() {
-  const [{ data: s }, { data: b }, { data: l }] = await Promise.all([
-    supabase.from('students').select('nisn, nama, kelas').eq('active', true),
-    supabase.from('books').select('id, judul, stok'),
-    supabase.from('book_loans').select('book_id').eq('status', 'dipinjam')
-  ])
-
-  // Hitung jumlah buku yang sedang dipinjam
-  const borrowedCounts = {}
-  if (l) {
-    l.forEach(loan => {
-      borrowedCounts[loan.book_id] = (borrowedCounts[loan.book_id] || 0) + 1
-    })
-  }
-
-  students.value = s || []
-  books.value = (b || []).map(book => ({
-    ...book,
-    tersedia: book.stok - (borrowedCounts[book.id] || 0)
-  }))
+  // Not fetching all students and books anymore to save bandwidth
 }
 
 async function fetchLoans() {
@@ -103,6 +146,7 @@ function selectStudent(s) {
 function selectBook(b) {
   form.value.book_id = b.id
   searchBuku.value = b.judul
+  selectedBookObj.value = b
 }
 
 async function submitPinjam() {
@@ -111,9 +155,9 @@ async function submitPinjam() {
     return
   }
 
-  const book = books.value.find(b => b.id === form.value.book_id)
-  if (!book || book.tersedia < 1) {
-    toast.error('Stok buku tidak tersedia atau sedang habis dipinjam')
+  const book = selectedBookObj.value
+  if (!book || book.id !== form.value.book_id || book.tersedia < 1) {
+    toast.error('Stok buku tidak tersedia atau buku tidak valid')
     return
   }
 
@@ -138,11 +182,11 @@ async function submitPinjam() {
     toast.success('Peminjaman berhasil dicatat')
     logActivity({ aksi: 'pinjam_buku', tabel_terkait: 'book_loans', detail: { student_nisn: payload.student_nisn, book_id: payload.book_id } })
     
-    // Reset form
     form.value.student_nisn = ''
     form.value.book_id = ''
     searchSiswa.value = ''
     searchBuku.value = ''
+    selectedBookObj.value = null
     form.value.durasi_hari = 7
 
     await fetchMasterData() // Refresh data stok buku

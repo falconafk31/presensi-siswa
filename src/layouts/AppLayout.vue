@@ -17,8 +17,7 @@ const periodStore = usePeriodStore()
 const sidebarOpen = ref(false)
 
 const visibleNav = computed(() => {
-  const allNav = [...navItems]
-  return allNav.filter((item) => {
+  return navItems.filter((item) => {
     if (item.adminOnly && !auth.isAdmin) return false
     if (item.perpusOnly && !auth.canManagePerpus) return false
     if (item.presensiOnly && !auth.canManagePresensi) return false

@@ -16,32 +16,37 @@ const scanning = ref(false)
 const lastScanned = ref(null)
 const recentScans = ref([]) // History of scans in this session
 
-// Web Audio API untuk suara offline yang 100% andal
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+let audioCtx = null
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  return audioCtx
+}
 
 function playTone(frequency, duration, type = 'sine') {
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const oscillator = audioCtx.createOscillator()
-  const gainNode = audioCtx.createGain()
+  const ctx = getAudioCtx()
+  if (ctx.state === 'suspended') ctx.resume()
+  const oscillator = ctx.createOscillator()
+  const gainNode = ctx.createGain()
   
   oscillator.type = type
-  oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime)
+  oscillator.frequency.setValueAtTime(frequency, ctx.currentTime)
   
   // Fade out effect
-  gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration)
+  gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
+  gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + duration)
   
   oscillator.connect(gainNode)
-  gainNode.connect(audioCtx.destination)
+  gainNode.connect(ctx.destination)
   
   oscillator.start()
-  oscillator.stop(audioCtx.currentTime + duration)
+  oscillator.stop(ctx.currentTime + duration)
 }
 
 onMounted(() => {
   // Pancing AudioContext agar aktif dengan interaksi pertama (wajib untuk iOS/Chrome ketat)
   const unlockAudio = () => {
-    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const ctx = getAudioCtx()
+    if (ctx.state === 'suspended') ctx.resume()
     document.removeEventListener('click', unlockAudio)
     document.removeEventListener('touchstart', unlockAudio)
   }

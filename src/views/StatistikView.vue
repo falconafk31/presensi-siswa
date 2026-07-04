@@ -18,7 +18,10 @@ const filterKelas = ref(auth.isAdmin ? '' : auth.kelas || '')
 const rows = ref([])
 const loading = ref(false)
 
-const sorted = computed(() => [...rows.value].sort((a, b) => a.persen - b.persen))
+const sorted = computed(() => [...rows.value].sort((a, b) => {
+  if (a.persen !== b.persen) return a.persen - b.persen
+  return (a.nama || '').localeCompare(b.nama || '')
+}))
 const dibawah = computed(() => sorted.value.filter((r) => r.persen < threshold.value).length)
 
 // Pagination logic
@@ -75,30 +78,50 @@ async function load() {
       submittedPerKelas[k].add(d)
     }
 
+    const activeDays = allDays.filter((d) => !liburSet.has(d))
+
+    let lq = supabase.from('attendance_logs').select('student_nisn, date, status').in('student_nisn', nisnList).in('date', activeDays)
+    const { data: logs, error: lErr } = await lq
+    if (lErr) throw lErr
+
+    const nisnToKelas = {}
+    for (const s of siswa || []) nisnToKelas[s.nisn] = s.kelas
+
+    for (const l of logs || []) {
+      const k = nisnToKelas[l.student_nisn]
+      if (k) {
+        if (!submittedPerKelas[k]) submittedPerKelas[k] = new Set()
+        submittedPerKelas[k].add(l.date)
+      }
+    }
+
     const activeDaysPerKelas = {}
     for (const k of new Set((siswa || []).map(s => s.kelas))) {
       const submitted = submittedPerKelas[k] || new Set()
       activeDaysPerKelas[k] = allDays.filter(d => !liburSet.has(d) && submitted.has(d)).length
     }
 
-    const activeDays = allDays.filter((d) => !liburSet.has(d))
-
-    let lq = supabase.from('attendance_logs').select('student_nisn').in('student_nisn', nisnList).in('date', activeDays)
-    const { data: logs, error: lErr } = await lq
-    if (lErr) throw lErr
-
     const agg = {}
-    for (const n of nisnList) agg[n] = 0 // Count of exceptions
+    for (const n of nisnList) agg[n] = { I: 0, S: 0, A: 0 }
     for (const l of logs || []) {
-      if (agg[l.student_nisn] !== undefined) agg[l.student_nisn]++
+      if (l.status !== 'Hadir' && agg[l.student_nisn] !== undefined) {
+        if (l.status === 'Izin') agg[l.student_nisn].I++
+        else if (l.status === 'Sakit') agg[l.student_nisn].S++
+        else if (l.status === 'Alfa') agg[l.student_nisn].A++
+      }
     }
 
     rows.value = (siswa || []).map((s) => {
-      const exceptions = agg[s.nisn] || 0
+      const stats = agg[s.nisn] || { I: 0, S: 0, A: 0 }
       const totalActive = activeDaysPerKelas[s.kelas] || 0
-      const hadir = totalActive - exceptions
-      const persen = totalActive ? Math.round((hadir / totalActive) * 100) : 0
-      return { ...s, hadir, total: totalActive, persen }
+      
+      const hadir = totalActive - (stats.I + stats.S + stats.A)
+      
+      // Persentase hanya memperhitungkan Alfa sebagai pengurangan
+      const hadirHitungan = totalActive - stats.A
+      const persen = totalActive ? Math.round((hadirHitungan / totalActive) * 100) : 0
+      
+      return { ...s, hadir, total: totalActive, persen, i: stats.I, s: stats.S, a: stats.A }
     })
     currentPage.value = 1 // Reset ke halaman 1 setiap data dimuat ulang
   } catch (e) {
@@ -151,20 +174,26 @@ onMounted(() => {
             <th class="px-3 py-2">#</th>
             <th class="px-3 py-2">Nama</th>
             <th class="px-3 py-2">Kelas</th>
-            <th class="px-3 py-2 text-center">Hadir</th>
-            <th class="px-3 py-2 text-center">Tercatat</th>
-            <th class="px-3 py-2 text-center">% Hadir</th>
+            <th class="px-3 py-2 text-center" title="Izin">I</th>
+            <th class="px-3 py-2 text-center" title="Sakit">S</th>
+            <th class="px-3 py-2 text-center" title="Alfa">A</th>
+            <th class="px-3 py-2 text-center" title="Kehadiran Aktual">Hadir</th>
+            <th class="px-3 py-2 text-center" title="Total Hari Efektif">Tercatat</th>
+            <th class="px-3 py-2 text-center" title="Persentase Bebas Alfa">% (Bebas Alfa)</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-if="loading"><td colspan="6" class="py-6 text-center text-gray-400">Memuat...</td></tr>
-          <tr v-else-if="!paginatedRows.length"><td colspan="6" class="py-6 text-center text-gray-400">Belum ada data presensi.</td></tr>
-          <tr v-for="(r, i) in paginatedRows" :key="r.nisn" :class="r.persen < threshold ? 'bg-rose-50' : 'hover:bg-gray-50'">
-            <td class="px-3 py-2 text-gray-400">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
+          <tr v-if="loading"><td colspan="9" class="py-6 text-center text-gray-400">Memuat...</td></tr>
+          <tr v-else-if="!paginatedRows.length"><td colspan="9" class="py-6 text-center text-gray-400">Belum ada data presensi.</td></tr>
+          <tr v-for="(r, idx) in paginatedRows" :key="r.nisn" :class="r.persen < threshold ? 'bg-rose-50' : 'hover:bg-gray-50'">
+            <td class="px-3 py-2 text-gray-400">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
             <td class="px-3 py-2 font-medium text-gray-800">{{ r.nama }}</td>
             <td class="px-3 py-2">{{ r.kelas }}</td>
-            <td class="px-3 py-2 text-center">{{ r.hadir }}</td>
-            <td class="px-3 py-2 text-center">{{ r.total }}</td>
+            <td class="px-3 py-2 text-center font-semibold text-blue-600">{{ r.i || '-' }}</td>
+            <td class="px-3 py-2 text-center font-semibold text-amber-500">{{ r.s || '-' }}</td>
+            <td class="px-3 py-2 text-center font-semibold text-rose-600">{{ r.a || '-' }}</td>
+            <td class="px-3 py-2 text-center font-medium">{{ r.hadir }}</td>
+            <td class="px-3 py-2 text-center text-gray-500">{{ r.total }}</td>
             <td class="px-3 py-2 text-center font-bold" :class="r.persen < threshold ? 'text-rose-700' : 'text-emerald-700'">
               {{ r.persen }}%
             </td>

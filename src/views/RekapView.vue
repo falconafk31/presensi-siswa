@@ -110,13 +110,17 @@ async function loadRekap() {
     for (const date of d) if (isWeekend(date)) libur.add(date)
     liburSet.value = libur
 
-    const submittedDates = new Set((acts || []).map(a => a.record_id.split(':')[0]))
+    const submittedDates = new Set()
+    for (const a of acts || []) submittedDates.add(a.record_id.split(':')[0])
+    for (const l of logs || []) submittedDates.add(l.date)
     submittedDatesSet.value = submittedDates
 
     const m = {}
     for (const l of logs || []) {
-      if (!m[l.student_nisn]) m[l.student_nisn] = {}
-      m[l.student_nisn][l.date] = STATUS_SHORT[l.status] || ''
+      if (l.status !== 'Hadir') {
+        if (!m[l.student_nisn]) m[l.student_nisn] = {}
+        m[l.student_nisn][l.date] = STATUS_SHORT[l.status] || ''
+      }
     }
     matrix.value = m
   } catch (e) {
@@ -194,7 +198,7 @@ async function exportExcel() {
     }
 
     const { exportExcelBulanan } = await import('@/lib/excelExport')
-    exportExcelBulanan({
+    await exportExcelBulanan({
       kelas: kelas.value,
       year: year.value,
       month: month.value,

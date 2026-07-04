@@ -182,14 +182,14 @@ export async function generateRekapPDF({
     }
   }
   const sumStart = 3 + dayColCount
-  columnStyles[sumStart] = { cellWidth: 6, fontStyle: 'bold' }
-  columnStyles[sumStart + 1] = { cellWidth: 6 }
-  columnStyles[sumStart + 2] = { cellWidth: 6 }
-  columnStyles[sumStart + 3] = { cellWidth: 6 }
-  columnStyles[sumStart + 4] = { cellWidth: 9.5, fontStyle: 'bold' }
-  columnStyles[sumStart + 5] = { cellWidth: 9.5 }
-  columnStyles[sumStart + 6] = { cellWidth: 9.5 }
-  columnStyles[sumStart + 7] = { cellWidth: 9.5 }
+  columnStyles[sumStart] = { cellWidth: 6, fontStyle: 'bold', textColor: [5, 150, 105] } // H
+  columnStyles[sumStart + 1] = { cellWidth: 6, textColor: [37, 99, 235] } // I
+  columnStyles[sumStart + 2] = { cellWidth: 6, textColor: [217, 119, 6] } // S
+  columnStyles[sumStart + 3] = { cellWidth: 6, textColor: [220, 38, 38] } // A
+  columnStyles[sumStart + 4] = { cellWidth: 9.5, fontStyle: 'bold', textColor: [5, 150, 105] } // %H
+  columnStyles[sumStart + 5] = { cellWidth: 9.5, textColor: [37, 99, 235] } // %I
+  columnStyles[sumStart + 6] = { cellWidth: 9.5, textColor: [217, 119, 6] } // %S
+  columnStyles[sumStart + 7] = { cellWidth: 9.5, textColor: [220, 38, 38] } // %A
 
   autoTable(doc, {
     head,
@@ -200,6 +200,20 @@ export async function generateRekapPDF({
     styles: { font: 'times', fontSize: 8, cellPadding: 0.8, lineColor: [120, 120, 120], lineWidth: 0.1, halign: 'center', textColor: [0, 0, 0] },
     headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
     columnStyles,
+    didParseCell: function(data) {
+      if (data.section === 'body') {
+        const val = data.cell.raw
+        if (val === 'H') {
+          data.cell.styles.textColor = [5, 150, 105] // emerald
+        } else if (val === 'I') {
+          data.cell.styles.textColor = [37, 99, 235] // blue
+        } else if (val === 'S') {
+          data.cell.styles.textColor = [217, 119, 6] // amber
+        } else if (val === 'A') {
+          data.cell.styles.textColor = [220, 38, 38] // red
+        }
+      }
+    }
   })
 
   // ---------- FOOTER REKAPITULASI HARI ----------

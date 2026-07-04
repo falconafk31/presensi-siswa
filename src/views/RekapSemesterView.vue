@@ -107,11 +107,24 @@ async function loadRekap() {
     const liburSet = new Set((kal || []).map((c) => c.date))
     for (const d of allDays) if (isWeekend(d)) liburSet.add(d)
 
-    const submittedDates = new Set((acts || []).map(a => a.record_id.split(':')[0]))
+    const submittedDates = new Set()
+    for (const a of acts || []) submittedDates.add(a.record_id.split(':')[0])
+    for (const l of logs || []) submittedDates.add(l.date)
 
+    const map = {}
+    for (const s of students.value) {
+      map[s.nisn] = {}
+    }
+    
     const activeDaysCount = allDays.filter(d => !liburSet.has(d) && submittedDates.has(d)).length
     totalActiveDays.value = activeDaysCount
 
+    for (const l of logs || []) {
+      if (l.status !== 'Hadir' && map[l.student_nisn]) {
+        map[l.student_nisn][l.date] = l.status
+      }
+    }
+    
     // agg: nisn -> { I, S, A }
     const agg = {}
     for (const s of students.value) {
@@ -207,7 +220,7 @@ async function exportExcel() {
     }
 
     const { exportExcelSemester } = await import('@/lib/excelExport')
-    exportExcelSemester({
+    await exportExcelSemester({
       kelas: kelas.value,
       semesterText: `${startDate.value} s.d ${endDate.value}`,
       students: students.value,

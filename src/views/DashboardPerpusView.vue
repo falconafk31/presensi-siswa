@@ -58,12 +58,16 @@ async function fetchDashboardData() {
     // Global visit stats
     const currentYearStr = todayStr.substring(0, 4)
     const currentMonthStr = todayStr.substring(0, 7)
-    const { data: globalVisits } = await supabase.from('library_visits').select('tanggal').gte('tanggal', `${currentYearStr}-01-01`)
-    if (globalVisits) {
-      kunjunganTahunIni.value = globalVisits.length
-      kunjunganBulanIni.value = globalVisits.filter(v => v.tanggal.startsWith(currentMonthStr)).length
-      kunjunganHariIni.value = globalVisits.filter(v => v.tanggal === todayStr).length
-    }
+    
+    const [{ count: cTahun }, { count: cBulan }, { count: cHari }] = await Promise.all([
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentYearStr}-01-01`),
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentMonthStr}-01`).lte('tanggal', `${currentMonthStr}-31`),
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).eq('tanggal', todayStr)
+    ])
+    
+    kunjunganTahunIni.value = cTahun || 0
+    kunjunganBulanIni.value = cBulan || 0
+    kunjunganHariIni.value = cHari || 0
 
     const { data: recents } = await supabase
       .from('book_loans')

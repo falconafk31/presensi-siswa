@@ -12,7 +12,9 @@ export const usePeriodStore = defineStore('period', () => {
       : 'Belum ada periode aktif'
   )
 
-  async function fetchActivePeriod() {
+  let _inflight = null
+
+  async function _doFetch() {
     loading.value = true
     try {
       const { data, error } = await supabase
@@ -26,6 +28,14 @@ export const usePeriodStore = defineStore('period', () => {
       loading.value = false
     }
     return activePeriod.value
+  }
+
+  async function fetchActivePeriod(force = false) {
+    if (!force && activePeriod.value) return activePeriod.value
+    if (_inflight) return _inflight
+    
+    _inflight = _doFetch().finally(() => { _inflight = null })
+    return _inflight
   }
 
   return { activePeriod, loading, label, fetchActivePeriod }

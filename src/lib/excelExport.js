@@ -1,7 +1,6 @@
-import * as XLSX from 'xlsx'
 import { namaBulan } from '@/lib/dates'
 
-export function exportExcelBulanan({
+export async function exportExcelBulanan({
   kelas,
   year,
   month,
@@ -14,6 +13,7 @@ export function exportExcelBulanan({
   waliKelas,
   nipWaliKelas,
 }) {
+  const XLSX = await import('xlsx')
   const wsData = []
 
   // Header 1: Title
@@ -76,7 +76,7 @@ export function exportExcelBulanan({
   XLSX.writeFile(wb, `Rekap_Absensi_Kelas-${kelas}_${namaBulan(month)}_${year}.xlsx`)
 }
 
-export function exportExcelSemester({
+export async function exportExcelSemester({
   kelas,
   semesterText,
   students,
@@ -84,6 +84,7 @@ export function exportExcelSemester({
   waliKelas,
   nipWaliKelas,
 }) {
+  const XLSX = await import('xlsx')
   const wsData = []
 
   wsData.push([`REKAPITULASI KEHADIRAN SEMESTER KELAS ${kelas}`])
