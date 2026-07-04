@@ -152,8 +152,8 @@ async function fetchMonthly() {
 async function loadAll() {
   loading.value = true
   try {
-    // Selalu ambil pengaturan terbaru dari server agar Sinkron (menghindari butuh F5 manual)
-    await settingsStore.fetchSettings()
+    // Selalu ambil pengaturan terbaru dari server secara paksa (bypass cache) agar sinkron otomatis
+    await settingsStore.fetchSettings(true)
     await Promise.all([fetchTotalSiswa(), fetchToday(), fetchMonthly()])
   } finally {
     loading.value = false

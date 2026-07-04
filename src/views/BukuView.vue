@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
-import { Plus, Edit, Trash2, Save, Upload, Loader2, Book, FileDown } from 'lucide-vue-next'
+import { Plus, Edit, Trash2, Save, Upload, Loader2, Book, FileDown, FileUp } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import * as XLSX from 'xlsx'
@@ -316,21 +316,37 @@ onMounted(fetchBooks)
 
     <!-- Modal Import Excel -->
     <BaseModal v-model="showImportModal" title="Import Buku via Excel">
-      <div class="p-5">
-        <p class="mb-4 text-sm text-gray-600">
-          Gunakan file Excel untuk menambahkan banyak buku sekaligus. Pastikan format kolom sesuai dengan template (Judul, Pengarang, Penerbit, Tahun, ISBN, Stok, Kategori).
-        </p>
-        <button class="mb-6 inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700" @click="downloadTemplate">
-          <FileDown class="h-4 w-4" /> Download Template Excel
-        </button>
-        
-        <div class="rounded-xl border-2 border-dashed border-gray-300 p-8 text-center">
-          <input ref="fileInput" type="file" accept=".xlsx, .xls" class="hidden" @change="handleFileUpload" />
-          <Upload class="mx-auto mb-3 h-8 w-8 text-gray-400" />
-          <p class="mb-2 text-sm font-medium text-gray-700">Pilih file Excel dari perangkat Anda</p>
-          <button class="btn-primary mx-auto" :disabled="saving" @click="fileInput.click()">
-            {{ saving ? 'Mengimpor...' : 'Browse File' }}
+      <div class="space-y-4">
+        <!-- Template Area -->
+        <div class="flex items-center justify-between rounded-xl bg-blue-50/50 p-4 border border-blue-100">
+          <div>
+            <h4 class="text-sm font-semibold text-blue-800">Template Excel</h4>
+            <p class="text-xs text-blue-600 mt-1">Gunakan template ini agar format data sesuai.</p>
+          </div>
+          <button class="btn-primary flex items-center gap-2 text-xs py-2 px-3 shrink-0" @click="downloadTemplate">
+            <FileDown class="h-4 w-4" /> Template
           </button>
+        </div>
+
+        <!-- Dropzone Area -->
+        <div class="relative group mt-2">
+          <input type="file" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handleFileUpload" />
+          <div class="rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300 border-gray-200 bg-gray-50 group-hover:border-emerald-300 group-hover:bg-emerald-50/30">
+            <div v-if="!saving" class="animate-in fade-in zoom-in duration-300">
+              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                <FileUp class="h-6 w-6" />
+              </div>
+              <p class="text-sm font-medium text-gray-700">Klik atau seret file Excel ke sini</p>
+              <p class="mt-1 text-xs text-gray-500">Mendukung format .xlsx dan .xls</p>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-4 ring-emerald-100">
+                <Loader2 class="h-6 w-6 animate-spin" />
+              </div>
+              <p class="text-sm font-bold text-emerald-800">Mengimpor Data...</p>
+              <p class="mt-1 text-xs text-emerald-600 font-medium">Mohon tunggu sebentar</p>
+            </div>
+          </div>
         </div>
       </div>
     </BaseModal>

@@ -8,8 +8,11 @@ import { Plus, CheckCircle2, Clock, AlertTriangle, Loader2, Search, Download } f
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import { exportPdfSirkulasi } from '@/lib/pdfSirkulasi'
+import { exportExcelSirkulasi } from '@/lib/excelExport'
+import { useSettingsStore } from '@/stores/settings'
 
 const auth = useAuthStore()
+const settingsStore = useSettingsStore()
 
 const loans = ref([])
 const loadingLoans = ref(false)
@@ -170,8 +173,12 @@ watch([filterStatus, searchLoan], () => {
   currentPage.value = 1
 })
 
-function handleDownloadPdf() {
-  exportPdfSirkulasi(filteredLoans.value, filterStatus.value === 'dipinjam' ? 'Laporan Buku Sedang Dipinjam' : 'Laporan Seluruh Riwayat Sirkulasi')
+async function handleDownloadPdf() {
+  await exportPdfSirkulasi(
+    filteredLoans.value,
+    settingsStore.settings,
+    filterStatus.value === 'dipinjam' ? 'Laporan Buku Sedang Dipinjam' : 'Laporan Seluruh Riwayat Sirkulasi'
+  )
 }
 
 function confirmKembalikan(loan) {

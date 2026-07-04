@@ -138,8 +138,8 @@ watch([filterMode, selectedDate, selectedMonth, selectedYear], () => {
 })
 
 // Export Handlers
-function handleDownloadPdfSirkulasi() {
-  exportPdfPerpus({
+async function handleDownloadPdfSirkulasi() {
+  await exportPdfPerpus({
     topBooks: topBooks.value.slice(0, 10), // Hanya top 10 untuk PDF
     topStudents: topStudentsLoans.value.slice(0, 10),
     totalDipinjamBulanIni: totalDipinjamPeriodeIni.value,
@@ -149,9 +149,9 @@ function handleDownloadPdfSirkulasi() {
   })
 }
 
-function handleDownloadPdfKunjungan() {
-  exportPdfKunjungan({
-    topStudents: topStudentsVisits.value, // Semua siswa dikirim
+async function handleDownloadPdfKunjungan() {
+  await exportPdfKunjungan({
+    topStudents: topStudentsVisits.value,
     totalKunjungan: totalKunjunganPeriodeIni.value,
     totalSiswaUnik: totalSiswaUnikKunjungan.value,
     periodeText: periodeText.value,

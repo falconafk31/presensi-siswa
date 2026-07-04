@@ -13,18 +13,19 @@ onMounted(() => {
 
 watch(() => settingsStore.settings?.logo_url, (url) => {
   if (url) {
-    let link = document.querySelector("link[rel~='icon']")
-    if (!link) {
-      link = document.createElement('link')
-      link.rel = 'icon'
-      document.head.appendChild(link)
-    }
-    link.href = url
+    // Cari dan hapus semua jenis tag icon (termasuk apple-touch-icon)
+    const existingLinks = document.querySelectorAll("link[rel*='icon']")
+    existingLinks.forEach(link => link.remove())
+
+    const newLink = document.createElement('link')
+    newLink.rel = 'icon'
+    newLink.href = url
+    document.head.appendChild(newLink)
   }
 }, { immediate: true })
 </script>
 
 <template>
   <RouterView />
-  <Toaster position="top-right" rich-colors />
+  <Toaster position="top-right" rich-colors :duration="2000" />
 </template>

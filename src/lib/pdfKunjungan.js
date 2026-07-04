@@ -1,7 +1,34 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-export function exportPdfKunjungan({
+async function loadImageDataUrl(url) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const bmp = await createImageBitmap(blob)
+    const canvas = document.createElement('canvas')
+    const maxSize = 200
+    let { width, height } = bmp
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = Math.round((height * maxSize) / width)
+        width = maxSize
+      } else {
+        width = Math.round((width * maxSize) / height)
+        height = maxSize
+      }
+    }
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(bmp, 0, 0, width, height)
+    return canvas.toDataURL('image/png')
+  } catch {
+    return null
+  }
+}
+
+export async function exportPdfKunjungan({
   topStudents,
   totalKunjungan,
   totalSiswaUnik,
@@ -11,36 +38,21 @@ export function exportPdfKunjungan({
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.width
 
-  // ---------- KOP SURAT ----------
-  if (settings?.nama_sekolah) {
-    doc.setFont('times', 'bold')
-    doc.setFontSize(14)
-    doc.text(settings.nama_sekolah.toUpperCase(), pageWidth / 2, 15, { align: 'center' })
-  }
-  
-  doc.setFont('times', 'normal')
-  doc.setFontSize(10)
-  
-  if (settings?.alamat) {
-    doc.text(settings.alamat, pageWidth / 2, 21, { align: 'center' })
-  }
-  
-  const lineY = 28
-  doc.setLineWidth(0.8)
-  doc.line(15, lineY, pageWidth - 15, lineY)
-  doc.setLineWidth(0.3)
-  doc.line(15, lineY + 1.2, pageWidth - 15, lineY + 1.2)
-
-  // ---------- JUDUL LAPORAN ----------
   doc.setFont('times', 'bold')
-  doc.setFontSize(12)
-  doc.text('LAPORAN KUNJUNGAN PERPUSTAKAAN', pageWidth / 2, lineY + 10, { align: 'center' })
+  doc.setFontSize(14)
+  const namaPerpus = settings?.nama_perpustakaan || 'MIN Blora'
+  doc.text(`LAPORAN KUNJUNGAN PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageWidth / 2, 15, { align: 'center' })
+  
   doc.setFontSize(10)
-  doc.text(`PERIODE: ${periodeText.toUpperCase()}`, pageWidth / 2, lineY + 15, { align: 'center' })
   doc.setFont('times', 'normal')
-  doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, lineY + 21, { align: 'center' })
+  doc.text(`PERIODE: ${periodeText.toUpperCase()}`, pageWidth / 2, 21, { align: 'center' })
+  doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 26, { align: 'center' })
+  
+  const lineY = 30
+  doc.setLineWidth(0.5)
+  doc.line(15, lineY, pageWidth - 15, lineY)
 
-  let currentY = lineY + 30
+  let currentY = lineY + 10
 
   // ---------- SUMMARY BLOCK ----------
   doc.setFont('times', 'bold')

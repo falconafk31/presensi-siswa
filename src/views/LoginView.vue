@@ -74,7 +74,7 @@ async function handleLogin() {
       <!-- Mobile Background Decoration -->
       <div class="absolute inset-0 lg:hidden bg-gradient-to-br from-emerald-50/50 to-white"></div>
       
-      <div class="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div class="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div class="mb-10 text-center lg:text-left">
           <div class="lg:hidden mx-auto mb-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-emerald-900 shadow-lg">
             <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo" class="h-full w-full object-contain" />

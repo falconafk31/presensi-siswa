@@ -112,6 +112,7 @@ create table if not exists public.app_settings (
   kop_baris3          text,
   kop_baris4          text,
   kop_baris5          text,
+  nama_perpustakaan   text default 'MIN Blora',
   hari_libur_mingguan jsonb default '[0, 6]'::jsonb,
   updated_at          timestamptz not null default now()
 );
@@ -167,7 +168,7 @@ create table if not exists public.books (
 -- ---------------------------------------------------------------------
 create table if not exists public.book_loans (
   id                         uuid primary key default gen_random_uuid(),
-  book_id                    uuid not null references public.books (id) on delete restrict,
+  book_id                    uuid not null references public.books (id) on delete cascade,
   student_nisn               text not null references public.students (nisn) on update cascade on delete cascade,
   tanggal_pinjam             date not null default current_date,
   tanggal_kembali_seharusnya date not null,

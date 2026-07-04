@@ -97,6 +97,7 @@ async function processUpload() {
     const { error } = await supabase.from('students').upsert(toInsert, { onConflict: 'nisn' })
     if (error) throw error
 
+    await logActivity({ aksi: 'import_siswa', tabel_terkait: 'students', detail: { jumlah: toInsert.length } })
     toast.success(`${toInsert.length} siswa berhasil diupload`)
     showUpload.value = false
     await load()
@@ -554,12 +555,38 @@ onMounted(() => {
     <!-- Modal Upload Excel -->
     <BaseModal v-model="showUpload" title="Upload Siswa (Excel)">
       <div class="space-y-4">
-        <p class="text-sm text-gray-600">
-          Gunakan template excel ini untuk menginput banyak siswa sekaligus.
-          <br />
-          <button class="text-primary hover:underline font-medium" @click="downloadTemplate">Download Template</button>
-        </p>
-        <input type="file" accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" @change="onFileSelected" />
+        <!-- Template Area -->
+        <div class="flex items-center justify-between rounded-xl bg-blue-50/50 p-4 border border-blue-100">
+          <div>
+            <h4 class="text-sm font-semibold text-blue-800">Template Excel</h4>
+            <p class="text-xs text-blue-600 mt-1">Gunakan template ini agar format data sesuai.</p>
+          </div>
+          <button class="btn-primary flex items-center gap-2 text-xs py-2 px-3 shrink-0" @click="downloadTemplate">
+            <FileDown class="h-4 w-4" /> Template
+          </button>
+        </div>
+
+        <!-- Dropzone Area -->
+        <div class="relative group mt-2">
+          <input type="file" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="onFileSelected" />
+          <div :class="['rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300', selectedFile ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-200 bg-gray-50 group-hover:border-emerald-300 group-hover:bg-emerald-50/30']">
+            <div v-if="!selectedFile" class="animate-in fade-in zoom-in duration-300">
+              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                <FileUp class="h-6 w-6" />
+              </div>
+              <p class="text-sm font-medium text-gray-700">Klik atau seret file Excel ke sini</p>
+              <p class="mt-1 text-xs text-gray-500">Mendukung format .xlsx dan .xls</p>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-4 ring-emerald-100">
+                <FileUp class="h-6 w-6" />
+              </div>
+              <p class="text-sm font-bold text-emerald-800">{{ selectedFile.name }}</p>
+              <p class="mt-1 text-xs text-emerald-600 font-medium">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
+              <p class="mt-3 text-[10px] text-gray-400 bg-white px-2 py-1 rounded-full border border-gray-100">Klik untuk mengganti file</p>
+            </div>
+          </div>
+        </div>
       </div>
       <template #footer>
         <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showUpload = false">Batal</button>

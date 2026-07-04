@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle, Building2, CalendarDays, ArrowUpCircle, ShieldAlert } from 'lucide-vue-next'
+import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle, Building2, CalendarDays, ArrowUpCircle, ShieldAlert, Database, FileDown } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -14,7 +14,7 @@ const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
 
 const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', hari_libur_mingguan: [0] })
+const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', nama_perpustakaan: 'MIN Blora', hari_libur_mingguan: [0, 6] })
 const savingSettings = ref(false)
 const uploading = ref(false)
 const fileInput = ref(null)
@@ -36,9 +36,12 @@ const prosesResetLog = ref(false)
 
 const showResetPerpusKunjungan = ref(false)
 const prosesResetPerpusKunjungan = ref(false)
+const konfirmasiResetPerpusKunjungan = ref('')
 
 const showResetPerpusPinjaman = ref(false)
 const prosesResetPerpusPinjaman = ref(false)
+
+const prosesBackup = ref(false)
 
 const newKelas = ref('')
 
@@ -96,7 +99,8 @@ async function saveSettings() {
       .from('app_settings')
       .upsert({ id: 1, ...form.value, updated_at: new Date().toISOString() }, { onConflict: 'id' })
     if (error) throw error
-    await settingsStore.fetchSettings()
+    // Force refresh cache Pinia agar seluruh halaman (Dashboard, dll) langsung up-to-date tanpa F5
+    await settingsStore.fetchSettings(true)
     await logActivity({ aksi: 'update_pengaturan', tabel_terkait: 'app_settings', record_id: '1' })
     toast.success('Identitas madrasah disimpan')
   } catch (e) {
@@ -325,9 +329,80 @@ async function jalankanResetPerpusPinjaman() {
     await logActivity({ aksi: 'reset_data_pinjaman_perpus', tabel_terkait: 'book_loans' })
     showResetPerpusPinjaman.value = false
   } catch (e) {
-    toast.error('Gagal menghapus data peminjaman buku: ' + e.message)
+    toast.error('Gagal reset: ' + e.message)
   } finally {
     prosesResetPerpusPinjaman.value = false
+  }
+}
+
+async function jalankanBackup() {
+  prosesBackup.value = true
+  try {
+    toast.info('Memproses backup, mohon tunggu...', { duration: 3000 })
+    
+    // Fetch all necessary data
+    const [
+      { data: siswa },
+      { data: guru },
+      { data: buku },
+      { data: logs }
+    ] = await Promise.all([
+      supabase.from('students').select('*').order('kelas').order('nama'),
+      supabase.from('users').select('*').order('role').order('nama'),
+      supabase.from('books').select('*').order('judul'),
+      supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(1000)
+    ])
+
+    const xlsx = await import('xlsx')
+    const wb = xlsx.utils.book_new()
+
+    // Sheet Siswa
+    if (siswa && siswa.length) {
+      const ws = xlsx.utils.json_to_sheet(siswa.map(s => ({
+        NISN: s.nisn, Nama: s.nama, JK: s.jk, Kelas: s.kelas,
+        Status: s.status, Aktif: s.active, 'Tgl Masuk': s.tanggal_masuk
+      })))
+      xlsx.utils.book_append_sheet(wb, ws, 'Siswa')
+    }
+
+    // Sheet Guru
+    if (guru && guru.length) {
+      const ws = xlsx.utils.json_to_sheet(guru.map(g => ({
+        Username: g.username, Nama: g.nama, Role: g.role, 
+        NIP: g.nip, 'Wali Kelas': g.kelas
+      })))
+      xlsx.utils.book_append_sheet(wb, ws, 'Guru')
+    }
+
+    // Sheet Buku
+    if (buku && buku.length) {
+      const ws = xlsx.utils.json_to_sheet(buku.map(b => ({
+        Judul: b.judul, Pengarang: b.pengarang, Penerbit: b.penerbit,
+        Tahun: b.tahun_terbit, ISBN: b.isbn, Stok: b.stok, Kategori: b.kategori
+      })))
+      xlsx.utils.book_append_sheet(wb, ws, 'Buku')
+    }
+
+    // Sheet Log Aktivitas
+    if (logs && logs.length) {
+      const ws = xlsx.utils.json_to_sheet(logs.map(l => ({
+        Waktu: new Date(l.created_at).toLocaleString('id-ID'),
+        Aksi: l.aksi,
+        Tabel: l.tabel_terkait,
+        Keterangan: JSON.stringify(l.detail || {})
+      })))
+      xlsx.utils.book_append_sheet(wb, ws, 'Log Aktivitas')
+    }
+
+    const tgl = new Date().toISOString().split('T')[0]
+    xlsx.writeFile(wb, `Backup_Presensi_MINBlora_${tgl}.xlsx`)
+    
+    await logActivity({ aksi: 'backup_database', tabel_terkait: 'all' })
+    toast.success('Backup berhasil diunduh!')
+  } catch (e) {
+    toast.error('Gagal membuat backup: ' + e.message)
+  } finally {
+    prosesBackup.value = false
   }
 }
 
@@ -411,6 +486,10 @@ onMounted(() => {
               <label class="mb-1 block text-xs font-medium text-gray-600">NIP Kepala</label>
               <input v-model="form.nip_kepala_sekolah" class="input-field" />
             </div>
+            <div class="sm:col-span-2">
+              <label class="mb-1 block text-xs font-medium text-gray-600">Nama Perpustakaan (Kustom)</label>
+              <input v-model="form.nama_perpustakaan" class="input-field border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500/20" placeholder="Contoh: BAITUL HIKMAH" />
+            </div>
           </div>
         </div>
       </div>
@@ -437,7 +516,7 @@ onMounted(() => {
               <input v-model="form.kop_baris4" class="input-field" placeholder="Alamat: Jl. Pendidikan No. 1, Blora. Telp: (0296) 123456" />
             </div>
             <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 5 (Opsional)</label>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 5 (Opsional / Website)</label>
               <input v-model="form.kop_baris5" class="input-field" placeholder="Website: www.minblora.sch.id | Email: minblora@kemenag.go.id" />
             </div>
           </div>
@@ -545,6 +624,25 @@ onMounted(() => {
 
     <!-- Tab: Pemeliharaan -->
     <div v-else-if="activeSettingsTab === 'pemeliharaan'" class="space-y-4 animate-in fade-in duration-300">
+        
+        <!-- Pencadangan Database -->
+        <div class="card border border-emerald-200 bg-emerald-50/20">
+          <h3 class="mb-3 text-sm font-semibold text-emerald-700 flex items-center gap-2">
+            <Database class="h-4 w-4" /> Pencadangan Database (Backup)
+          </h3>
+          <p class="mb-4 text-xs text-emerald-600/80">Unduh seluruh data master sekolah (Siswa, Guru, Buku) dan Log Aktivitas dalam 1 file Excel ber-sheet banyak. Sangat disarankan dilakukan tiap bulan.</p>
+          
+          <button 
+            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50" 
+            :disabled="prosesBackup" 
+            @click="jalankanBackup"
+          >
+            <Loader2 v-if="prosesBackup" class="h-4 w-4 animate-spin" />
+            <FileDown v-else class="h-4 w-4" />
+            {{ prosesBackup ? 'Mengekstrak Data...' : 'Download Full Backup (Excel)' }}
+          </button>
+        </div>
+
         <!-- Pemeliharaan Database (Danger Zone) -->
         <div class="card border border-rose-200 bg-rose-50/20">
           <h3 class="mb-3 text-sm font-semibold text-rose-700 flex items-center gap-2">

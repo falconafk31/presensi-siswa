@@ -1,13 +1,41 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-export function exportPdfSirkulasi(loans, title = 'Laporan Sirkulasi Perpustakaan') {
+async function loadImageDataUrl(url) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const bmp = await createImageBitmap(blob)
+    const canvas = document.createElement('canvas')
+    const maxSize = 200
+    let { width, height } = bmp
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = Math.round((height * maxSize) / width)
+        width = maxSize
+      } else {
+        width = Math.round((width * maxSize) / height)
+        height = maxSize
+      }
+    }
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(bmp, 0, 0, width, height)
+    return canvas.toDataURL('image/png')
+  } catch {
+    return null
+  }
+}
+
+export async function exportPdfSirkulasi(loans, settings, title = 'Laporan Sirkulasi') {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
 
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text(title, pageW / 2, 20, { align: 'center' })
+  const namaPerpus = settings?.nama_perpustakaan || 'MIN Blora'
+  doc.text(`${title.toUpperCase()} PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageW / 2, 20, { align: 'center' })
   
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')

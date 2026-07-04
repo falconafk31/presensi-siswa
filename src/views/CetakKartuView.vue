@@ -170,53 +170,58 @@ function getTTL(tempat, tanggal) {
         </div>
 
         <!-- Body Kartu -->
-        <div class="id-card-body">
-          <div class="photo-area">
-            <div class="photo-box">
-              <span>Pas Foto<br>3x4</span>
-            </div>
+        <div class="id-card-body relative overflow-hidden">
+          <!-- Watermark Logo/Icon -->
+          <div class="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none z-0">
+            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Watermark" class="w-28 h-28 object-contain grayscale" />
+            <School v-else class="w-28 h-28" />
           </div>
-          
-          <div class="data-area">
-            <table class="data-table">
+
+          <div class="data-area flex-1 flex flex-col justify-center items-center mt-2 pr-12 w-full relative z-10">
+            <table class="text-left w-auto mx-auto mb-2" style="border-spacing: 0 3px; border-collapse: separate;">
               <tbody>
                 <tr>
-                  <td class="label">Nama</td>
-                  <td class="separator">:</td>
-                  <td class="value font-bold">{{ s.nama.toUpperCase() }}</td>
+                  <td class="text-[7.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Nama</td>
+                  <td class="text-[7.5pt] font-bold text-gray-900 px-1 align-top">:</td>
+                  <td class="text-[7.5pt] font-bold text-gray-900 align-top leading-tight">{{ s.nama.toUpperCase() }}</td>
                 </tr>
                 <tr>
-                  <td class="label">TTL</td>
-                  <td class="separator">:</td>
-                  <td class="value">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Tempat, Tgl. Lahir</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
+                  <td class="text-[5.5pt] text-gray-800 align-top">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</td>
                 </tr>
                 <tr>
-                  <td class="label">JK</td>
-                  <td class="separator">:</td>
-                  <td class="value">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Jenis Kelamin</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
+                  <td class="text-[5.5pt] text-gray-800 align-top">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">NISM</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
+                  <td class="text-[5.5pt] text-gray-800 align-top">
+                    <span class="font-bold">{{ s.nism || '-' }}</span>
+                    <div class="text-[4pt] text-gray-500 italic mt-[1px]">(Nomor Induk Siswa Madrasah)</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">NISN</td>
+                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
+                  <td class="text-[5.5pt] text-gray-800 align-top">
+                    <span class="font-bold">{{ s.nisn }}</span>
+                    <div class="text-[4pt] text-gray-500 italic mt-[1px]">(Nomor Induk Siswa Nasional)</div>
+                  </td>
                 </tr>
               </tbody>
             </table>
-
-            <div class="flex-ids mt-1">
-              <div class="id-box mb-1">
-                <div class="id-number">NISM : {{ s.nism || '-' }}</div>
-                <div class="id-desc">(Nomor Induk Siswa Madrasah)</div>
-              </div>
-              <div class="id-box">
-                <div class="id-number">NISN : {{ s.nisn }}</div>
-                <div class="id-desc">(Nomor Induk Siswa Nasional)</div>
-              </div>
-            </div>
           </div>
 
-          <div class="qr-area">
-            <QRCodeVue :value="s.nisn" :size="55" level="M" />
+          <div class="qr-area absolute right-3 top-1/2 -translate-y-1/2">
+            <QRCodeVue :value="s.nisn" :size="50" level="M" />
           </div>
         </div>
 
         <!-- Footer Kartu -->
-        <div class="id-card-footer">
+        <div class="id-card-footer absolute bottom-1 w-full flex justify-between px-2 items-end">
           <div class="footer-text">
             * Kartu perpus aktif selama menjadi siswa di {{ namaSekolah }}.
           </div>
@@ -245,7 +250,15 @@ function getTTL(tempat, tanggal) {
 .id-card {
   width: 8.6cm;
   height: 5.4cm;
-  background-color: white;
+  background-color: #ffffff;
+  /* Modern premium background: subtle wave + soft gradient */
+  background-image: 
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23064e3b' fill-opacity='0.04' d='M0,160L48,170.7C96,181,192,203,288,197.3C384,192,480,160,576,149.3C672,139,768,149,864,170.7C960,192,1056,224,1152,218.7C1248,213,1344,171,1392,149.3L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E"), 
+    radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0) 40%),
+    linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(240,253,244,0.6) 100%);
+  background-position: bottom center;
+  background-repeat: no-repeat;
+  background-size: cover;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   overflow: hidden;
@@ -253,20 +266,44 @@ function getTTL(tempat, tanggal) {
   display: flex;
   flex-direction: column;
   position: relative;
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="%23f0fdf4"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>');
 }
 
-/* Header Kemenag Green (#064e3b) */
+/* Header Kemenag Green (#064e3b) - Modernized */
 .id-card-header {
-  height: 1.1cm;
-  background-color: #064e3b;
+  height: 1.15cm;
+  background: linear-gradient(135deg, #022c22 0%, #064e3b 40%, #047857 100%);
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   padding: 0 0.2cm;
   color: white;
-  border-bottom: 2px solid #fbbf24; /* Aksen Gold */
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
+  z-index: 20;
+}
+
+/* Gradient Gold Border for Header */
+.id-card-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #d97706 0%, #fbbf24 50%, #fcd34d 100%);
+}
+
+/* Subtle Overlay Pattern */
+.id-card-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M0 20L20 0H10L0 10Z" fill="rgba(255,255,255,0.03)"/></svg>');
+  background-size: 20px;
+  opacity: 0.8;
+  pointer-events: none;
 }
 
 .logo-box {
@@ -298,18 +335,21 @@ function getTTL(tempat, tanggal) {
 }
 
 .header-text h2 {
-  font-size: 5pt;
+  font-size: 4.5pt;
   margin: 0;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  color: #fbbf24;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #fde68a; /* Soft Gold */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .header-text h1 {
-  font-size: 7.5pt;
+  font-size: 8pt;
   margin: 0;
-  font-weight: 800;
-  line-height: 1;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.5);
 }
 
 /* Body Layout */
@@ -411,13 +451,7 @@ function getTTL(tempat, tanggal) {
 
 /* Footer Layout */
 .id-card-footer {
-  height: 0.4cm;
-  background-color: #f3f4f6;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0.2cm;
+  /* Removed background color and borders to make it float */
 }
 
 .footer-text {
