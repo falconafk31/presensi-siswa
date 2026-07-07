@@ -38,21 +38,73 @@ export async function exportPdfKunjungan({
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.width
 
+  const margin = 15
+  
+  // ---------- KOP SURAT ----------
+  if (settings?.logo_url) {
+    const logoData = await loadImageDataUrl(settings.logo_url)
+    if (logoData) {
+      try {
+        doc.addImage(logoData, 'PNG', margin, 9, 22, 22)
+      } catch {
+        /* abaikan logo gagal */
+      }
+    }
+  }
+
   doc.setFont('times', 'bold')
+  
+  // Baris 1
   doc.setFontSize(14)
+  doc.text('KEMENTERIAN AGAMA REPUBLIK INDONESIA', pageWidth / 2, 13, { align: 'center' })
+  
+  // Baris 2
+  if (settings?.kop_baris2) {
+    doc.setFontSize(12)
+    doc.text(settings.kop_baris2.toUpperCase(), pageWidth / 2, 19, { align: 'center' })
+  }
+  
+  // Baris 3
+  if (settings?.kop_baris3) {
+    doc.setFontSize(11)
+    doc.text(settings.kop_baris3.toUpperCase(), pageWidth / 2, 24.5, { align: 'center' })
+  }
+
+  // Baris 4
+  if (settings?.kop_baris4) {
+    doc.setFont('times', 'normal')
+    doc.setFontSize(10)
+    doc.text(settings.kop_baris4, pageWidth / 2, 29.5, { align: 'center' })
+  }
+
+  // Baris 5
+  if (settings?.kop_baris5) {
+    doc.setFont('times', 'normal')
+    doc.setFontSize(10)
+    doc.text(settings.kop_baris5, pageWidth / 2, 33.5, { align: 'center' })
+  }
+
+  const hasBaris5 = !!settings?.kop_baris5
+  const lineY = hasBaris5 ? 36.5 : 32.5
+  
+  // Garis bawah ganda (double border)
+  doc.setLineWidth(0.8)
+  doc.line(margin, lineY, pageWidth - margin, lineY)
+  doc.setLineWidth(0.3)
+  doc.line(margin, lineY + 1.2, pageWidth - margin, lineY + 1.2)
+
+  // ---------- JUDUL LAPORAN ----------
+  doc.setFont('times', 'bold')
+  doc.setFontSize(12)
   const namaPerpus = settings?.nama_perpustakaan || 'MIN Blora'
-  doc.text(`LAPORAN KUNJUNGAN PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageWidth / 2, 15, { align: 'center' })
+  doc.text(`LAPORAN KUNJUNGAN PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageWidth / 2, lineY + 8.5, { align: 'center' })
   
   doc.setFontSize(10)
   doc.setFont('times', 'normal')
-  doc.text(`PERIODE: ${periodeText.toUpperCase()}`, pageWidth / 2, 21, { align: 'center' })
-  doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 26, { align: 'center' })
-  
-  const lineY = 30
-  doc.setLineWidth(0.5)
-  doc.line(15, lineY, pageWidth - 15, lineY)
+  doc.text(`PERIODE: ${periodeText.toUpperCase()}`, pageWidth / 2, lineY + 14, { align: 'center' })
+  doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, lineY + 19, { align: 'center' })
 
-  let currentY = lineY + 10
+  let currentY = lineY + 28
 
   // ---------- SUMMARY BLOCK ----------
   doc.setFont('times', 'bold')
@@ -62,9 +114,6 @@ export async function exportPdfKunjungan({
   currentY += 16
 
   // ---------- DAFTAR PENGUNJUNG ----------
-  doc.setFont('times', 'bold')
-  doc.text('Rekapitulasi Kunjungan Siswa', 15, currentY)
-  currentY += 5
 
   const studentsHead = [['No', 'Nama Siswa', 'Kelas', 'Jumlah Kunjungan']]
   const studentsBody = topStudents.map((s, i) => [

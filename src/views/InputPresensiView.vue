@@ -285,7 +285,7 @@ onMounted(loadStudents)
     </template>
 
     <!-- Sticky Footer for Save Button -->
-    <div v-if="!hariLibur && students.length" class="sticky bottom-0 z-10 -mx-4 -mb-4 mt-8 border-t border-gray-200 bg-white/90 p-4 backdrop-blur-md sm:-mx-6 sm:-mb-6 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <div v-if="!hariLibur && students.length" class="sticky bottom-[calc(52px+env(safe-area-inset-bottom))] lg:bottom-0 z-10 -mx-4 mt-8 border-t border-gray-200 bg-white/95 p-4 backdrop-blur-md sm:-mx-6 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <div class="flex items-center justify-between">
         <p class="text-sm font-medium text-gray-600">Pastikan semua kehadiran sudah sesuai sebelum menyimpan.</p>
         <button

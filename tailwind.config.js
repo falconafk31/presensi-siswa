@@ -6,9 +6,9 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#064e3b',
-          hover: '#004d00',
-          accent: '#e6f2e6',
+          DEFAULT: '#007c5f', // EMIS GTK Primary
+          hover: '#00664e',
+          accent: '#e6f2ef',
         },
         gold: '#FBBF24',
         base: '#F3F4F6',

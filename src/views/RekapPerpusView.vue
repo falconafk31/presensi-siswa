@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useSettingsStore } from '@/stores/settings'
 import { exportPdfPerpus } from '@/lib/pdfPerpus'
 import { exportPdfKunjungan } from '@/lib/pdfKunjungan'
-import { exportExcelKunjungan } from '@/lib/excelExport'
+import { exportExcelKunjungan, exportExcelSirkulasi } from '@/lib/excelExport'
 import { namaBulan } from '@/lib/dates'
 import { Trophy, BookOpen, UserCircle, Loader2, Download, Library, FileSpreadsheet } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
@@ -98,12 +98,10 @@ async function fetchRekap() {
     topBooks.value = Object.entries(bookCounts)
       .sort((a, b) => b[1] - a[1])
       .map(([id, count]) => ({ id, judul: bookNames[id], count }))
-      .slice(0, 50) // Ambil top 50
 
     topStudentsLoans.value = Object.entries(loanStudentCounts)
       .sort((a, b) => b[1] - a[1])
       .map(([nisn, count]) => ({ nisn, ...loanStudentData[nisn], count }))
-      .slice(0, 50)
 
     totalDipinjamPeriodeIni.value = loans.length
     totalSiswaPeminjam.value = Object.keys(loanStudentCounts).length
@@ -140,8 +138,8 @@ watch([filterMode, selectedDate, selectedMonth, selectedYear], () => {
 // Export Handlers
 async function handleDownloadPdfSirkulasi() {
   await exportPdfPerpus({
-    topBooks: topBooks.value.slice(0, 10), // Hanya top 10 untuk PDF
-    topStudents: topStudentsLoans.value.slice(0, 10),
+    topBooks: topBooks.value,
+    topStudents: topStudentsLoans.value,
     totalDipinjamBulanIni: totalDipinjamPeriodeIni.value,
     totalSiswaPeminjam: totalSiswaPeminjam.value,
     periodeText: periodeText.value,
@@ -159,9 +157,17 @@ async function handleDownloadPdfKunjungan() {
   })
 }
 
-function handleDownloadExcelKunjungan() {
-  exportExcelKunjungan({
+async function handleDownloadExcelKunjungan() {
+  await exportExcelKunjungan({
     topStudents: topStudentsVisits.value,
+    periodeText: periodeText.value
+  })
+}
+
+async function handleDownloadExcelSirkulasi() {
+  await exportExcelSirkulasi({
+    topBooks: topBooks.value,
+    topStudents: topStudentsLoans.value,
     periodeText: periodeText.value
   })
 }
@@ -298,10 +304,14 @@ onMounted(() => {
               <p class="text-2xl font-bold text-indigo-900">{{ totalSiswaPeminjam }} <span class="text-xs font-normal">Anak</span></p>
             </div>
           </div>
-          
-          <button class="btn-primary flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white" @click="handleDownloadPdfSirkulasi">
-            <Download class="h-4 w-4" /> Export PDF Laporan
-          </button>
+          <div class="flex gap-2">
+            <button class="btn-primary flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white" @click="handleDownloadExcelSirkulasi">
+              <FileSpreadsheet class="h-4 w-4" /> Export Excel
+            </button>
+            <button class="btn-primary flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white" @click="handleDownloadPdfSirkulasi">
+              <Download class="h-4 w-4" /> Export PDF Laporan
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

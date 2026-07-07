@@ -135,10 +135,11 @@ export async function exportExcelSemester({
   XLSX.writeFile(wb, `Rekap_Semester_Kelas-${kelas}.xlsx`)
 }
 
-export function exportExcelKunjungan({
+export async function exportExcelKunjungan({
   topStudents,
   periodeText,
 }) {
+  const XLSX = await import('xlsx')
   const wsData = []
 
   wsData.push([`REKAPITULASI KUNJUNGAN PERPUSTAKAAN`])
@@ -173,4 +174,73 @@ export function exportExcelKunjungan({
 
   XLSX.utils.book_append_sheet(wb, ws, `Kunjungan`)
   XLSX.writeFile(wb, `Rekap_Kunjungan_Perpus_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+export async function exportExcelSirkulasi({
+  topBooks,
+  topStudents,
+  periodeText,
+}) {
+  const XLSX = await import('xlsx')
+  const wb = XLSX.utils.book_new()
+
+  // Sheet 1: Buku Paling Sering Dipinjam
+  const wsBooksData = []
+  wsBooksData.push([`LAPORAN STATISTIK BUKU PERPUSTAKAAN`])
+  wsBooksData.push([`Periode: ${periodeText}`])
+  wsBooksData.push([])
+
+  wsBooksData.push(['No', 'Judul Buku', 'Jumlah Peminjaman'])
+
+  if (!topBooks || topBooks.length === 0) {
+    wsBooksData.push(['-', 'Belum ada data peminjaman buku', '-'])
+  } else {
+    topBooks.forEach((b, i) => {
+      wsBooksData.push([
+        i + 1,
+        b.judul,
+        b.count
+      ])
+    })
+  }
+
+  const wsBooks = XLSX.utils.aoa_to_sheet(wsBooksData)
+  wsBooks['!cols'] = [
+    { wch: 5 },  // No
+    { wch: 50 }, // Judul Buku
+    { wch: 20 }, // Jumlah Peminjaman
+  ]
+  XLSX.utils.book_append_sheet(wb, wsBooks, `Statistik Buku`)
+
+  // Sheet 2: Siswa Teraktif
+  const wsStudentsData = []
+  wsStudentsData.push([`LAPORAN STATISTIK PEMINJAM PERPUSTAKAAN`])
+  wsStudentsData.push([`Periode: ${periodeText}`])
+  wsStudentsData.push([])
+
+  wsStudentsData.push(['No', 'Nama Siswa', 'Kelas', 'Jumlah Buku Dipinjam'])
+
+  if (!topStudents || topStudents.length === 0) {
+    wsStudentsData.push(['-', 'Belum ada data siswa meminjam', '-', '-'])
+  } else {
+    topStudents.forEach((s, i) => {
+      wsStudentsData.push([
+        i + 1,
+        s.nama,
+        s.kelas || '-',
+        s.count
+      ])
+    })
+  }
+
+  const wsStudents = XLSX.utils.aoa_to_sheet(wsStudentsData)
+  wsStudents['!cols'] = [
+    { wch: 5 },  // No
+    { wch: 35 }, // Nama Siswa
+    { wch: 15 }, // Kelas
+    { wch: 25 }, // Jumlah Peminjaman
+  ]
+  XLSX.utils.book_append_sheet(wb, wsStudents, `Siswa Teraktif`)
+
+  XLSX.writeFile(wb, `Laporan_Statistik_Sirkulasi_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }

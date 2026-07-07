@@ -47,3 +47,19 @@ export const navItems = [
   { isHeader: true, label: 'BANTUAN' },
   { to: { name: 'panduan' }, label: 'Panduan Penggunaan', icon: HelpCircle },
 ]
+
+// Bottom tabs for mobile — role-specific quick access
+export const bottomTabsPresensi = [
+  { to: { name: 'dashboard' }, label: 'Home', icon: LayoutDashboard },
+  { to: { name: 'presensi' }, label: 'Absen', icon: ClipboardCheck },
+  { to: { name: 'rekap' }, label: 'Rekap', icon: FileSpreadsheet },
+  { to: { name: 'statistik' }, label: 'Statistik', icon: TriangleAlert },
+]
+
+export const bottomTabsPerpus = [
+  { to: { name: 'dashboard-perpus' }, label: 'Home', icon: PieChart },
+  { to: { name: 'buku' }, label: 'Buku', icon: Book },
+  { to: { name: 'peminjaman' }, label: 'Sirkulasi', icon: BookOpen },
+  { to: { name: 'kunjungan-perpus' }, label: 'Kunjungan', icon: UsersRound },
+]
+

@@ -42,6 +42,33 @@ function playTone(frequency, duration, type = 'sine') {
   oscillator.stop(ctx.currentTime + duration)
 }
 
+let wakeLock = null
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen')
+      wakeLock.addEventListener('release', () => {
+        console.log('Wake Lock dilepas')
+      })
+      console.log('Wake Lock aktif')
+    } catch (err) {
+      console.error(`Wake Lock error: ${err.name}, ${err.message}`)
+    }
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock !== null) {
+    wakeLock.release()
+    wakeLock = null
+  }
+}
+
+const handleVisibilityChange = async () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    await requestWakeLock()
+  }
+}
+
 onMounted(() => {
   // Pancing AudioContext agar aktif dengan interaksi pertama (wajib untuk iOS/Chrome ketat)
   const unlockAudio = () => {
@@ -52,13 +79,17 @@ onMounted(() => {
   }
   document.addEventListener('click', unlockAudio)
   document.addEventListener('touchstart', unlockAudio)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   initScanner()
   fetchTodayHistory()
+  requestWakeLock()
 })
 
 onUnmounted(() => {
   stopScanner()
+  releaseWakeLock()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 function initScanner() {

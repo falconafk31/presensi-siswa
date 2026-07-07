@@ -158,6 +158,35 @@ router.beforeEach((to) => {
   }
 })
 
+router.afterEach((to) => {
+  if (to.name) {
+    const titleMap = {
+      'login': 'Login',
+      'dashboard': 'Dashboard Presensi',
+      'presensi': 'Input Presensi',
+      'rekap': 'Rekap Harian',
+      'rekap-semester': 'Rekap Semester',
+      'siswa': 'Data Siswa',
+      'guru': 'Data Guru',
+      'kalender': 'Kalender Akademik',
+      'statistik': 'Statistik Presensi',
+      'riwayat-kelas': 'Riwayat Kelas',
+      'aktivitas': 'Log Aktivitas',
+      'pengaturan': 'Pengaturan Sistem',
+      'dashboard-perpus': 'Dashboard Perpustakaan',
+      'cetak-kartu': 'Cetak Kartu',
+      'scan-qr': 'Scan Barcode',
+      'buku': 'Katalog Buku',
+      'peminjaman': 'Sirkulasi Buku',
+      'rekap-perpus': 'Laporan Perpustakaan',
+      'kunjungan-perpus': 'Kunjungan Perpustakaan',
+      'panduan': 'Panduan Penggunaan',
+    }
+    const pageTitle = titleMap[to.name] || 'App'
+    document.title = `${pageTitle} | Sistem Presensi MIN Blora`
+  }
+})
+
 router.onError((error, to) => {
   if (error.message.includes('Failed to fetch dynamically imported module') || error.name === 'ChunkLoadError') {
     console.warn('Chunk load error detected, reloading page to fetch latest version...', error)

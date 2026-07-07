@@ -53,13 +53,25 @@ async function handleDownloadPDF() {
     const cards = document.querySelectorAll('.id-card')
     if (!cards.length) return
 
-    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-      import('html2canvas'),
-      import('jspdf')
-    ])
-
+    const { default: jsPDF } = await import('jspdf')
     const pdf = new jsPDF('p', 'mm', 'a4')
     
+    // Ambil logo utama ke base64 agar bisa dirender jsPDF
+    let logoData = null;
+    if (settingsStore.settings?.logo_url) {
+      try {
+        const res = await fetch(settingsStore.settings.logo_url)
+        const blob = await res.blob()
+        logoData = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) {
+        console.warn('Gagal memuat logo untuk PDF', e)
+      }
+    }
+
     const xOffset = 15
     const yOffset = 25
     const cardWidth = 86
@@ -69,28 +81,108 @@ async function handleDownloadPDF() {
     
     let currentCount = 0
     
-    for (let i = 0; i < cards.length; i++) {
-      const canvas = await html2canvas(cards[i], { scale: 3, useCORS: true })
-      // Optimasi: Gunakan JPEG (kualitas 80%) alih-alih PNG untuk menekan ukuran file drastis
-      const imgData = canvas.toDataURL('image/jpeg', 0.8)
-      
+    for (let i = 0; i < students.value.length; i++) {
+      const s = students.value[i]
+      const cardEl = cards[i]
+
       const col = currentCount % 2
       const row = Math.floor(currentCount / 2)
       
       const x = xOffset + (col * (cardWidth + marginX))
       const y = yOffset + (row * (cardHeight + marginY))
+
+      // 1. Background Kartu (Putih, dengan Border)
+      pdf.setFillColor(255, 255, 255)
+      pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'F')
+      pdf.setDrawColor(200, 200, 200)
+      pdf.setLineWidth(0.3)
+      pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'D')
+
+      // 2. Header (Hijau Emerald)
+      pdf.setFillColor(5, 150, 105)
+      pdf.roundedRect(x, y, cardWidth, 12, 2, 2, 'F')
+      pdf.rect(x, y + 2, cardWidth, 10, 'F') // Tutup radius bagian bawah header
+
+      // Logo
+      if (logoData) {
+        pdf.addImage(logoData, 'PNG', x + 3, y + 2, 8, 8)
+        
+        // Watermark transparan di tengah body
+        try {
+          pdf.setGState(new pdf.GState({ opacity: 0.05 }))
+          pdf.addImage(logoData, 'PNG', x + (cardWidth - 25)/2, y + 18, 25, 25)
+          pdf.setGState(new pdf.GState({ opacity: 1.0 })) // kembalikan normal
+        } catch(e) {}
+      }
+
+      // Teks Header
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(8)
+      pdf.text('KARTU PERPUSTAKAAN', x + cardWidth / 2, y + 5.5, { align: 'center' })
+      pdf.setFontSize(9)
+      pdf.text(namaSekolah.value.toUpperCase(), x + cardWidth / 2, y + 9.5, { align: 'center' })
+
+      // 3. Body Data
+      pdf.setTextColor(30, 30, 30)
+      let startY = y + 17
       
-      pdf.addImage(imgData, 'JPEG', x, y, cardWidth, cardHeight, undefined, 'FAST')
+      const drawRow = (label, value, isBold) => {
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(5.5) // sedikit dikecilkan agar rapi
+        pdf.text(label, x + 4, startY)
+        pdf.text(':', x + 25, startY)
+        pdf.setFont('helvetica', isBold ? 'bold' : 'normal')
+        pdf.text(value || '-', x + 27, startY)
+      }
+
+      drawRow('Nama', s.nama.toUpperCase(), true)
+      startY += 4.5
+      drawRow('Tempat, Tgl. Lahir', getTTL(s.tempat_lahir, s.tanggal_lahir), false)
+      startY += 4.5
+      drawRow('Jenis Kelamin', s.jk === 'L' ? 'Laki-Laki' : 'Perempuan', false)
+      startY += 4.5
       
+      // NISM
+      drawRow('NISM', s.nism || '-', true)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setFontSize(4.5)
+      pdf.setTextColor(120, 120, 120)
+      pdf.text('(Nomor Induk Siswa Madrasah)', x + 27, startY + 2.5)
+      pdf.setTextColor(30, 30, 30)
+      startY += 5.5
+
+      // NISN
+      drawRow('NISN', s.nisn, true)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setFontSize(4.5)
+      pdf.setTextColor(120, 120, 120)
+      pdf.text('(Nomor Induk Siswa Nasional)', x + 27, startY + 2.5)
+      pdf.setTextColor(30, 30, 30)
+
+      // 4. QR Code
+      const qrCanvas = cardEl?.querySelector('canvas')
+      if (qrCanvas) {
+        const qrData = qrCanvas.toDataURL('image/png')
+        pdf.addImage(qrData, 'PNG', x + 65, y + 20, 18, 18)
+      }
+
+      // 5. Footer
+      pdf.setFont('helvetica', 'italic')
+      pdf.setFontSize(5)
+      pdf.setTextColor(120, 120, 120)
+      pdf.text(`* Kartu perpus aktif selama menjadi siswa di ${namaSekolah.value}.`, x + 3, y + cardHeight - 3)
+      pdf.text(`Tanggal Cetak: ${todayStr.value}`, x + cardWidth - 3, y + cardHeight - 3, { align: 'right' })
+
       currentCount++
-      if (currentCount === 8 && i < cards.length - 1) {
+      if (currentCount === 8 && i < students.value.length - 1) {
         pdf.addPage()
         currentCount = 0
       }
     }
     
     pdf.save(`ID_Card_Kelas_${selectedKelas.value}.pdf`)
-    toast.success('PDF berhasil di-download')
+    toast.success('PDF berhasil di-download dalam format Vector')
   } catch (error) {
     console.error(error)
     toast.error('Gagal membuat PDF')
@@ -159,76 +251,79 @@ function getTTL(tempat, tanggal) {
 
     <!-- Tampilan Kertas Print (Disembunyikan di layar, muncul saat print) -->
     <div class="print-container" v-if="students.length > 0">
-      <div class="id-card" v-for="s in students" :key="s.id">
+      <div class="id-card relative" v-for="s in students" :key="s.id">
         <!-- Header Kartu -->
-        <div class="id-card-header">
-          <div class="logo-box">
-            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Logo" class="logo-img" />
-            <School v-else class="h-5 w-5 text-emerald-800" />
+        <div class="id-card-header absolute top-0 left-0 w-full h-[12mm] bg-[#059669] flex items-center justify-center text-white rounded-t-[2mm]">
+          <div class="absolute left-[3mm] top-[2mm] w-[8mm] h-[8mm]">
+            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Logo" class="w-full h-full object-contain" />
+            <School v-else class="w-full h-full text-white" />
           </div>
-          <div class="header-text">
-            <h2>KARTU PERPUSTAKAAN</h2>
-            <h1>{{ namaSekolah.toUpperCase() }}</h1>
+          <div class="text-center">
+            <h2 class="text-[8pt] font-bold m-0 leading-tight">KARTU PERPUSTAKAAN</h2>
+            <h1 class="text-[9pt] font-bold m-0 leading-tight mt-[1px]">{{ namaSekolah.toUpperCase() }}</h1>
           </div>
         </div>
+        <!-- Tutup radius bawah header -->
+        <div class="absolute top-[2mm] left-0 w-full h-[10mm] bg-[#059669] z-[-1]"></div>
 
         <!-- Body Kartu -->
-        <div class="id-card-body relative overflow-hidden">
+        <div class="id-card-body absolute top-[12mm] left-0 w-full h-[42mm] overflow-hidden">
           <!-- Watermark Logo/Icon -->
-          <div class="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none z-0">
-            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Watermark" class="w-28 h-28 object-contain grayscale" />
-            <School v-else class="w-28 h-28" />
+          <div class="absolute left-[30.5mm] top-[6mm] w-[25mm] h-[25mm] opacity-5 pointer-events-none">
+            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Watermark" class="w-full h-full object-contain" />
+            <School v-else class="w-full h-full text-black" />
           </div>
 
-          <div class="data-area flex-1 flex flex-col justify-center items-center mt-2 pr-12 w-full relative z-10">
-            <table class="text-left w-auto mx-auto mb-2" style="border-spacing: 0 3px; border-collapse: separate;">
-              <tbody>
-                <tr>
-                  <td class="text-[7.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Nama</td>
-                  <td class="text-[7.5pt] font-bold text-gray-900 px-1 align-top">:</td>
-                  <td class="text-[7.5pt] font-bold text-gray-900 align-top leading-tight">{{ s.nama.toUpperCase() }}</td>
-                </tr>
-                <tr>
-                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Tempat, Tgl. Lahir</td>
-                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
-                  <td class="text-[5.5pt] text-gray-800 align-top">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</td>
-                </tr>
-                <tr>
-                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">Jenis Kelamin</td>
-                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
-                  <td class="text-[5.5pt] text-gray-800 align-top">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</td>
-                </tr>
-                <tr>
-                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">NISM</td>
-                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
-                  <td class="text-[5.5pt] text-gray-800 align-top">
-                    <span class="font-bold">{{ s.nism || '-' }}</span>
-                    <div class="text-[4pt] text-gray-500 italic mt-[1px]">(Nomor Induk Siswa Madrasah)</div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="text-[5.5pt] font-bold text-gray-900 text-right pr-1 align-top whitespace-nowrap">NISN</td>
-                  <td class="text-[5.5pt] font-bold text-gray-900 px-1 align-top">:</td>
-                  <td class="text-[5.5pt] text-gray-800 align-top">
-                    <span class="font-bold">{{ s.nisn }}</span>
-                    <div class="text-[4pt] text-gray-500 italic mt-[1px]">(Nomor Induk Siswa Nasional)</div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="data-area absolute left-0 top-[5mm] w-full text-[#1e1e1e]">
+            <div class="data-row absolute left-[4mm] top-[0mm] flex w-full">
+              <span class="text-[5.5pt] font-bold w-[21mm]">Nama</span>
+              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+              <span class="text-[5.5pt] font-bold absolute left-[23mm] leading-tight">{{ s.nama.toUpperCase() }}</span>
+            </div>
+            
+            <div class="data-row absolute left-[4mm] top-[4.5mm] flex w-full">
+              <span class="text-[5.5pt] font-bold w-[21mm]">Tempat, Tgl. Lahir</span>
+              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+              <span class="text-[5.5pt] absolute left-[23mm]">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</span>
+            </div>
+            
+            <div class="data-row absolute left-[4mm] top-[9mm] flex w-full">
+              <span class="text-[5.5pt] font-bold w-[21mm]">Jenis Kelamin</span>
+              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+              <span class="text-[5.5pt] absolute left-[23mm]">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</span>
+            </div>
+            
+            <div class="data-row absolute left-[4mm] top-[13.5mm] flex w-full">
+              <span class="text-[5.5pt] font-bold w-[21mm]">NISM</span>
+              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+              <div class="absolute left-[23mm] flex flex-col">
+                <span class="text-[5.5pt] font-bold leading-none">{{ s.nism || '-' }}</span>
+                <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Madrasah)</span>
+              </div>
+            </div>
+            
+            <div class="data-row absolute left-[4mm] top-[19mm] flex w-full">
+              <span class="text-[5.5pt] font-bold w-[21mm]">NISN</span>
+              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+              <div class="absolute left-[23mm] flex flex-col">
+                <span class="text-[5.5pt] font-bold leading-none">{{ s.nisn }}</span>
+                <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Nasional)</span>
+              </div>
+            </div>
           </div>
 
-          <div class="qr-area absolute right-3 top-1/2 -translate-y-1/2">
-            <QRCodeVue :value="s.nisn" :size="50" level="M" />
+          <div class="qr-area absolute left-[65mm] top-[8mm] w-[18mm] h-[18mm]">
+            <!-- Peningkatan size sedikit agar tajam saat pdf -->
+            <QRCodeVue :value="s.nisn" :size="68" level="M" />
           </div>
         </div>
 
         <!-- Footer Kartu -->
-        <div class="id-card-footer absolute bottom-1 w-full flex justify-between px-2 items-end">
-          <div class="footer-text">
+        <div class="id-card-footer absolute bottom-[1.5mm] left-0 w-full px-[3mm] flex justify-between items-end">
+          <div class="text-[5pt] italic text-[#787878]">
             * Kartu perpus aktif selama menjadi siswa di {{ namaSekolah }}.
           </div>
-          <div class="footer-date">
+          <div class="text-[5pt] italic text-[#787878] text-right">
             Tanggal Cetak: {{ todayStr }}
           </div>
         </div>
@@ -251,221 +346,21 @@ function getTTL(tempat, tanggal) {
   Kita pakai 8.6cm x 5.4cm untuk mempermudah presisi cetak.
 */
 .id-card {
-  width: 8.6cm;
-  height: 5.4cm;
+  width: 86mm;
+  height: 54mm;
   background-color: #ffffff;
-  /* Modern premium background: subtle wave + soft gradient */
-  background-image: 
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23064e3b' fill-opacity='0.04' d='M0,160L48,170.7C96,181,192,203,288,197.3C384,192,480,160,576,149.3C672,139,768,149,864,170.7C960,192,1056,224,1152,218.7C1248,213,1344,171,1392,149.3L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E"), 
-    radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0) 40%),
-    linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(240,253,244,0.6) 100%);
-  background-position: bottom center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border: 0.3mm solid #c8c8c8;
+  border-radius: 2mm;
   overflow: hidden;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Helvetica', 'Arial', sans-serif;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  z-index: 10;
 }
 
-/* Header Kemenag Green (#064e3b) - Modernized */
-.id-card-header {
-  height: 1.15cm;
-  background: linear-gradient(135deg, #022c22 0%, #064e3b 40%, #047857 100%);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  padding: 0 0.2cm;
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
-  z-index: 20;
-}
-
-/* Gradient Gold Border for Header */
-.id-card-header::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2.5px;
-  background: linear-gradient(90deg, #d97706 0%, #fbbf24 50%, #fcd34d 100%);
-}
-
-/* Subtle Overlay Pattern */
-.id-card-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M0 20L20 0H10L0 10Z" fill="rgba(255,255,255,0.03)"/></svg>');
-  background-size: 20px;
-  opacity: 0.8;
-  pointer-events: none;
-}
-
-.logo-box {
-  width: 0.8cm;
-  height: 0.8cm;
-  background-color: white;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-right: 0.2cm;
-  overflow: hidden;
-}
-
-.logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.logo-placeholder {
-  font-size: 5pt;
-  font-weight: bold;
-  color: #064e3b;
-}
-
-.header-text {
-  flex: 1;
-}
-
-.header-text h2 {
-  font-size: 4.5pt;
-  margin: 0;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #fde68a; /* Soft Gold */
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-}
-
-.header-text h1 {
-  font-size: 8pt;
-  margin: 0;
-  font-weight: 900;
-  line-height: 1.1;
-  letter-spacing: 0.2px;
-  text-shadow: 0 2px 3px rgba(0,0,0,0.5);
-}
-
-/* Body Layout */
-.id-card-body {
-  flex: 1;
-  display: flex;
-  padding: 0.15cm 0.2cm;
-  gap: 0.15cm;
-}
-
-.photo-area {
-  width: 1.5cm;
-}
-
-.photo-box {
-  width: 1.5cm;
-  height: 2cm;
-  border: 1px dashed #9ca3af;
-  border-radius: 2px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  font-size: 5pt;
-  color: #9ca3af;
-  background-color: rgba(255,255,255,0.8);
-}
-
-.data-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table td {
-  font-size: 5.5pt;
-  padding: 1px 0;
-  vertical-align: top;
-  line-height: 1.2;
-}
-
-.data-table .label {
-  width: 0.8cm;
-  font-weight: 600;
-}
-
-.data-table .separator {
-  width: 0.1cm;
-}
-
-.data-table .value {
-  color: #1f2937;
-}
-
-/* NISM & NISN styling */
-.flex-ids {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.id-box {
-  line-height: 1.1;
-}
-
-.id-title {
-  font-size: 5.5pt;
-  font-weight: bold;
-  display: inline-block;
-  width: 0.8cm;
-}
-
-.id-desc {
-  font-size: 4pt;
-  color: #4b5563;
-  font-style: italic;
-  display: block;
-  margin-top: 1px;
-}
-
-.id-number {
-  font-size: 5.5pt;
-  font-weight: bold;
-  display: block;
-}
-
-.qr-area {
-  width: 1.5cm;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Footer Layout */
-.id-card-footer {
-  /* Removed background color and borders to make it float */
-}
-
-.footer-text {
-  font-size: 4.5pt;
-  color: #4b5563;
-}
-
-.footer-date {
-  font-size: 4pt;
-  color: #6b7280;
-  font-weight: 600;
+/* Override padding/margin bawaan tailwind jika mengganggu */
+.id-card * {
+  box-sizing: border-box;
 }
 
 /* Pengaturan Cetak Asli (Window.print) */
@@ -502,3 +397,4 @@ function getTTL(tempat, tanggal) {
   }
 }
 </style>
+
