@@ -60,12 +60,31 @@ async function handleDownloadPDF() {
     let logoData = null;
     if (settingsStore.settings?.logo_url) {
       try {
-        const res = await fetch(settingsStore.settings.logo_url)
-        const blob = await res.blob()
         logoData = await new Promise((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result)
-          reader.readAsDataURL(blob)
+          const img = new Image()
+          img.crossOrigin = 'Anonymous'
+          img.onload = () => {
+            const canvas = document.createElement('canvas')
+            const maxSize = 300
+            let w = img.width || maxSize
+            let h = img.height || maxSize
+            if (w > maxSize || h > maxSize) {
+              if (w > h) {
+                h = Math.round((h * maxSize) / w)
+                w = maxSize
+              } else {
+                w = Math.round((w * maxSize) / h)
+                h = maxSize
+              }
+            }
+            canvas.width = w
+            canvas.height = h
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, 0, 0, w, h)
+            resolve(canvas.toDataURL('image/png'))
+          }
+          img.onerror = () => resolve(null)
+          img.src = settingsStore.settings.logo_url
         })
       } catch (e) {
         console.warn('Gagal memuat logo untuk PDF', e)
@@ -215,7 +234,7 @@ function getTTL(tempat, tanggal) {
   <div>
     <!-- Tampilan Aplikasi (Tidak tercetak saat diprint) -->
     <div class="print:hidden">
-      <PageHeader title="Cetak ID Card" subtitle="Cetak kartu perpustakaan siswa berbasis QR Code (Generate PDF)">
+      <PageHeader title="Kartu Anggota" subtitle="Cetak kartu keanggotaan berbasis QR Code (Generate PDF)">
         <template #actions>
           <button v-if="students.length > 0" class="btn-primary" @click="handleDownloadPDF" :disabled="generating">
             <Download v-if="!generating" class="h-4 w-4" />

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Plus, CheckCircle2, Clock, AlertTriangle, Loader2, Search, Download } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import Pagination from '@/components/Pagination.vue'
 import { exportPdfSirkulasi } from '@/lib/pdfSirkulasi'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -21,7 +22,7 @@ const filterStatus = ref('dipinjam')
 const searchLoan = ref('')
 
 // Pagination
-const itemsPerPage = 50
+const itemsPerPage = 20
 const currentPage = ref(1)
 
 // Modal Pengembalian
@@ -205,8 +206,6 @@ const filteredLoans = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.ceil(filteredLoans.value.length / itemsPerPage))
-
 const paginatedLoans = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return filteredLoans.value.slice(start, start + itemsPerPage)
@@ -275,7 +274,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader title="Sirkulasi Buku" subtitle="Peminjaman dan pengembalian perpustakaan" />
+    <PageHeader title="Sirkulasi" subtitle="Manajemen peminjaman dan pengembalian bahan pustaka" />
 
     <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
       <!-- Panel Input Peminjaman -->
@@ -391,29 +390,13 @@ onMounted(() => {
           </table>
         </div>
 
-        <!-- Pagination Controls -->
-        <div v-if="totalPages > 1" class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-gray-600">
-          <div>
-            Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, filteredLoans.length) }} dari {{ filteredLoans.length }} baris
-          </div>
-          <div class="flex gap-2">
-            <button 
-              class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
-              :disabled="currentPage === 1"
-              @click="currentPage--"
-            >
-              Seb.
-            </button>
-            <div class="flex items-center px-2 font-medium">{{ currentPage }} / {{ totalPages }}</div>
-            <button 
-              class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
-              :disabled="currentPage === totalPages"
-              @click="currentPage++"
-            >
-              Selan.
-            </button>
-          </div>
-        </div>
+        <!-- Pagination Component -->
+        <Pagination
+          v-if="!loadingLoans && filteredLoans.length > 0"
+          v-model="currentPage"
+          :total-items="filteredLoans.length"
+          :items-per-page="itemsPerPage"
+        />
 
       </div>
     </div>

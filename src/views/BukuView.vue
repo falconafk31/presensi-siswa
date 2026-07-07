@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
-import { Plus, Edit, Trash2, Save, Upload, Loader2, Book, FileDown, FileUp } from 'lucide-vue-next'
+import { Book, Plus, Edit, Trash2, Upload, Loader2, Download, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import Pagination from '@/components/Pagination.vue'
 import * as XLSX from 'xlsx'
 
 const books = ref([])
@@ -27,10 +28,59 @@ const form = ref({
   kategori: ''
 })
 
+const sortKey = ref('judul')
+const sortOrder = ref('asc')
+
+function setSort(key) {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortOrder.value = 'asc'
+  }
+}
+
 const filteredBooks = computed(() => {
-  if (!searchQuery.value) return books.value
-  const q = searchQuery.value.toLowerCase()
-  return books.value.filter(b => b.judul.toLowerCase().includes(q) || (b.pengarang && b.pengarang.toLowerCase().includes(q)))
+  let result = books.value
+  
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(b => b.judul.toLowerCase().includes(q) || (b.pengarang && b.pengarang.toLowerCase().includes(q)))
+  }
+  
+  result = [...result].sort((a, b) => {
+    let valA = a[sortKey.value] || ''
+    let valB = b[sortKey.value] || ''
+    
+    if (sortKey.value === 'stok') {
+      valA = Number(a.stok)
+      valB = Number(b.stok)
+    } else if (sortKey.value === 'judul') {
+      valA = a.judul.toLowerCase()
+      valB = b.judul.toLowerCase()
+    } else if (sortKey.value === 'pengarang') {
+      valA = (a.pengarang || '').toLowerCase()
+      valB = (b.pengarang || '').toLowerCase()
+    }
+    
+    if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
+    if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+  
+  return result
+})
+
+const currentPage = ref(1)
+const itemsPerPage = 20
+
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+const paginatedBooks = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredBooks.value.slice(start, start + itemsPerPage)
 })
 
 async function fetchBooks() {
@@ -197,7 +247,7 @@ onMounted(fetchBooks)
 
 <template>
   <div>
-    <PageHeader title="Katalog Buku" subtitle="Manajemen koleksi perpustakaan">
+    <PageHeader title="Data Koleksi" subtitle="Manajemen bibliografi dan inventaris perpustakaan">
       <template #actions>
         <div class="flex gap-2">
           <button class="btn-primary bg-sky-600 hover:bg-sky-700" @click="showImportModal = true">
@@ -218,28 +268,51 @@ onMounted(fetchBooks)
     </div>
 
     <div class="card overflow-x-auto">
-      <table class="min-w-full text-left text-sm">
+      <table class="min-w-full table-fixed text-left text-sm">
         <thead>
           <tr class="border-b border-gray-200 text-gray-500">
-            <th class="px-4 py-3 font-semibold">Judul Buku</th>
-            <th class="px-4 py-3 font-semibold">Pengarang & Penerbit</th>
-            <th class="px-4 py-3 font-semibold text-center">Stok</th>
-            <th class="px-4 py-3 font-semibold text-right">Aksi</th>
+            <th class="px-4 py-3 font-semibold w-16 text-center">No</th>
+            <th class="px-4 py-3 font-semibold w-[40%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('judul')">
+              <div class="flex items-center gap-2">
+                Judul Buku
+                <ArrowUp v-if="sortKey === 'judul' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'judul' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </th>
+            <th class="px-4 py-3 font-semibold w-[25%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('pengarang')">
+              <div class="flex items-center gap-2">
+                Pengarang & Penerbit
+                <ArrowUp v-if="sortKey === 'pengarang' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'pengarang' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </th>
+            <th class="px-4 py-3 font-semibold w-[15%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('stok')">
+              <div class="flex items-center justify-center gap-2">
+                Stok
+                <ArrowUp v-if="sortKey === 'stok' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'stok' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
+                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </th>
+            <th class="px-4 py-3 font-semibold w-[15%] text-right">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
               <Loader2 class="mx-auto h-6 w-6 animate-spin text-emerald-500" />
               <p class="mt-2">Memuat buku...</p>
             </td>
           </tr>
           <tr v-else-if="!filteredBooks.length">
-            <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
               Belum ada buku atau pencarian tidak ditemukan.
             </td>
           </tr>
-          <tr v-for="b in filteredBooks" :key="b.id" class="border-b border-gray-100 hover:bg-gray-50">
+          <tr v-for="(b, idx) in paginatedBooks" :key="b.id" class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="px-4 py-3 text-center text-sm font-medium text-gray-500">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
             <td class="px-4 py-3">
               <div class="font-semibold text-gray-800">{{ b.judul }}</div>
               <div class="text-xs text-gray-500">Kategori: {{ b.kategori || '-' }} | ISBN: {{ b.isbn || '-' }}</div>
@@ -267,6 +340,14 @@ onMounted(fetchBooks)
         </tbody>
       </table>
     </div>
+
+    <Pagination
+      v-if="!loading && filteredBooks.length > 0"
+      v-model="currentPage"
+      :total-items="filteredBooks.length"
+      :items-per-page="itemsPerPage"
+      class="mt-4 rounded-2xl shadow-sm border border-gray-100"
+    />
 
     <!-- Modal Form Buku -->
     <BaseModal v-model="showModal" :title="form.id ? 'Edit Buku' : 'Tambah Buku'">

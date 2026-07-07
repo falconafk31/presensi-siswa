@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/PageHeader.vue'
+import Pagination from '@/components/Pagination.vue'
 import { logActivity } from '@/lib/activityLog'
 import { Users, Search, Plus, Trash2, CalendarDays, ScanLine } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
@@ -24,7 +25,7 @@ const selectedNisn = ref(null)
 const saving = ref(false)
 
 // Pagination
-const itemsPerPage = 50
+const itemsPerPage = 20
 const currentPage = ref(1)
 
 const filteredStudents = computed(() => {
@@ -68,12 +69,12 @@ watch(tanggalKunjungan, () => {
   fetchVisits()
 })
 
+// const totalPages = computed(() => Math.ceil(visits.value.length / itemsPerPage))
+
 const paginatedVisits = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return visits.value.slice(start, start + itemsPerPage)
 })
-
-const totalPages = computed(() => Math.ceil(visits.value.length / itemsPerPage))
 
 async function catatKunjungan() {
   if (!selectedNisn.value) {
@@ -128,7 +129,7 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Kunjungan Perpus" subtitle="Pencatatan data pengunjung perpustakaan harian">
+    <PageHeader title="Data Pengunjung" subtitle="Pencatatan log tamu dan pengunjung perpustakaan harian">
       <template #actions>
         <button class="btn-primary flex items-center gap-2" @click="router.push({ name: 'scan-qr' })">
           <ScanLine class="w-4 h-4" /> Buka Scanner QR
@@ -241,22 +242,14 @@ onMounted(async () => {
               </tbody>
             </table>
             
-            <!-- Pagination Controls -->
-            <div v-if="totalPages > 1" class="border-t border-gray-100 px-5 py-3 flex items-center justify-between">
-              <p class="text-xs text-gray-500">Halaman {{ currentPage }} dari {{ totalPages }}</p>
-              <div class="flex items-center gap-2">
-                <button 
-                  class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  :disabled="currentPage === 1"
-                  @click="currentPage--"
-                >Prev</button>
-                <button 
-                  class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  :disabled="currentPage === totalPages"
-                  @click="currentPage++"
-                >Next</button>
-              </div>
-            </div>
+            <!-- Pagination Component -->
+            <Pagination
+              v-if="!loading && visits.length > 0"
+              v-model="currentPage"
+              :total-items="visits.length"
+              :items-per-page="itemsPerPage"
+            />
+            
           </div>
         </div>
       </div>

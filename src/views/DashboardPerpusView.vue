@@ -225,7 +225,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader title="Dashboard Perpustakaan" subtitle="Ikhtisar korelasi sirkulasi buku dan kunjungan siswa" />
+    <PageHeader title="Beranda Perpustakaan" subtitle="Ikhtisar korelasi sirkulasi pustaka dan kunjungan pengunjung" />
 
     <div v-if="loading && !chartLabels.length" class="flex justify-center py-12">
       <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>

@@ -1,10 +1,13 @@
-/** @type {import('tailwindcss').Config} */
+import colors from 'tailwindcss/colors'
+
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        // Alias emerald ke teal agar 70+ class bawaan aplikasi langsung senada dengan warna baru
+        emerald: colors.teal,
         primary: {
           DEFAULT: '#007c5f', // EMIS GTK Primary
           hover: '#00664e',

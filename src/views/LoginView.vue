@@ -58,7 +58,7 @@ async function handleLogin() {
             v-if="sekolah?.logo_url"
             :src="sekolah.logo_url"
             alt="Logo"
-            class="h-full w-full object-contain"
+            class="h-full w-full object-contain drop-shadow-md"
           />
           <span v-else class="text-4xl font-bold text-white">MIN</span>
         </div>
@@ -76,8 +76,8 @@ async function handleLogin() {
       
       <div class="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div class="mb-10 text-center lg:text-left">
-          <div class="lg:hidden mx-auto mb-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-emerald-900 shadow-lg">
-            <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo" class="h-full w-full object-contain" />
+          <div class="lg:hidden mx-auto mb-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg p-2">
+            <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo" class="h-full w-full object-contain drop-shadow-sm" />
             <span v-else class="text-2xl font-bold text-white">MIN</span>
           </div>
           <h2 class="text-2xl font-bold text-gray-900 tracking-tight">
@@ -135,7 +135,7 @@ async function handleLogin() {
         </form>
         
         <p class="mt-8 text-center text-xs text-gray-400 lg:text-left">
-          Ditenagai oleh Supabase Auth &bull; 2024
+          &copy; {{ new Date().getFullYear() }} <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-600 transition-colors font-medium">Sistem Presensi Open Source</a> &bull; <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="hover:text-gray-600 underline">GitHub</a>
         </p>
       </div>
     </div>

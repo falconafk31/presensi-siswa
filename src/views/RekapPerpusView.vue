@@ -9,8 +9,14 @@ import { exportExcelKunjungan, exportExcelSirkulasi } from '@/lib/excelExport'
 import { namaBulan } from '@/lib/dates'
 import { Trophy, BookOpen, UserCircle, Loader2, Download, Library, FileSpreadsheet } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
+import Pagination from '@/components/Pagination.vue'
 
 const settingsStore = useSettingsStore()
+
+const itemsPerPage = 20
+const currentPageKunjungan = ref(1)
+const currentPageBooks = ref(1)
+const currentPageLoans = ref(1)
 
 const loading = ref(false)
 const activeTab = ref('kunjungan') // 'kunjungan' or 'sirkulasi'
@@ -131,7 +137,25 @@ async function fetchRekap() {
   }
 }
 
+const paginatedStudentsVisits = computed(() => {
+  const start = (currentPageKunjungan.value - 1) * itemsPerPage
+  return topStudentsVisits.value.slice(start, start + itemsPerPage)
+})
+
+const paginatedBooks = computed(() => {
+  const start = (currentPageBooks.value - 1) * itemsPerPage
+  return topBooks.value.slice(start, start + itemsPerPage)
+})
+
+const paginatedStudentsLoans = computed(() => {
+  const start = (currentPageLoans.value - 1) * itemsPerPage
+  return topStudentsLoans.value.slice(start, start + itemsPerPage)
+})
+
 watch([filterMode, selectedDate, selectedMonth, selectedYear], () => {
+  currentPageKunjungan.value = 1
+  currentPageBooks.value = 1
+  currentPageLoans.value = 1
   fetchRekap()
 })
 
@@ -179,7 +203,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader title="Laporan Perpustakaan" subtitle="Rekapitulasi komprehensif kunjungan dan sirkulasi peminjaman">
+    <PageHeader title="Laporan & Statistik" subtitle="Rekapitulasi komprehensif kunjungan dan sirkulasi bahan pustaka">
     </PageHeader>
 
     <div class="mb-6 flex space-x-1 rounded-xl bg-gray-100 p-1">
@@ -276,8 +300,8 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <tr v-for="(s, i) in topStudentsVisits" :key="s.nisn" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 font-medium">{{ i + 1 }}</td>
+                <tr v-for="(s, i) in paginatedStudentsVisits" :key="s.nisn" class="hover:bg-gray-50">
+                  <td class="px-4 py-3 font-medium">{{ (currentPageKunjungan - 1) * itemsPerPage + i + 1 }}</td>
                   <td class="px-4 py-3">{{ s.nama }}</td>
                   <td class="px-4 py-3">{{ s.kelas }}</td>
                   <td class="px-4 py-3 font-semibold text-emerald-600">{{ s.count }} Kali</td>
@@ -288,6 +312,12 @@ onMounted(() => {
               </tbody>
             </table>
           </div>
+          <Pagination
+            v-if="topStudentsVisits.length > 0"
+            v-model="currentPageKunjungan"
+            :total-items="topStudentsVisits.length"
+            :items-per-page="itemsPerPage"
+          />
         </div>
       </div>
 
@@ -322,14 +352,14 @@ onMounted(() => {
                 <Trophy class="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <h3 class="font-bold text-gray-800">Top 50 Buku Terfavorit</h3>
+                <h3 class="font-bold text-gray-800">Buku Terfavorit</h3>
               </div>
             </div>
             
             <ul class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-              <li v-for="(b, i) in topBooks" :key="b.id" class="flex items-center justify-between rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+              <li v-for="(b, i) in paginatedBooks" :key="b.id" class="flex items-center justify-between rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
                 <div class="flex items-center gap-3">
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">{{ i + 1 }}</span>
+                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">{{ (currentPageBooks - 1) * itemsPerPage + i + 1 }}</span>
                   <div class="font-medium text-gray-800">{{ b.judul }}</div>
                 </div>
                 <div class="flex items-center gap-1 text-sm font-semibold text-emerald-600">
@@ -338,6 +368,12 @@ onMounted(() => {
               </li>
               <li v-if="!topBooks.length" class="text-center text-sm text-gray-500 py-4">Belum ada data peminjaman buku.</li>
             </ul>
+            <Pagination
+              v-if="topBooks.length > 0"
+              v-model="currentPageBooks"
+              :total-items="topBooks.length"
+              :items-per-page="itemsPerPage"
+            />
           </div>
 
           <!-- Siswa Peminjam Teraktif -->
@@ -347,14 +383,14 @@ onMounted(() => {
                 <UserCircle class="h-5 w-5 text-sky-600" />
               </div>
               <div>
-                <h3 class="font-bold text-gray-800">Top 50 Peminjam Aktif</h3>
+                <h3 class="font-bold text-gray-800">Siswa Peminjam Aktif</h3>
               </div>
             </div>
             
             <ul class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-              <li v-for="(s, i) in topStudentsLoans" :key="s.nisn" class="flex items-center justify-between rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+              <li v-for="(s, i) in paginatedStudentsLoans" :key="s.nisn" class="flex items-center justify-between rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
                 <div class="flex items-center gap-3">
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">{{ i + 1 }}</span>
+                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">{{ (currentPageLoans - 1) * itemsPerPage + i + 1 }}</span>
                   <div>
                     <div class="font-medium text-gray-800">{{ s.nama }}</div>
                     <div class="text-xs text-gray-500">Kelas {{ s.kelas || '?' }}</div>
@@ -366,6 +402,12 @@ onMounted(() => {
               </li>
               <li v-if="!topStudentsLoans.length" class="text-center text-sm text-gray-500 py-4">Belum ada data siswa meminjam.</li>
             </ul>
+            <Pagination
+              v-if="topStudentsLoans.length > 0"
+              v-model="currentPageLoans"
+              :total-items="topStudentsLoans.length"
+              :items-per-page="itemsPerPage"
+            />
           </div>
         </div>
       </div>

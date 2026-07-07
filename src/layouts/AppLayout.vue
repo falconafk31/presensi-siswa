@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useStorage } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { Menu, X, LogOut, CalendarRange, RefreshCw, ChevronLeft, ChevronDown, User } from 'lucide-vue-next'
-import { navItems, bottomTabsPresensi, bottomTabsPerpus } from '@/config/navigation'
+import { navItems, bottomTabsPresensi, bottomTabsPerpus, bottomTabsAdmin } from '@/config/navigation'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { usePeriodStore } from '@/stores/period'
@@ -36,9 +36,30 @@ const visibleNav = computed(() => {
   })
 })
 
-// Bottom tabs depend on user role
+// Daftar nama rute yang termasuk dalam area perpustakaan
+const perpusRoutes = [
+  'dashboard-perpus', 'kunjungan-perpus', 'buku', 'peminjaman', 'rekap-perpus', 'cetak-kartu'
+]
+
+// Daftar nama rute yang termasuk dalam area administrasi
+const adminRoutes = [
+  'siswa', 'guru', 'kalender', 'riwayat-kelas', 'aktivitas', 'pengaturan'
+]
+
+// Bottom tabs depend on current route context and user role
 const bottomTabs = computed(() => {
-  if (auth.isPustakawan && !auth.isAdmin && !auth.isGuru) return bottomTabsPerpus
+  // UX Fix: Jika sedang berada di halaman administrasi, tampilkan navigasi admin
+  if (route.name && adminRoutes.includes(route.name)) {
+    return bottomTabsAdmin
+  }
+  // UX Fix: Jika sedang berada di halaman perpustakaan, tampilkan navigasi perpus
+  if (route.name && perpusRoutes.includes(route.name)) {
+    return bottomTabsPerpus
+  }
+  // Fallback: Jika role HANYA pustakawan, selalu tampilkan navigasi perpus
+  if (auth.isPustakawan && !auth.isAdmin && !auth.isGuru) {
+    return bottomTabsPerpus
+  }
   return bottomTabsPresensi
 })
 
@@ -167,17 +188,17 @@ const userInitial = computed(() => {
           <RouterLink
             v-else
             :to="item.to"
-            class="nav-item group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-all duration-200 hover:bg-white/8 hover:text-white hover:translate-x-0.5"
+            class="nav-item group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-white/70 transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 hover:shadow-sm"
             :class="isCollapsed && 'justify-center px-0 py-2.5 hover:translate-x-0'"
-            exact-active-class="nav-active !bg-white/15 !text-white font-semibold !translate-x-0"
+            exact-active-class="nav-active !bg-white/15 !text-white font-semibold !translate-x-0 backdrop-blur-md ring-1 ring-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]"
             @click="closeSidebar"
           >
-            <!-- Active indicator bar -->
+            <!-- Active indicator bar with 2026 glow -->
             <span
               v-if="route.name === item.to.name"
-              class="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-gold transition-all duration-300"
+              class="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-gold transition-all duration-300 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
             />
-            <component :is="item.icon" class="h-[18px] w-[18px] shrink-0 transition-colors" :class="route.name === item.to.name ? 'text-gold' : 'text-white/60 group-hover:text-white'" />
+            <component :is="item.icon" class="h-[18px] w-[18px] shrink-0 transition-all duration-300" :class="route.name === item.to.name ? 'text-gold drop-shadow-md scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'" />
             <span v-if="!isCollapsed" class="truncate">{{ item.label }}</span>
 
             <!-- Tooltip saat collapsed -->
@@ -217,27 +238,31 @@ const userInitial = computed(() => {
         </button>
       </div>
 
-      <!-- Desktop Sidebar Footer — Collapsed-friendly -->
-      <div class="hidden lg:block border-t border-white/10 p-2">
+      <!-- Desktop Sidebar Footer — Modern Glass Card -->
+      <div class="hidden lg:block p-3 mt-auto">
         <template v-if="!isCollapsed">
-          <div class="mb-1 px-3">
-            <p class="truncate text-sm font-medium">{{ auth.user?.nama }}</p>
-            <p class="text-xs text-white/60">
-              {{ auth.user?.role }}<span v-if="auth.kelas"> · {{ auth.kelas }}</span>
-            </p>
+          <div class="bg-black/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 shadow-lg">
+            <div class="mb-3">
+              <p class="truncate text-sm font-semibold text-white tracking-tight">{{ auth.user?.nama }}</p>
+              <p class="text-[11px] font-medium text-emerald-100/70 uppercase tracking-wider mt-0.5">
+                {{ auth.user?.role }}<span v-if="auth.kelas"> · {{ auth.kelas }}</span>
+              </p>
+            </div>
+            <div class="space-y-1">
+              <button
+                class="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-medium text-white/70 transition-all duration-300 hover:bg-white/10 hover:text-white"
+                @click="clearCacheAndReload"
+              >
+                <RefreshCw class="h-3.5 w-3.5" /> Refresh
+              </button>
+              <button
+                class="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-medium text-rose-200/80 transition-all duration-300 hover:bg-rose-500/20 hover:text-rose-100"
+                @click="handleLogout"
+              >
+                <LogOut class="h-3.5 w-3.5" /> Keluar
+              </button>
+            </div>
           </div>
-          <button
-            class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-            @click="clearCacheAndReload"
-          >
-            <RefreshCw class="h-4 w-4" /> Refresh
-          </button>
-          <button
-            class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-            @click="handleLogout"
-          >
-            <LogOut class="h-4 w-4" /> Keluar
-          </button>
         </template>
         <!-- Collapsed: just icons -->
         <template v-else>

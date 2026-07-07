@@ -29,12 +29,12 @@ export const navItems = [
   { to: { name: 'statistik' }, label: 'Statistik Kehadiran', icon: TriangleAlert, presensiOnly: true },
   
   { isHeader: true, label: 'PERPUSTAKAAN', perpusOnly: true },
-  { to: { name: 'dashboard-perpus' }, label: 'Dashboard Perpus', icon: PieChart, perpusOnly: true },
-  { to: { name: 'kunjungan-perpus' }, label: 'Kunjungan Perpus', icon: UsersRound, perpusOnly: true },
-  { to: { name: 'buku' }, label: 'Katalog Buku', icon: Book, perpusOnly: true },
-  { to: { name: 'peminjaman' }, label: 'Sirkulasi Buku', icon: BookOpen, perpusOnly: true },
-  { to: { name: 'rekap-perpus' }, label: 'Laporan Perpus', icon: Library, perpusOnly: true },
-  { to: { name: 'cetak-kartu' }, label: 'Cetak ID Card', icon: Printer, perpusOnly: true },
+  { to: { name: 'dashboard-perpus' }, label: 'Beranda Perpustakaan', icon: PieChart, perpusOnly: true },
+  { to: { name: 'buku' }, label: 'Data Koleksi', icon: Book, perpusOnly: true },
+  { to: { name: 'peminjaman' }, label: 'Sirkulasi', icon: BookOpen, perpusOnly: true },
+  { to: { name: 'kunjungan-perpus' }, label: 'Data Pengunjung', icon: UsersRound, perpusOnly: true },
+  { to: { name: 'cetak-kartu' }, label: 'Kartu Anggota', icon: Printer, perpusOnly: true },
+  { to: { name: 'rekap-perpus' }, label: 'Laporan & Statistik', icon: Library, perpusOnly: true },
   
   { isHeader: true, label: 'ADMINISTRASI', adminOnly: true },
   { to: { name: 'siswa' }, label: 'Data Siswa', icon: Users, adminOnly: true },
@@ -57,9 +57,15 @@ export const bottomTabsPresensi = [
 ]
 
 export const bottomTabsPerpus = [
-  { to: { name: 'dashboard-perpus' }, label: 'Home', icon: PieChart },
-  { to: { name: 'buku' }, label: 'Buku', icon: Book },
+  { to: { name: 'dashboard-perpus' }, label: 'Beranda', icon: PieChart },
+  { to: { name: 'buku' }, label: 'Koleksi', icon: Book },
   { to: { name: 'peminjaman' }, label: 'Sirkulasi', icon: BookOpen },
-  { to: { name: 'kunjungan-perpus' }, label: 'Kunjungan', icon: UsersRound },
+  { to: { name: 'kunjungan-perpus' }, label: 'Pengunjung', icon: UsersRound },
 ]
 
+export const bottomTabsAdmin = [
+  { to: { name: 'siswa' }, label: 'Siswa', icon: Users },
+  { to: { name: 'guru' }, label: 'Guru', icon: GraduationCap },
+  { to: { name: 'kalender' }, label: 'Kalender', icon: CalendarDays },
+  { to: { name: 'pengaturan' }, label: 'Setelan', icon: Settings },
+]

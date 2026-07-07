@@ -1,31 +1,33 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-async function loadImageDataUrl(url) {
-  try {
-    const res = await fetch(url)
-    const blob = await res.blob()
-    const bmp = await createImageBitmap(blob)
-    const canvas = document.createElement('canvas')
-    const maxSize = 200
-    let { width, height } = bmp
-    if (width > maxSize || height > maxSize) {
-      if (width > height) {
-        height = Math.round((height * maxSize) / width)
-        width = maxSize
-      } else {
-        width = Math.round((width * maxSize) / height)
-        height = maxSize
+export async function loadImageDataUrl(url) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'Anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const maxSize = 300
+      let w = img.width || maxSize
+      let h = img.height || maxSize
+      if (w > maxSize || h > maxSize) {
+        if (w > h) {
+          h = Math.round((h * maxSize) / w)
+          w = maxSize
+        } else {
+          w = Math.round((w * maxSize) / h)
+          h = maxSize
+        }
       }
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/png'))
     }
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(bmp, 0, 0, width, height)
-    return canvas.toDataURL('image/png')
-  } catch {
-    return null
-  }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
 }
 
 export async function exportPdfKunjungan({
