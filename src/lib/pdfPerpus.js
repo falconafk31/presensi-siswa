@@ -1,5 +1,4 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+
 
 export async function loadImageDataUrl(url) {
   return new Promise((resolve) => {
@@ -38,6 +37,8 @@ export async function exportPdfPerpus({
   settings,
   periodeText = 'KESELURUHAN',
 }) {
+  const { default: jsPDF } = await import('jspdf')
+  const { default: autoTable } = await import('jspdf-autotable')
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageWidth = doc.internal.pageSize.width
 

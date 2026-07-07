@@ -7,7 +7,6 @@ import { Book, Plus, Edit, Trash2, Upload, Loader2, Download, ArrowUp, ArrowDown
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import Pagination from '@/components/Pagination.vue'
-import * as XLSX from 'xlsx'
 
 const books = ref([])
 const loading = ref(false)
@@ -190,6 +189,7 @@ function handleFileUpload(event) {
   const reader = new FileReader()
   reader.onload = async (e) => {
     try {
+      const XLSX = await import('xlsx')
       const data = new Uint8Array(e.target.result)
       const workbook = XLSX.read(data, { type: 'array' })
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -229,7 +229,8 @@ function handleFileUpload(event) {
   reader.readAsArrayBuffer(file)
 }
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const XLSX = await import('xlsx')
   const wsData = [
     ['Judul', 'Pengarang', 'Penerbit', 'Tahun', 'ISBN', 'Stok', 'Kategori'],
     ['Laskar Pelangi', 'Andrea Hirata', 'Bentang Pustaka', '2005', '978-979-3062-79-2', 5, 'Fiksi'],

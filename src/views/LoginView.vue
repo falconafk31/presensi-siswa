@@ -95,7 +95,7 @@ async function handleLogin() {
                 v-model="username"
                 type="text"
                 autocomplete="username"
-                class="block w-full rounded-xl border-gray-200 pl-10 py-2.5 text-sm shadow-sm transition-all focus:border-emerald-500 focus:ring-emerald-500/20"
+                class="input-field pl-10"
                 placeholder="Masukkan username"
               />
             </div>
@@ -109,7 +109,7 @@ async function handleLogin() {
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
-                class="block w-full rounded-xl border-gray-200 pl-10 pr-10 py-2.5 text-sm shadow-sm transition-all focus:border-emerald-500 focus:ring-emerald-500/20"
+                class="input-field pl-10 pr-10"
                 placeholder="••••••••"
               />
               <button

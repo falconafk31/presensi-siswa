@@ -1,5 +1,4 @@
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+
 
 export async function loadImageDataUrl(url) {
   return new Promise((resolve) => {
@@ -31,6 +30,8 @@ export async function loadImageDataUrl(url) {
 }
 
 export async function exportPdfSirkulasi(loans, settings, title = 'Laporan Sirkulasi') {
+  const { jsPDF } = await import('jspdf')
+  const { default: autoTable } = await import('jspdf-autotable')
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
 

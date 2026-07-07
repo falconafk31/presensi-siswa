@@ -379,7 +379,7 @@ const userInitial = computed(() => {
           :key="tab.to.name"
           :to="tab.to"
           class="group flex flex-1 flex-col items-center gap-0.5 py-2 text-gray-400 transition-colors relative"
-          exact-active-class="!text-primary"
+          :class="{ '!text-primary': route.name === tab.to.name }"
         >
           <!-- Active indicator dot -->
           <span

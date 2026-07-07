@@ -4,6 +4,7 @@ import { useStorage } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { TriangleAlert, RefreshCw } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
+import Pagination from '@/components/Pagination.vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -27,18 +28,10 @@ const dibawah = computed(() => sorted.value.filter((r) => r.persen < threshold.v
 // Pagination logic
 const currentPage = ref(1)
 const itemsPerPage = 25
-const totalPages = computed(() => Math.ceil(sorted.value.length / itemsPerPage) || 1)
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return sorted.value.slice(start, start + itemsPerPage)
 })
-
-function nextPage() {
-  if (currentPage.value < totalPages.value) currentPage.value++
-}
-function prevPage() {
-  if (currentPage.value > 1) currentPage.value--
-}
 
 async function load() {
   loading.value = true
@@ -201,37 +194,12 @@ onMounted(() => {
         </tbody>
       </table>
       
-      <!-- Pagination Controls -->
-      <div v-if="!loading && totalPages > 1" class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-          <div>
-            <p class="text-sm text-gray-700">
-              Menampilkan <span class="font-medium">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> s.d 
-              <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, sorted.length) }}</span> dari 
-              <span class="font-medium">{{ sorted.length }}</span> data
-            </p>
-          </div>
-          <div>
-            <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-              <button @click="prevPage" :disabled="currentPage === 1" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                <span class="sr-only">Previous</span>
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                </svg>
-              </button>
-              <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
-                Hal {{ currentPage }} dari {{ totalPages }}
-              </span>
-              <button @click="nextPage" :disabled="currentPage === totalPages" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                <span class="sr-only">Next</span>
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </nav>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        v-if="!loading && sorted.length > 0"
+        v-model="currentPage"
+        :total-items="sorted.length"
+        :items-per-page="itemsPerPage"
+      />
     </div>
   </div>
 </template>
