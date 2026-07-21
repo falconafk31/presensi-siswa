@@ -28,6 +28,9 @@ export const useSettingsStore = defineStore('settings', () => {
         hari_libur_mingguan: defaultData.hari_libur_mingguan || [0, 6],
         favicon_url: defaultData.favicon_url || ''
       }
+      
+    } catch (err) {
+      console.error(err)
     } finally {
       loading.value = false
     }

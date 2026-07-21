@@ -20,8 +20,8 @@ const sekolah = ref(null)
 onMounted(async () => {
   try {
     sekolah.value = await settingsStore.fetchSettings()
-  } catch {
-    // header generik kalau gagal
+  } catch (e) {
+    // Abaikan jika error (misal karena belum login / RLS)
   }
 })
 
@@ -60,7 +60,8 @@ async function handleLogin() {
             alt="Logo"
             class="h-full w-full object-contain drop-shadow-md"
           />
-          <span v-else class="text-4xl font-bold text-white">MIN</span>
+          <!-- Ubah teks "EDU" di bawah ini jika ingin mengganti inisial logo secara hardcode (misal: "MIN") -->
+          <span v-else class="text-3xl font-bold text-white tracking-wider">EDU</span>
         </div>
         <h1 class="text-4xl font-bold mb-4 tracking-tight">Sistem Terpadu</h1>
         <p class="text-lg text-emerald-100/80 font-light leading-relaxed">
@@ -78,10 +79,12 @@ async function handleLogin() {
         <div class="mb-10 text-center lg:text-left">
           <div class="lg:hidden mx-auto mb-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg p-2">
             <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo" class="h-full w-full object-contain drop-shadow-sm" />
-            <span v-else class="text-2xl font-bold text-white">MIN</span>
+            <!-- Ubah teks "EDU" di bawah ini jika ingin mengganti logo mobile secara hardcode -->
+            <span v-else class="text-2xl font-bold text-white">EDU</span>
           </div>
+          <!-- Ubah tulisan "Sistem Manajemen Sekolah" di bawah ini jika ingin mengganti judul form secara hardcode -->
           <h2 class="text-2xl font-bold text-gray-900 tracking-tight">
-            {{ sekolah?.nama_sekolah || 'Sistem Presensi MIN Blora' }}
+            {{ sekolah?.nama_sekolah || 'Sistem Manajemen Presensi Siswa MIN Blora' }}
           </h2>
           <p class="mt-2 text-sm text-gray-500">Silakan masukkan kredensial Anda untuk melanjutkan</p>
         </div>

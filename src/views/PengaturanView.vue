@@ -524,7 +524,7 @@ onMounted(() => {
       </div>
 
       <!-- Tombol Simpan Identitas -->
-      <div class="flex justify-end pt-2 lg:col-span-2">
+      <div class="col-span-1 lg:col-span-2 flex justify-end pt-2 pb-10 lg:pb-4">
         <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
           <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Identitas & Kop' }}
         </button>
@@ -595,7 +595,7 @@ onMounted(() => {
       </div>
 
       <!-- Tombol Simpan Akademik -->
-      <div class="flex justify-end pt-2">
+      <div class="flex justify-end pt-2 pb-12 lg:pb-2">
         <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
           <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Akademik' }}
         </button>
