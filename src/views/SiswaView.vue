@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Plus, Pencil, LogOut, Search, UserPlus, Trash2 } from 'lucide-vue-next'
+import { Plus, Pencil, LogOut, Search, UserPlus, Trash2, TriangleAlert } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -46,9 +46,15 @@ const form = ref(emptyForm())
 const showUpload = ref(false)
 const uploadingExcel = ref(false)
 const selectedFile = ref(null)
+const uploadError = ref(null)
+const uploadPreview = ref(null)
+const targetKelasUpload = ref('')
 
 function openUpload() {
   selectedFile.value = null
+  uploadError.value = null
+  uploadPreview.value = null
+  targetKelasUpload.value = ''
   showUpload.value = true
 }
 
@@ -65,9 +71,48 @@ async function downloadTemplate() {
 
 function onFileSelected(e) {
   selectedFile.value = e.target.files?.[0]
+  uploadError.value = null
+  uploadPreview.value = null
 }
 
+async function exportDataSiswa() {
+  if (filtered.value.length === 0) {
+    toast.error('Tidak ada data untuk diekspor')
+    return
+  }
+  try {
+    const xlsx = await import('xlsx')
+    const wsData = filtered.value.map((s, idx) => ({
+      No: idx + 1,
+      NISN: s.nisn,
+      NISM: s.nism || '-',
+      Nama: s.nama,
+      JK: s.jk,
+      'Tempat Lahir': s.tempat_lahir || '-',
+      'Tanggal Lahir': s.tanggal_lahir || '-',
+      Kelas: s.kelas,
+      Status: s.status,
+    }))
+    const ws = xlsx.utils.json_to_sheet(wsData)
+    const wb = xlsx.utils.book_new()
+    xlsx.utils.book_append_sheet(wb, ws, 'Data Siswa')
+    
+    // Atur lebar kolom
+    ws['!cols'] = [
+      {wch: 5}, {wch: 15}, {wch: 15}, {wch: 30}, {wch: 5}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 10}
+    ]
+    
+    xlsx.writeFile(wb, `Data_Siswa_${todayISO()}.xlsx`)
+    toast.success('Data siswa berhasil diekspor')
+    logActivity({ aksi: 'export_siswa', tabel_terkait: 'students' })
+  } catch (e) {
+    toast.error('Gagal mengekspor data: ' + e.message)
+  }
+}
+
+
 async function processUpload() {
+  uploadError.value = null
   if (!selectedFile.value) return
   uploadingExcel.value = true
   try {
@@ -79,30 +124,147 @@ async function processUpload() {
     
     if (!rows.length) throw new Error('File kosong atau format salah')
 
-    const toInsert = rows.map(r => ({
-      nisn: String(r.NISN || '').trim(),
-      nism: r.NISM ? String(r.NISM).trim() : null,
-      nama: String(r.Nama || '').trim(),
-      jk: String(r.JK || 'L').trim().toUpperCase(),
-      tempat_lahir: r.TempatLahir ? String(r.TempatLahir).trim() : null,
-      tanggal_lahir: r.TanggalLahir ? String(r.TanggalLahir).trim() : null,
-      kelas: String(r.Kelas || '1').trim().toUpperCase(),
-      status: 'aktif',
-      active: true,
-      tanggal_masuk: todayISO()
-    })).filter(r => r.nisn && r.nama)
+    const rawToInsert = rows.map((r, idx) => {
+      let tglLahir = r.TanggalLahir || null
+      if (typeof tglLahir === 'number') {
+        const d = new Date((tglLahir - 25569) * 86400 * 1000)
+        const yyyy = d.getUTCFullYear()
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const dd = String(d.getUTCDate()).padStart(2, '0')
+        tglLahir = `${yyyy}-${mm}-${dd}`
+      } else if (tglLahir) {
+        tglLahir = String(tglLahir).trim()
+      }
+      
+      return {
+        nisn: r.NISN ? String(r.NISN).trim() : `TMP${String(Date.now() + idx).slice(-7)}`,
+        nism: r.NISM ? String(r.NISM).trim() : null,
+        nama: String(r.Nama || '').trim(),
+        jk: String(r.JK || 'L').trim().toUpperCase(),
+        tempat_lahir: r.TempatLahir ? String(r.TempatLahir).trim() : null,
+        tanggal_lahir: tglLahir,
+        kelas: String(r.Kelas || '1').trim().toUpperCase(),
+        status: 'aktif',
+        active: true,
+        tanggal_masuk: todayISO()
+      }
+    }).filter(r => r.nama)
 
-    if (!toInsert.length) throw new Error('Tidak ada data valid (NISN dan Nama wajib)')
+    // Deduplicate dari Excel berdasarkan Nama + Tanggal Lahir (case insensitive)
+    const uniqueMap = new Map()
+    rawToInsert.forEach(item => {
+      const key = `${item.nama.toLowerCase()}_${item.tanggal_lahir || ''}`
+      uniqueMap.set(key, item)
+    })
+    const excelStudents = Array.from(uniqueMap.values())
 
-    const { error } = await supabase.from('students').upsert(toInsert, { onConflict: 'nisn' })
-    if (error) throw error
+    if (!excelStudents.length) throw new Error('Tidak ada data valid (Nama wajib)')
 
-    await logActivity({ aksi: 'import_siswa', tabel_terkait: 'students', detail: { jumlah: toInsert.length } })
-    toast.success(`${toInsert.length} siswa berhasil diupload`)
+    // Ambil data siswa yang sudah ada di database untuk dicocokkan
+    let query = supabase.from('students').select('id, nisn, nama, tanggal_lahir, kelas')
+    if (targetKelasUpload.value) {
+      query = query.eq('kelas', targetKelasUpload.value)
+    }
+    const { data: dbStudents, error: dbErr } = await query
+    if (dbErr) throw dbErr
+
+    const allUpserts = []
+    let updateCount = 0
+    let insertCount = 0
+
+    excelStudents.forEach(ex => {
+      const keyEx = `${ex.nama.toLowerCase()}_${ex.tanggal_lahir || ''}`
+      // Cari apakah siswa dengan Nama & Tgl Lahir yang sama persis sudah ada
+      const match = dbStudents.find(db => `${db.nama.toLowerCase()}_${db.tanggal_lahir || ''}` === keyEx)
+      
+      if (match) {
+        // Jika ada, kita Update data tersebut (sisipkan ID-nya)
+        allUpserts.push({ ...ex, id: match.id })
+        updateCount++
+      } else {
+        // Jika tidak ada, insert sebagai siswa baru
+        allUpserts.push(ex)
+        insertCount++
+      }
+    })
+
+    // Validasi NISN ganda di internal file Excel (opsional tapi disarankan)
+    const errors = []
+    const nisnMap = new Map() // Simpan mapping NISN -> Nama
+    
+    allUpserts.forEach(s => {
+      if (s.nisn && !s.nisn.startsWith('TMP')) {
+        if (nisnMap.has(s.nisn)) {
+          errors.push(`NISN ${s.nisn} terdeteksi ganda (diketik lebih dari 1 kali) di dalam file Excel Anda (antara "${s.nama}" dengan "${nisnMap.get(s.nisn)}").`)
+        } else {
+          nisnMap.set(s.nisn, s.nama)
+        }
+      }
+    })
+    
+    // Cek bentrok dengan DB (hanya untuk siswa baru/beda id)
+    dbStudents.forEach(db => {
+      if (db.nisn && !db.nisn.startsWith('TMP')) {
+        const found = allUpserts.find(u => u.nisn === db.nisn && u.id !== db.id)
+        if (found) {
+          errors.push(`NISN ${db.nisn} di Excel diinput sebagai siswa baru ("${found.nama}"), tetapi NISN tersebut sudah terdaftar di sistem atas nama "${db.nama}".\nSolusi: Jika ini orang yang sama, pastikan penulisan Nama dan Tanggal Lahir di Excel persis sama dengan di sistem agar data terupdate (bukan ganda).`)
+        }
+      }
+    })
+
+    uploadPreview.value = {
+      allUpserts,
+      insertCount,
+      updateCount,
+      dbCount: dbStudents.length,
+      errors
+    }
+
+  } catch(e) {
+    uploadError.value = e.message
+  } finally {
+    uploadingExcel.value = false
+  }
+}
+
+async function confirmUpload() {
+  if (!uploadPreview.value || uploadPreview.value.errors.length > 0) return
+  
+  uploadingExcel.value = true
+  uploadError.value = null
+
+  try {
+    const { allUpserts } = uploadPreview.value
+    
+    const toUpdate = allUpserts.filter(u => u.id)
+    const toInsert = allUpserts.filter(u => !u.id)
+
+    const checkErr = (err) => {
+      if (err) {
+        if (err.message?.includes('duplicate key') || err.code === '23505') {
+          throw new Error('Gagal: Terdapat NISN ganda. Pastikan NISN di Excel tidak ada yang sama dengan NISN siswa lain di database.')
+        }
+        throw err
+      }
+    }
+
+    if (toUpdate.length > 0) {
+      const { error } = await supabase.from('students').upsert(toUpdate)
+      checkErr(error)
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from('students').insert(toInsert)
+      checkErr(error)
+    }
+
+    await logActivity({ aksi: 'import_siswa', tabel_terkait: 'students', detail: { jumlah: allUpserts.length } })
+    toast.success(`${allUpserts.length} siswa berhasil diproses`)
     showUpload.value = false
+    uploadPreview.value = null
     await load()
   } catch(e) {
-    toast.error('Gagal upload: ' + e.message)
+    uploadError.value = e.message
   } finally {
     uploadingExcel.value = false
   }
@@ -124,10 +286,12 @@ const filtered = computed(() => {
 
 const itemsPerPage = 50
 const currentPage = ref(1)
+const selectedIds = ref([])
 
-// Reset halaman ke 1 setiap kali filter berubah
+// Reset halaman dan seleksi setiap kali filter berubah
 watch([search, filterKelas, filterStatus], () => {
   currentPage.value = 1
+  selectedIds.value = []
 })
 
 const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage))
@@ -136,6 +300,38 @@ const paginated = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return filtered.value.slice(start, start + itemsPerPage)
 })
+
+const selectAll = computed({
+  get: () => paginated.value.length > 0 && paginated.value.every(s => selectedIds.value.includes(s.id)),
+  set: (val) => {
+    if (val) {
+      const pageIds = paginated.value.map(s => s.id)
+      selectedIds.value = [...new Set([...selectedIds.value, ...pageIds])]
+    } else {
+      const pageIds = paginated.value.map(s => s.id)
+      selectedIds.value = selectedIds.value.filter(id => !pageIds.includes(id))
+    }
+  }
+})
+
+async function hapusTerpilih() {
+  if (!selectedIds.value.length) return
+  if (!confirm(`Yakin ingin menghapus permanen ${selectedIds.value.length} siswa terpilih?`)) return
+  
+  saving.value = true
+  try {
+    const { error } = await supabase.from('students').delete().in('id', selectedIds.value)
+    if (error) throw error
+    toast.success(`${selectedIds.value.length} siswa berhasil dihapus`)
+    logActivity({ aksi: 'hapus_siswa_masal', tabel_terkait: 'students', detail: { jumlah: selectedIds.value.length } })
+    selectedIds.value = []
+    await load()
+  } catch (e) {
+    toast.error('Gagal menghapus siswa: ' + e.message)
+  } finally {
+    saving.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -178,8 +374,8 @@ function openEdit(s) {
 }
 
 async function save() {
-  if (!form.value.nisn || !form.value.nama) {
-    toast.error('NISN dan Nama wajib diisi')
+  if (!form.value.nama) {
+    toast.error('Nama lengkap wajib diisi')
     return
   }
   saving.value = true
@@ -205,7 +401,7 @@ async function save() {
       const { data, error } = await supabase
         .from('students')
         .insert({
-          nisn: form.value.nisn,
+          nisn: form.value.nisn || `TMP${String(Date.now()).slice(-7)}`,
           nism: form.value.nism || null,
           nama: form.value.nama,
           jk: form.value.jk,
@@ -299,6 +495,9 @@ onMounted(() => {
   <div>
     <PageHeader title="Data Siswa" subtitle="Kelola data siswa, siswa baru/pindahan, dan mutasi keluar">
       <template #actions>
+        <button v-if="selectedIds.length > 0" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100 font-medium" @click="hapusTerpilih" title="Hapus Permanen Terpilih">
+          <Trash2 class="h-4 w-4" /> Hapus Terpilih ({{ selectedIds.length }})
+        </button>
         <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50" @click="exportDataSiswa" title="Download data sesuai filter saat ini ke Excel">
           <FileDown class="h-4 w-4" /> Download Data
         </button>
@@ -340,6 +539,8 @@ onMounted(() => {
       <table v-else class="min-w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
+            <th class="px-3 py-2 w-10 text-center"><input type="checkbox" v-model="selectAll" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" /></th>
+            <th class="px-3 py-2 w-12 text-center">No</th>
             <th class="px-3 py-2">NISN</th>
             <th class="px-3 py-2">Nama</th>
             <th class="px-3 py-2">JK</th>
@@ -349,7 +550,9 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="s in paginated" :key="s.id" class="hover:bg-gray-50">
+          <tr v-for="(s, idx) in paginated" :key="s.id" :class="['hover:bg-gray-50 transition-colors', selectedIds.includes(s.id) ? 'bg-emerald-50/50' : '']">
+            <td class="px-3 py-2 text-center"><input type="checkbox" :value="s.id" v-model="selectedIds" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" /></td>
+            <td class="px-3 py-2 text-center text-gray-400">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
             <td class="px-3 py-2 text-gray-500">{{ s.nisn }}</td>
             <td class="px-3 py-2 font-medium text-gray-800">{{ s.nama }}</td>
             <td class="px-3 py-2">{{ s.jk }}</td>
@@ -391,9 +594,19 @@ onMounted(() => {
         description="Data siswa kosong atau tidak ditemukan dengan filter yang dipilih."
       />
       <div v-else class="space-y-3">
-        <div v-for="s in paginated" :key="s.id" class="card p-4">
-          <div class="flex items-center justify-between mb-2">
-            <div class="font-medium text-gray-800 text-base">{{ s.nama }}</div>
+        <div class="flex items-center gap-2 px-1 mb-2">
+          <input type="checkbox" v-model="selectAll" id="selectAllMobile" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+          <label for="selectAllMobile" class="text-sm font-medium text-gray-600 cursor-pointer">Pilih Semua di Halaman Ini</label>
+        </div>
+        <div v-for="(s, idx) in paginated" :key="s.id" :class="['card p-4 transition-colors', selectedIds.includes(s.id) ? 'bg-emerald-50/50 border-emerald-200' : '']">
+          <div class="flex items-start justify-between mb-2 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" :value="s.id" v-model="selectedIds" class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+              <div>
+                <div class="font-medium text-gray-800 text-base leading-tight">{{ s.nama }}</div>
+                <div class="text-xs text-gray-400 mt-0.5">#{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</div>
+              </div>
+            </div>
             <StatusBadge :label="s.status" :color="statusColor[s.status]" />
           </div>
           <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4">
@@ -445,8 +658,8 @@ onMounted(() => {
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">NISN</label>
-            <input v-model="form.nisn" class="input-field" :disabled="editing" placeholder="10 digit" />
+            <label class="mb-1 block text-xs font-medium text-gray-600">NISN (Opsional)</label>
+            <input v-model="form.nisn" class="input-field" :disabled="editing && form.nisn" placeholder="10 digit (Kosongkan jika belum ada)" />
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600">NISM (Opsional)</label>
@@ -566,8 +779,17 @@ onMounted(() => {
           </button>
         </div>
 
+        <div v-if="!uploadPreview">
+          <label class="mb-1 block text-xs font-medium text-gray-600">Target Kelas (Opsional)</label>
+          <select v-model="targetKelasUpload" class="input-field mb-2">
+            <option value="">Deteksi Otomatis Semua Kelas</option>
+            <option v-for="k in daftarKelas" :key="k" :value="k">Validasi Khusus Kelas {{ k }}</option>
+          </select>
+          <p class="text-[10px] text-gray-500 leading-tight">Jika dipilih, sistem hanya akan mengecek duplikasi terhadap data siswa yang saat ini berada di kelas tersebut.</p>
+        </div>
+
         <!-- Dropzone Area -->
-        <div class="relative group mt-2">
+        <div v-if="!uploadPreview" class="relative group mt-2">
           <input type="file" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="onFileSelected" />
           <div :class="['rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300', selectedFile ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-200 bg-gray-50 group-hover:border-emerald-300 group-hover:bg-emerald-50/30']">
             <div v-if="!selectedFile" class="animate-in fade-in zoom-in duration-300">
@@ -587,11 +809,63 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Preview Area -->
+        <div v-else class="space-y-4 animate-in fade-in slide-in-from-right-2">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center">
+              <div class="text-xl font-bold text-gray-700">{{ uploadPreview.dbCount }}</div>
+              <div class="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wider">Total Awal</div>
+            </div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+              <div class="text-xl font-bold text-emerald-700">+{{ uploadPreview.insertCount }}</div>
+              <div class="text-[10px] font-medium text-emerald-600 mt-1 uppercase tracking-wider">Data Baru</div>
+            </div>
+            <div class="rounded-xl border border-sky-100 bg-sky-50 p-3 text-center">
+              <div class="text-xl font-bold text-sky-700">{{ uploadPreview.updateCount }}</div>
+              <div class="text-[10px] font-medium text-sky-600 mt-1 uppercase tracking-wider">Di-update</div>
+            </div>
+            <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-center ring-1 ring-indigo-200 ring-offset-1">
+              <div class="text-xl font-bold text-indigo-700">{{ uploadPreview.dbCount + uploadPreview.insertCount }}</div>
+              <div class="text-[10px] font-medium text-indigo-600 mt-1 uppercase tracking-wider">Total Akhir</div>
+            </div>
+          </div>
+          
+          <div v-if="uploadPreview.errors.length > 0" class="rounded-xl border border-rose-200 bg-rose-50 p-4">
+            <div class="flex items-start gap-3">
+              <TriangleAlert class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 class="text-sm font-semibold text-rose-800">Ditemukan Masalah Validasi</h4>
+                <ul class="mt-2 list-disc pl-4 text-sm text-rose-600 space-y-1">
+                  <li v-for="(err, i) in uploadPreview.errors" :key="i">{{ err }}</li>
+                </ul>
+                <p class="mt-3 text-xs text-rose-700 font-medium">Anda tidak dapat menyimpan data sebelum memperbaiki masalah ini di file Excel Anda.</p>
+              </div>
+            </div>
+          </div>
+          <div v-else class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 flex items-center justify-center font-medium">
+            ✅ Data valid dan siap disimpan!
+          </div>
+        </div>
+
+        <!-- Error Display -->
+        <div v-if="uploadError" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 animate-in fade-in slide-in-from-bottom-2">
+          <div class="flex items-start gap-3">
+            <TriangleAlert class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 class="text-sm font-semibold text-rose-800">Gagal Mengimpor Data</h4>
+              <p class="mt-1 text-sm text-rose-600 whitespace-pre-line">{{ uploadError }}</p>
+            </div>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showUpload = false">Batal</button>
-        <button class="btn-primary" :disabled="uploadingExcel || !selectedFile" @click="processUpload">
-          {{ uploadingExcel ? 'Memproses...' : 'Upload' }}
+        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showUpload = false; uploadPreview = null; uploadError = null; selectedFile = null">Batal</button>
+        <button v-if="!uploadPreview" class="btn-primary" :disabled="uploadingExcel || !selectedFile" @click="processUpload">
+          {{ uploadingExcel ? 'Memeriksa...' : 'Lanjutkan' }}
+        </button>
+        <button v-else class="btn-primary" :disabled="uploadingExcel || uploadPreview.errors.length > 0" @click="confirmUpload">
+          {{ uploadingExcel ? 'Menyimpan...' : 'Simpan Data' }}
         </button>
       </template>
     </BaseModal>
