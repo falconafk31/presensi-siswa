@@ -1,6 +1,13 @@
 # 🏫 Sistem Presensi & Perpustakaan Madrasah (Modern Web App)
 
 Aplikasi Sistem Informasi terintegrasi berbasis web modern yang dirancang khusus untuk instansi pendidikan (Madrasah/Sekolah). Sistem ini menangani **Presensi Akademik** dan **Manajemen Perpustakaan (Sirkulasi Buku)** dalam satu portal terpadu. Proyek ini merupakan hasil migrasi dan pengembangan dari sistem *legacy* (Google Apps Script) menjadi arsitektur modern yang lebih cepat, skalabel, dan aman.
+## SS UI Beranda presensi
+* https://github.com/user-attachments/assets/6ea526e4-f040-4332-9894-a89a720e4ea6
+* https://github.com/user-attachments/assets/cca026fd-58d4-4287-83de-7deeec00f285
+
+## SS UI Perpustakaan
+* https://github.com/user-attachments/assets/73d66672-559b-4c73-b969-354c2a120986
+* https://github.com/user-attachments/assets/fdfb4e81-8fca-4715-b1d7-e2f8e5b1c9b2
 
 ## 🚀 Tech Stack
 
