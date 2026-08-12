@@ -25,8 +25,9 @@ const searchLoan = ref('')
 const itemsPerPage = 20
 const currentPage = ref(1)
 
-// Modal Pengembalian
+// Modal Pengembalian & Peminjaman
 const showReturnModal = ref(false)
+const showLoanModal = ref(false)
 const selectedLoan = ref(null)
 
 const students = ref([])
@@ -189,6 +190,7 @@ async function submitPinjam() {
     searchBuku.value = ''
     selectedBookObj.value = null
     form.value.durasi_hari = 7
+    showLoanModal.value = false
 
     await fetchMasterData() // Refresh data stok buku
     await fetchLoans()
@@ -276,55 +278,9 @@ onMounted(() => {
   <div>
     <PageHeader title="Sirkulasi" subtitle="Manajemen peminjaman dan pengembalian bahan pustaka" />
 
-    <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-      <!-- Panel Input Peminjaman -->
-      <div class="card space-y-4 lg:col-span-1">
-        <h3 class="font-semibold text-gray-800">Catat Peminjaman Baru</h3>
-        
-        <div class="relative">
-          <label class="mb-1 block text-sm font-medium text-gray-700">Pencarian Siswa</label>
-          <div class="relative">
-            <input v-model="searchSiswa" @input="form.student_nisn = ''" class="input-field pl-9" placeholder="Ketik nama atau NISN..." />
-            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          </div>
-          <!-- Hasil Pencarian Siswa -->
-          <ul v-if="searchSiswa && !form.student_nisn && filteredStudents.length" class="absolute z-10 mt-1 w-full rounded-xl border border-gray-100 bg-white shadow-lg">
-            <li v-for="s in filteredStudents" :key="s.nisn" class="cursor-pointer px-4 py-2 hover:bg-gray-50 text-sm" @click="selectStudent(s)">
-              <div class="font-medium text-gray-800">{{ s.nama }}</div>
-              <div class="text-xs text-gray-500">Kelas {{ s.kelas }} | NISN: {{ s.nisn }}</div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="relative">
-          <label class="mb-1 block text-sm font-medium text-gray-700">Pencarian Buku</label>
-          <div class="relative">
-            <input v-model="searchBuku" @input="form.book_id = ''" class="input-field pl-9" placeholder="Ketik judul buku..." />
-            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          </div>
-          <!-- Hasil Pencarian Buku -->
-          <ul v-if="searchBuku && !form.book_id && filteredBooks.length" class="absolute z-10 mt-1 w-full rounded-xl border border-gray-100 bg-white shadow-lg">
-            <li v-for="b in filteredBooks" :key="b.id" class="cursor-pointer px-4 py-2 hover:bg-gray-50 text-sm" @click="selectBook(b)">
-              <div class="font-medium text-gray-800">{{ b.judul }}</div>
-              <div class="text-xs font-semibold" :class="b.tersedia > 0 ? 'text-emerald-600' : 'text-rose-600'">
-                Tersedia: {{ b.tersedia }} dari {{ b.stok }} eksemplar
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Durasi Pinjam (Hari)</label>
-          <input v-model.number="form.durasi_hari" type="number" min="1" class="input-field" />
-        </div>
-
-        <button class="btn-primary w-full" :disabled="saving || !form.student_nisn || !form.book_id" @click="submitPinjam">
-          <Plus class="h-4 w-4" /> {{ saving ? 'Memproses...' : 'Pinjamkan Buku' }}
-        </button>
-      </div>
-
+    <div class="space-y-4">
       <!-- Panel Daftar Pinjaman Aktif -->
-      <div class="card lg:col-span-2">
+      <div class="card">
         <div class="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h3 class="font-semibold text-gray-800">Daftar Sirkulasi Buku</h3>
           <div class="flex items-center gap-2">
@@ -335,6 +291,9 @@ onMounted(() => {
             <button class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-50" @click="handleDownloadPdf">
               <Download class="h-4 w-4" /> PDF
             </button>
+            <button class="btn-primary py-1.5 text-sm shrink-0" @click="showLoanModal = true">
+              <Plus class="h-4 w-4" /> Pinjam Baru
+            </button>
           </div>
         </div>
         
@@ -343,10 +302,10 @@ onMounted(() => {
           <input v-model="searchLoan" class="input-field pl-9 py-1.5 text-sm" placeholder="Cari nama peminjam / judul buku..." />
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-left text-sm">
+        <div class="overflow-x-auto rounded-xl border border-gray-100">
+          <table class="min-w-full text-left text-sm whitespace-nowrap">
             <thead>
-              <tr class="border-b border-gray-200 text-gray-500">
+              <tr class="border-b border-gray-100 bg-gray-50/50 text-gray-500">
                 <th class="px-3 py-2 font-semibold">Peminjam</th>
                 <th class="px-3 py-2 font-semibold">Buku</th>
                 <th class="px-3 py-2 font-semibold">Batas Kembali</th>
@@ -400,6 +359,54 @@ onMounted(() => {
 
       </div>
     </div>
+
+    <!-- Modal Form Peminjaman Baru -->
+    <BaseModal v-model="showLoanModal" title="Catat Peminjaman Baru">
+      <div class="space-y-4 p-5">
+        <div class="relative">
+          <label class="mb-1 block text-sm font-medium text-gray-700">Pencarian Siswa Peminjam</label>
+          <div class="relative">
+            <input v-model="searchSiswa" @input="form.student_nisn = ''" class="input-field pl-9" placeholder="Ketik nama atau NISN..." />
+            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          </div>
+          <!-- Hasil Pencarian Siswa -->
+          <ul v-if="searchSiswa && !form.student_nisn && filteredStudents.length" class="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg">
+            <li v-for="s in filteredStudents" :key="s.nisn" class="cursor-pointer px-4 py-2 hover:bg-gray-50 text-sm" @click="selectStudent(s)">
+              <div class="font-medium text-gray-800">{{ s.nama }}</div>
+              <div class="text-xs text-gray-500">Kelas {{ s.kelas }} | NISN: {{ s.nisn }}</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="relative">
+          <label class="mb-1 block text-sm font-medium text-gray-700">Pencarian Buku</label>
+          <div class="relative">
+            <input v-model="searchBuku" @input="form.book_id = ''" class="input-field pl-9" placeholder="Ketik judul buku..." />
+            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          </div>
+          <!-- Hasil Pencarian Buku -->
+          <ul v-if="searchBuku && !form.book_id && filteredBooks.length" class="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg">
+            <li v-for="b in filteredBooks" :key="b.id" class="cursor-pointer px-4 py-2 hover:bg-gray-50 text-sm" @click="selectBook(b)">
+              <div class="font-medium text-gray-800">{{ b.judul }}</div>
+              <div class="text-xs font-semibold" :class="b.tersedia > 0 ? 'text-emerald-600' : 'text-rose-600'">
+                Tersedia: {{ b.tersedia }} dari {{ b.stok }} eksemplar
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Durasi Pinjam (Hari)</label>
+          <input v-model.number="form.durasi_hari" type="number" min="1" class="input-field" />
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 p-4">
+        <button class="btn-secondary" @click="showLoanModal = false">Batal</button>
+        <button class="btn-primary" :disabled="saving || !form.student_nisn || !form.book_id" @click="submitPinjam">
+          <Plus class="h-4 w-4" /> {{ saving ? 'Memproses...' : 'Pinjamkan Buku' }}
+        </button>
+      </div>
+    </BaseModal>
 
     <!-- Modal Konfirmasi Pengembalian -->
     <BaseModal v-model="showReturnModal" title="Konfirmasi Pengembalian" max-width="max-w-md">

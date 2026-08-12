@@ -49,7 +49,7 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 2.  **Sirkulasi Cerdas:** Peminjaman dan Pengembalian dengan auto-kalkulasi stok secara *real-time*.
 3.  **Kunjungan Scanner QR:** Pencatatan kunjungan kilat menggunakan *Barcode / QR Scanner* (dukungan kamera HP/Laptop) lengkap dengan feedback suara (berhasil/gagal).
 4.  **Laporan Perpustakaan:** Cetak riwayat sirkulasi, status peminjaman aktif, dan daftar kunjungan harian ke PDF secara mudah. Judul laporan kini menggunakan Nama Perpustakaan khusus (*custom*) dari menu Pengaturan.
-5.  **Cetak Kartu Perpustakaan Premium:** Menghasilkan ID Card fisik yang sepenuhnya dioptimalkan dengan CSS Grid, tipografi bersih (Inter Font), *watermark* terpusat, dan gradien warna eksklusif yang siap cetak.
+5.  **Cetak Kartu Perpustakaan Premium:** Menghasilkan ID Card fisik bolak-balik (Depan & Belakang berisi Tata Tertib) yang sepenuhnya dioptimalkan dengan CSS Grid, tipografi bersih, *watermark*, dan format vektor untuk cetak resolusi tinggi.
 5.  **Hak Akses Khusus:** Mendukung *role* **Pustakawan** murni, serta *role* **Guru & Pustakawan** bagi guru wali kelas yang juga ditugaskan mengurus perpustakaan.
 
 ### ⚙️ Engine Inti

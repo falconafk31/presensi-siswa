@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
-import { Book, Plus, Edit, Trash2, Upload, Loader2, Download, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp } from 'lucide-vue-next'
+import { Book, Plus, Edit, Trash2, Upload, Loader2, Download, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp, Info } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import Pagination from '@/components/Pagination.vue'
@@ -15,6 +15,13 @@ const showModal = ref(false)
 const showImportModal = ref(false)
 const searchQuery = ref('')
 const fileInput = ref(null)
+
+const showHistoryModal = ref(false)
+const loadingHistory = ref(false)
+const selectedHistoryBookTitle = ref('')
+const selectedBookHistory = ref([])
+const historyCurrentPage = ref(1)
+const historyItemsPerPage = 10
 
 const form = ref({
   id: null,
@@ -51,9 +58,9 @@ const filteredBooks = computed(() => {
     let valA = a[sortKey.value] || ''
     let valB = b[sortKey.value] || ''
     
-    if (sortKey.value === 'stok') {
-      valA = Number(a.stok)
-      valB = Number(b.stok)
+    if (['stok', 'dipinjam', 'tersedia'].includes(sortKey.value)) {
+      valA = Number(a[sortKey.value]) || 0
+      valB = Number(b[sortKey.value]) || 0
     } else if (sortKey.value === 'judul') {
       valA = a.judul.toLowerCase()
       valB = b.judul.toLowerCase()
@@ -80,6 +87,11 @@ watch(searchQuery, () => {
 const paginatedBooks = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return filteredBooks.value.slice(start, start + itemsPerPage)
+})
+
+const paginatedBookHistory = computed(() => {
+  const start = (historyCurrentPage.value - 1) * historyItemsPerPage
+  return selectedBookHistory.value.slice(start, start + historyItemsPerPage)
 })
 
 async function fetchBooks() {
@@ -243,6 +255,49 @@ async function downloadTemplate() {
   XLSX.writeFile(wb, 'Template_Import_Buku.xlsx')
 }
 
+async function openHistoryModal(book) {
+  selectedHistoryBookTitle.value = book.judul
+  showHistoryModal.value = true
+  loadingHistory.value = true
+  selectedBookHistory.value = []
+  historyCurrentPage.value = 1
+  
+  try {
+    const { data, error } = await supabase
+      .from('book_loans')
+      .select('*, students!book_loans_student_nisn_fkey(nama, kelas)')
+      .eq('book_id', book.id)
+      .order('created_at', { ascending: false })
+      
+    if (error) {
+      // Jika terjadi error foreign key name (kadang Supabase otomatis generate nama fkey), coba nama lain atau table langsung
+      const { data: data2, error: err2 } = await supabase
+        .from('book_loans')
+        .select('*, students(nama, kelas)')
+        .eq('book_id', book.id)
+        .order('created_at', { ascending: false })
+      if (err2) throw err2
+      selectedBookHistory.value = data2 || []
+    } else {
+      selectedBookHistory.value = data || []
+    }
+  } catch (err) {
+    toast.error('Gagal mengambil riwayat: ' + err.message)
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+function getStatusBadge(status) {
+  switch (status) {
+    case 'dipinjam': return 'bg-sky-100 text-sky-700'
+    case 'dikembalikan': return 'bg-emerald-100 text-emerald-700'
+    case 'terlambat': return 'bg-rose-100 text-rose-700'
+    case 'hilang': return 'bg-gray-100 text-gray-700'
+    default: return 'bg-gray-100 text-gray-700'
+  }
+}
+
 onMounted(fetchBooks)
 </script>
 
@@ -273,7 +328,7 @@ onMounted(fetchBooks)
         <thead>
           <tr class="border-b border-gray-200 text-gray-500">
             <th class="px-4 py-3 font-semibold w-16 text-center">No</th>
-            <th class="px-4 py-3 font-semibold w-[40%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('judul')">
+            <th class="px-4 py-3 font-semibold w-[35%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('judul')">
               <div class="flex items-center gap-2">
                 Judul Buku
                 <ArrowUp v-if="sortKey === 'judul' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
@@ -281,7 +336,7 @@ onMounted(fetchBooks)
                 <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </th>
-            <th class="px-4 py-3 font-semibold w-[25%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('pengarang')">
+            <th class="px-4 py-3 font-semibold w-[20%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('pengarang')">
               <div class="flex items-center gap-2">
                 Pengarang & Penerbit
                 <ArrowUp v-if="sortKey === 'pengarang' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
@@ -289,12 +344,28 @@ onMounted(fetchBooks)
                 <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </th>
-            <th class="px-4 py-3 font-semibold w-[15%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('stok')">
-              <div class="flex items-center justify-center gap-2">
-                Stok
-                <ArrowUp v-if="sortKey === 'stok' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'stok' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('stok')">
+              <div class="flex items-center justify-center gap-1">
+                Total
+                <ArrowUp v-if="sortKey === 'stok' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'stok' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </th>
+            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('dipinjam')">
+              <div class="flex items-center justify-center gap-1">
+                Pinjam
+                <ArrowUp v-if="sortKey === 'dipinjam' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'dipinjam' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </th>
+            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('tersedia')">
+              <div class="flex items-center justify-center gap-1">
+                Sisa
+                <ArrowUp v-if="sortKey === 'tersedia' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowDown v-else-if="sortKey === 'tersedia' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
+                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </th>
             <th class="px-4 py-3 font-semibold w-[15%] text-right">Aksi</th>
@@ -302,13 +373,13 @@ onMounted(fetchBooks)
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
               <Loader2 class="mx-auto h-6 w-6 animate-spin text-emerald-500" />
               <p class="mt-2">Memuat buku...</p>
             </td>
           </tr>
           <tr v-else-if="!filteredBooks.length">
-            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
               Belum ada buku atau pencarian tidak ditemukan.
             </td>
           </tr>
@@ -322,17 +393,24 @@ onMounted(fetchBooks)
               <div class="text-gray-700">{{ b.pengarang || '-' }}</div>
               <div class="text-xs text-gray-500">{{ b.penerbit || '-' }} ({{ b.tahun_terbit || '-' }})</div>
             </td>
-            <td class="px-4 py-3 text-center">
-              <div class="text-sm font-bold text-gray-800">Total: {{ b.stok }}</div>
-              <div class="text-xs font-medium text-rose-600">Dipinjam: {{ b.dipinjam }}</div>
-              <div class="text-xs font-semibold text-emerald-600">Sisa: {{ b.tersedia }}</div>
+            <td class="px-2 py-3 text-center align-middle">
+              <div class="text-sm font-bold text-gray-800">{{ b.stok }}</div>
+            </td>
+            <td class="px-2 py-3 text-center align-middle">
+              <div class="text-sm font-medium text-rose-600">{{ b.dipinjam }}</div>
+            </td>
+            <td class="px-2 py-3 text-center align-middle">
+              <div class="text-sm font-semibold text-emerald-600">{{ b.tersedia }}</div>
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex items-center justify-end gap-2">
-                <button class="rounded-lg p-2 text-amber-600 hover:bg-amber-50" @click="openModal(b)">
+                <button class="rounded-lg p-2 text-blue-600 hover:bg-blue-50" title="Riwayat Peminjaman" @click="openHistoryModal(b)">
+                  <Info class="h-4 w-4" />
+                </button>
+                <button class="rounded-lg p-2 text-amber-600 hover:bg-amber-50" title="Edit Buku" @click="openModal(b)">
                   <Edit class="h-4 w-4" />
                 </button>
-                <button class="rounded-lg p-2 text-rose-600 hover:bg-rose-50" @click="deleteBook(b.id, b.judul)">
+                <button class="rounded-lg p-2 text-rose-600 hover:bg-rose-50" title="Hapus Buku" @click="deleteBook(b.id, b.judul)">
                   <Trash2 class="h-4 w-4" />
                 </button>
               </div>
@@ -430,6 +508,68 @@ onMounted(fetchBooks)
             </div>
           </div>
         </div>
+      </div>
+    </BaseModal>
+
+    <!-- Modal Riwayat Peminjaman -->
+    <BaseModal v-model="showHistoryModal" :title="`Riwayat: ${selectedHistoryBookTitle}`" maxWidth="3xl">
+      <div class="p-5">
+        <div v-if="loadingHistory" class="py-12 text-center text-gray-500">
+          <Loader2 class="mx-auto h-8 w-8 animate-spin text-emerald-500" />
+          <p class="mt-2 text-sm">Memuat riwayat peminjaman...</p>
+        </div>
+        
+        <div v-else-if="!selectedBookHistory.length" class="py-12 text-center text-gray-500">
+          Buku ini belum pernah dipinjam.
+        </div>
+        
+        <div v-else class="space-y-4">
+          <!-- Tampilan Tabel Responsif (Bisa digeser ke kanan-kiri di Mobile) -->
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table class="min-w-full text-left text-sm whitespace-nowrap">
+              <thead>
+                <tr class="border-b border-gray-100 bg-gray-50/50 text-gray-500">
+                  <th class="px-4 py-3 font-semibold w-12 text-center">No</th>
+                  <th class="px-4 py-3 font-semibold">Peminjam</th>
+                  <th class="px-4 py-3 font-semibold text-center">Tgl Pinjam</th>
+                  <th class="px-4 py-3 font-semibold text-center">Tenggat</th>
+                  <th class="px-4 py-3 font-semibold text-center">Tgl Kembali</th>
+                  <th class="px-4 py-3 font-semibold text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(h, idx) in paginatedBookHistory" :key="h.id" class="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td class="px-4 py-3 text-center text-gray-500">{{ (historyCurrentPage - 1) * historyItemsPerPage + idx + 1 }}</td>
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-gray-800">{{ h.students?.nama || h.student_nisn }}</div>
+                    <div class="text-xs text-gray-500">Kelas Saat Ini: {{ h.students?.kelas || '-' }}</div>
+                  </td>
+                  <td class="px-4 py-3 text-center text-gray-600">{{ new Date(h.tanggal_pinjam).toLocaleDateString('id-ID') }}</td>
+                  <td class="px-4 py-3 text-center text-gray-600">{{ new Date(h.tanggal_kembali_seharusnya).toLocaleDateString('id-ID') }}</td>
+                  <td class="px-4 py-3 text-center text-gray-600">
+                    {{ h.tanggal_kembali_aktual ? new Date(h.tanggal_kembali_aktual).toLocaleDateString('id-ID') : '-' }}
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <span :class="['inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold capitalize', getStatusBadge(h.status)]">
+                      {{ h.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <Pagination
+            v-if="selectedBookHistory.length > historyItemsPerPage"
+            v-model="historyCurrentPage"
+            :total-items="selectedBookHistory.length"
+            :items-per-page="historyItemsPerPage"
+            class="mt-2 rounded-2xl border border-gray-100"
+          />
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 p-4">
+        <button class="btn-secondary" @click="showHistoryModal = false">Tutup</button>
       </div>
     </BaseModal>
   </div>

@@ -7,7 +7,7 @@ import { exportPdfPerpus } from '@/lib/pdfPerpus'
 import { exportPdfKunjungan } from '@/lib/pdfKunjungan'
 import { exportExcelKunjungan, exportExcelSirkulasi } from '@/lib/excelExport'
 import { namaBulan } from '@/lib/dates'
-import { Trophy, BookOpen, UserCircle, Loader2, Download, Library, FileSpreadsheet } from 'lucide-vue-next'
+import { Trophy, BookOpen, UserCircle, Loader2, Download, Library, FileSpreadsheet, Users, Filter, Info } from 'lucide-vue-next'
 import PageHeader from '@/components/PageHeader.vue'
 import Pagination from '@/components/Pagination.vue'
 
@@ -152,6 +152,16 @@ const paginatedStudentsLoans = computed(() => {
   return topStudentsLoans.value.slice(start, start + itemsPerPage)
 })
 
+const helperText = computed(() => {
+  const isKunjungan = activeTab.value === 'kunjungan'
+  const prefix = isKunjungan 
+    ? 'Menampilkan rekapitulasi data pengunjung (kedatangan fisik) ke perpustakaan'
+    : 'Menampilkan rekapitulasi data peminjaman buku beserta daftar buku dan peminjam teraktif'
+  
+  if (filterMode.value === 'all') return `${prefix} untuk seluruh data dari awal hingga saat ini.`
+  return `${prefix} pada periode: ${periodeText.value}.`
+})
+
 watch([filterMode, selectedDate, selectedMonth, selectedYear], () => {
   currentPageKunjungan.value = 1
   currentPageBooks.value = 1
@@ -206,52 +216,76 @@ onMounted(() => {
     <PageHeader title="Laporan & Statistik" subtitle="Rekapitulasi komprehensif kunjungan dan sirkulasi bahan pustaka">
     </PageHeader>
 
-    <div class="mb-6 flex space-x-1 rounded-xl bg-gray-100 p-1">
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <!-- Tab Kunjungan -->
       <button
         @click="activeTab = 'kunjungan'"
-        class="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
-        :class="activeTab === 'kunjungan' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+        class="flex items-start gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200"
+        :class="activeTab === 'kunjungan' ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-emerald-200 hover:bg-emerald-50/30'"
       >
-        Laporan Kunjungan
+        <div class="rounded-xl p-3" :class="activeTab === 'kunjungan' ? 'bg-emerald-500 text-white shadow-md' : 'bg-emerald-100 text-emerald-600'">
+          <Users class="h-6 w-6" />
+        </div>
+        <div>
+          <h3 class="font-bold" :class="activeTab === 'kunjungan' ? 'text-emerald-900' : 'text-gray-800'">Laporan Kunjungan</h3>
+          <p class="mt-1 text-xs text-gray-500">Statistik kehadiran dan frekuensi kedatangan siswa ke perpustakaan.</p>
+        </div>
       </button>
+
+      <!-- Tab Sirkulasi -->
       <button
         @click="activeTab = 'sirkulasi'"
-        class="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
-        :class="activeTab === 'sirkulasi' ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+        class="flex items-start gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200"
+        :class="activeTab === 'sirkulasi' ? 'border-sky-500 bg-sky-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-sky-200 hover:bg-sky-50/30'"
       >
-        Laporan Sirkulasi Buku
+        <div class="rounded-xl p-3" :class="activeTab === 'sirkulasi' ? 'bg-sky-500 text-white shadow-md' : 'bg-sky-100 text-sky-600'">
+          <Library class="h-6 w-6" />
+        </div>
+        <div>
+          <h3 class="font-bold" :class="activeTab === 'sirkulasi' ? 'text-sky-900' : 'text-gray-800'">Laporan Sirkulasi Buku</h3>
+          <p class="mt-1 text-xs text-gray-500">Statistik aktivitas peminjaman, buku terlaris, dan peminjam teraktif.</p>
+        </div>
       </button>
     </div>
 
-    <!-- Filter Controls -->
-    <div class="card mb-6 flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-sm">
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700">Filter:</label>
-        <select v-model="filterMode" class="input w-36 py-1.5 text-sm">
-          <option value="all">Sepanjang Waktu</option>
-          <option value="yearly">Tahunan</option>
-          <option value="monthly">Bulanan</option>
-          <option value="daily">Harian</option>
-        </select>
-      </div>
+    <!-- Filter Controls & Helper Text -->
+    <div class="mb-6 rounded-2xl border border-gray-100 bg-white p-1 shadow-sm">
+      <div class="flex flex-wrap items-center gap-4 bg-gray-50/50 p-3 rounded-xl border border-gray-50">
+        <div class="flex items-center gap-2">
+          <Filter class="h-4 w-4 text-gray-500" />
+          <label class="text-sm font-medium text-gray-700">Filter Waktu:</label>
+          <select v-model="filterMode" class="input w-40 py-1.5 text-sm font-medium bg-white">
+            <option value="all">Sepanjang Waktu</option>
+            <option value="yearly">Tahunan</option>
+            <option value="monthly">Bulanan</option>
+            <option value="daily">Harian</option>
+          </select>
+        </div>
 
-      <div v-if="filterMode === 'monthly'" class="flex items-center gap-2">
-        <select v-model="selectedMonth" class="input w-32 py-1.5 text-sm">
-          <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
-        </select>
-        <select v-model="selectedYear" class="input w-24 py-1.5 text-sm">
-          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-        </select>
-      </div>
+        <div v-if="filterMode === 'monthly'" class="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+          <select v-model="selectedMonth" class="input w-36 py-1.5 text-sm font-medium bg-white">
+            <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+          </select>
+          <select v-model="selectedYear" class="input w-28 py-1.5 text-sm font-medium bg-white">
+            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+          </select>
+        </div>
 
-      <div v-if="filterMode === 'yearly'" class="flex items-center gap-2">
-        <select v-model="selectedYear" class="input w-24 py-1.5 text-sm">
-          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-        </select>
-      </div>
+        <div v-if="filterMode === 'yearly'" class="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+          <select v-model="selectedYear" class="input w-28 py-1.5 text-sm font-medium bg-white">
+            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+          </select>
+        </div>
 
-      <div v-if="filterMode === 'daily'" class="flex items-center gap-2">
-        <input type="date" v-model="selectedDate" class="input py-1.5 text-sm" />
+        <div v-if="filterMode === 'daily'" class="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+          <input type="date" v-model="selectedDate" class="input py-1.5 text-sm font-medium bg-white" />
+        </div>
+      </div>
+      
+      <!-- Helper Text (Dynamic Explanation) -->
+      <div class="flex items-start gap-2.5 p-4 text-sm">
+        <Info class="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+        <p class="text-gray-600 leading-relaxed">{{ helperText }}</p>
       </div>
     </div>
 

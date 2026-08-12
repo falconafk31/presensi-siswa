@@ -48,7 +48,7 @@ begin
   end loop;
 end $$;
 
--- 1. KEBIJAKAN BACA (READ/SELECT) UMUM
+-- 2. KEBIJAKAN BACA (READ/SELECT) & TULIS LOG UMUM
 -- Semua user yang login boleh membaca tabel master (siswa, kalender, setting, buku)
 CREATE POLICY "Authenticated_Select" ON public.students FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated_Select" ON public.academic_calendar FOR SELECT TO authenticated USING (true);
@@ -57,7 +57,12 @@ CREATE POLICY "Authenticated_Select" ON public.app_settings FOR SELECT TO authen
 CREATE POLICY "Authenticated_Select" ON public.books FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated_Select" ON public.users FOR SELECT TO authenticated USING (true);
 
--- 2. KEBIJAKAN ADMIN (AKSES PENUH)
+-- Semua user yang login boleh MENAMBAH log aktivitas mereka sendiri
+DROP POLICY IF EXISTS "Auth_Insert_ActivityLogs" ON public.activity_logs;
+CREATE POLICY "Auth_Insert_ActivityLogs" ON public.activity_logs
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+-- 3. KEBIJAKAN ADMIN (AKSES PENUH)
 -- Admin boleh Insert, Update, Delete di semua tabel
 do $$
 declare

@@ -50,7 +50,7 @@ const generating = ref(false)
 async function handleDownloadPDF() {
   generating.value = true
   try {
-    const cards = document.querySelectorAll('.id-card')
+    const cards = document.querySelectorAll('.id-card-front')
     if (!cards.length) return
 
     const { default: jsPDF } = await import('jspdf')
@@ -104,33 +104,32 @@ async function handleDownloadPDF() {
       const s = students.value[i]
       const cardEl = cards[i]
 
-      const col = currentCount % 2
-      const row = Math.floor(currentCount / 2)
+      // === 1. GAMBAR KARTU DEPAN (FRONT CARD) ===
+      let col = currentCount % 2
+      let row = Math.floor(currentCount / 2)
       
-      const x = xOffset + (col * (cardWidth + marginX))
-      const y = yOffset + (row * (cardHeight + marginY))
+      let x = xOffset + (col * (cardWidth + marginX))
+      let y = yOffset + (row * (cardHeight + marginY))
 
-      // 1. Background Kartu (Putih, dengan Border)
+      // Background Kartu (Putih, dengan Border)
       pdf.setFillColor(255, 255, 255)
       pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'F')
       pdf.setDrawColor(200, 200, 200)
       pdf.setLineWidth(0.3)
       pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'D')
 
-      // 2. Header (Hijau Emerald)
+      // Header (Hijau Emerald)
       pdf.setFillColor(5, 150, 105)
       pdf.roundedRect(x, y, cardWidth, 12, 2, 2, 'F')
-      pdf.rect(x, y + 2, cardWidth, 10, 'F') // Tutup radius bagian bawah header
+      pdf.rect(x, y + 2, cardWidth, 10, 'F')
 
       // Logo
       if (logoData) {
         pdf.addImage(logoData, 'PNG', x + 3, y + 2, 8, 8)
-        
-        // Watermark transparan di tengah body
         try {
           pdf.setGState(new pdf.GState({ opacity: 0.05 }))
           pdf.addImage(logoData, 'PNG', x + (cardWidth - 25)/2, y + 18, 25, 25)
-          pdf.setGState(new pdf.GState({ opacity: 1.0 })) // kembalikan normal
+          pdf.setGState(new pdf.GState({ opacity: 1.0 }))
         } catch(e) {}
       }
 
@@ -179,19 +178,84 @@ async function handleDownloadPDF() {
       pdf.text('(Nomor Induk Siswa Nasional)', x + 27, startY + 2.5)
       pdf.setTextColor(30, 30, 30)
 
-      // 4. QR Code
+      // QR Code
       const qrCanvas = cardEl?.querySelector('canvas')
       if (qrCanvas) {
         const qrData = qrCanvas.toDataURL('image/png')
         pdf.addImage(qrData, 'PNG', x + 65, y + 20, 18, 18)
       }
 
-      // 5. Footer
+      // Footer
       pdf.setFont('helvetica', 'italic')
       pdf.setFontSize(5)
       pdf.setTextColor(120, 120, 120)
       pdf.text(`* Kartu perpus aktif selama menjadi siswa di ${namaSekolah.value}.`, x + 3, y + cardHeight - 3)
       pdf.text(`Tanggal Cetak: ${todayStr.value}`, x + cardWidth - 3, y + cardHeight - 3, { align: 'right' })
+
+      currentCount++
+      if (currentCount === 8) {
+        pdf.addPage()
+        currentCount = 0
+      }
+
+      // === 2. GAMBAR KARTU BELAKANG (BACK CARD) ===
+      col = currentCount % 2
+      row = Math.floor(currentCount / 2)
+      
+      x = xOffset + (col * (cardWidth + marginX))
+      y = yOffset + (row * (cardHeight + marginY))
+
+      // Background Kartu (Putih)
+      pdf.setFillColor(255, 255, 255)
+      pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'F')
+      pdf.setDrawColor(200, 200, 200)
+      pdf.setLineWidth(0.3)
+      pdf.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'D')
+      
+      // Watermark
+      if (logoData) {
+        try {
+          pdf.setGState(new pdf.GState({ opacity: 0.08 }))
+          pdf.addImage(logoData, 'PNG', x + (cardWidth - 25)/2, y + 16, 25, 25)
+          pdf.setGState(new pdf.GState({ opacity: 1.0 }))
+        } catch(e) {}
+      }
+
+      // Header Belakang (Hijau)
+      pdf.setFillColor(5, 150, 105)
+      pdf.roundedRect(x, y, cardWidth, 10, 2, 2, 'F')
+      pdf.rect(x, y + 2, cardWidth, 8, 'F')
+
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(8)
+      pdf.text('TATA TERTIB PERPUSTAKAAN', x + cardWidth / 2, y + 6, { align: 'center' })
+
+      // Isi Tata Tertib
+      pdf.setTextColor(30, 30, 30)
+      pdf.setFontSize(5.5) // Diperkecil agar lebih rapi
+      
+      const rules = [
+        '1. Kartu Anggota dibawa pada saat berkunjung, meminjam',
+        '   dan mengembalikan koleksi perpustakaan.',
+        '2. Kartu ini TIDAK BOLEH digunakan orang lain.',
+        '3. Jumlah buku yang dipinjam maksimal 2 judul.',
+        '4. Pinjaman berlaku untuk 7 hari.',
+        '5. Apabila terjadi kehilangan/kerusakan buku yang dipinjam,',
+        '   menjadi tanggungjawab pemilik.',
+        '6. Apabila kartu hilang, pemilik kartu harus melakukan registrasi ulang.',
+        '7. Taatilah peraturan perpustakaan untuk kepentingan bersama.'
+      ]
+      
+      let textY = y + 15
+      rules.forEach((r, idx) => {
+        pdf.setFont('helvetica', r.includes('TIDAK BOLEH') ? 'bold' : 'normal')
+        if (r.includes('   ')) {
+          pdf.setFont('helvetica', 'normal')
+        }
+        pdf.text(r, x + 5, textY)
+        textY += (idx === 0 || idx === 5) ? 3 : 4
+      })
 
       currentCount++
       if (currentCount === 8 && i < students.value.length - 1) {
@@ -270,83 +334,114 @@ function getTTL(tempat, tanggal) {
 
     <!-- Tampilan Kertas Print (Disembunyikan di layar, muncul saat print) -->
     <div class="print-container" v-if="students.length > 0">
-      <div class="id-card relative" v-for="s in students" :key="s.id">
-        <!-- Header Kartu -->
-        <div class="id-card-header absolute top-0 left-0 w-full h-[12mm] bg-[#059669] flex items-center justify-center text-white rounded-t-[2mm]">
-          <div class="absolute left-[3mm] top-[2mm] w-[8mm] h-[8mm]">
-            <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Logo" class="w-full h-full object-contain" />
-            <School v-else class="w-full h-full text-white" />
+      <template v-for="s in students" :key="s.id">
+        <!-- FRONT CARD -->
+        <div class="id-card id-card-front relative">
+          <!-- Header Kartu -->
+          <div class="id-card-header absolute top-0 left-0 w-full h-[12mm] bg-[#059669] flex items-center justify-center text-white rounded-t-[2mm]">
+            <div class="absolute left-[3mm] top-[2mm] w-[8mm] h-[8mm]">
+              <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Logo" class="w-full h-full object-contain" />
+              <School v-else class="w-full h-full text-white" />
+            </div>
+            <div class="text-center">
+              <h2 class="text-[8pt] font-bold m-0 leading-tight">KARTU PERPUSTAKAAN</h2>
+              <h1 class="text-[9pt] font-bold m-0 leading-tight mt-[1px]">{{ namaSekolah.toUpperCase() }}</h1>
+            </div>
           </div>
-          <div class="text-center">
-            <h2 class="text-[8pt] font-bold m-0 leading-tight">KARTU PERPUSTAKAAN</h2>
-            <h1 class="text-[9pt] font-bold m-0 leading-tight mt-[1px]">{{ namaSekolah.toUpperCase() }}</h1>
+          <!-- Tutup radius bawah header -->
+          <div class="absolute top-[2mm] left-0 w-full h-[10mm] bg-[#059669] z-[-1]"></div>
+
+          <!-- Body Kartu -->
+          <div class="id-card-body absolute top-[12mm] left-0 w-full h-[42mm] overflow-hidden">
+            <!-- Watermark Logo/Icon -->
+            <div class="absolute left-[30.5mm] top-[6mm] w-[25mm] h-[25mm] opacity-5 pointer-events-none">
+              <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Watermark" class="w-full h-full object-contain" />
+              <School v-else class="w-full h-full text-black" />
+            </div>
+
+            <div class="data-area absolute left-0 top-[5mm] w-full text-[#1e1e1e]">
+              <div class="data-row absolute left-[4mm] top-[0mm] flex w-full">
+                <span class="text-[5.5pt] font-bold w-[21mm]">Nama</span>
+                <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+                <span class="text-[5.5pt] font-bold absolute left-[23mm] leading-tight">{{ s.nama.toUpperCase() }}</span>
+              </div>
+              
+              <div class="data-row absolute left-[4mm] top-[4.5mm] flex w-full">
+                <span class="text-[5.5pt] font-bold w-[21mm]">Tempat, Tgl. Lahir</span>
+                <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+                <span class="text-[5.5pt] absolute left-[23mm]">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</span>
+              </div>
+              
+              <div class="data-row absolute left-[4mm] top-[9mm] flex w-full">
+                <span class="text-[5.5pt] font-bold w-[21mm]">Jenis Kelamin</span>
+                <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+                <span class="text-[5.5pt] absolute left-[23mm]">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</span>
+              </div>
+              
+              <div class="data-row absolute left-[4mm] top-[13.5mm] flex w-full">
+                <span class="text-[5.5pt] font-bold w-[21mm]">NISM</span>
+                <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+                <div class="absolute left-[23mm] flex flex-col">
+                  <span class="text-[5.5pt] font-bold leading-none">{{ s.nism || '-' }}</span>
+                  <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Madrasah)</span>
+                </div>
+              </div>
+              
+              <div class="data-row absolute left-[4mm] top-[19mm] flex w-full">
+                <span class="text-[5.5pt] font-bold w-[21mm]">NISN</span>
+                <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
+                <div class="absolute left-[23mm] flex flex-col">
+                  <span class="text-[5.5pt] font-bold leading-none">{{ s.nisn }}</span>
+                  <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Nasional)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="qr-area absolute left-[65mm] top-[8mm] w-[18mm] h-[18mm]">
+              <!-- Peningkatan size sedikit agar tajam saat pdf -->
+              <QRCodeVue :value="s.nisn" :size="68" level="M" />
+            </div>
+          </div>
+
+          <!-- Footer Kartu -->
+          <div class="id-card-footer absolute bottom-[1.5mm] left-0 w-full px-[3mm] flex justify-between items-end">
+            <div class="text-[5pt] italic text-[#787878]">
+              * Kartu perpus aktif selama menjadi siswa di {{ namaSekolah }}.
+            </div>
+            <div class="text-[5pt] italic text-[#787878] text-right">
+              Tanggal Cetak: {{ todayStr }}
+            </div>
           </div>
         </div>
-        <!-- Tutup radius bawah header -->
-        <div class="absolute top-[2mm] left-0 w-full h-[10mm] bg-[#059669] z-[-1]"></div>
 
-        <!-- Body Kartu -->
-        <div class="id-card-body absolute top-[12mm] left-0 w-full h-[42mm] overflow-hidden">
-          <!-- Watermark Logo/Icon -->
-          <div class="absolute left-[30.5mm] top-[6mm] w-[25mm] h-[25mm] opacity-5 pointer-events-none">
+        <!-- BACK CARD -->
+        <div class="id-card id-card-back relative bg-white">
+          <!-- Watermark Logo -->
+          <div class="absolute left-[30.5mm] top-[14mm] w-[25mm] h-[25mm] opacity-5 pointer-events-none">
             <img v-if="settingsStore.settings?.logo_url" :src="settingsStore.settings?.logo_url" alt="Watermark" class="w-full h-full object-contain" />
             <School v-else class="w-full h-full text-black" />
           </div>
 
-          <div class="data-area absolute left-0 top-[5mm] w-full text-[#1e1e1e]">
-            <div class="data-row absolute left-[4mm] top-[0mm] flex w-full">
-              <span class="text-[5.5pt] font-bold w-[21mm]">Nama</span>
-              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
-              <span class="text-[5.5pt] font-bold absolute left-[23mm] leading-tight">{{ s.nama.toUpperCase() }}</span>
-            </div>
-            
-            <div class="data-row absolute left-[4mm] top-[4.5mm] flex w-full">
-              <span class="text-[5.5pt] font-bold w-[21mm]">Tempat, Tgl. Lahir</span>
-              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
-              <span class="text-[5.5pt] absolute left-[23mm]">{{ getTTL(s.tempat_lahir, s.tanggal_lahir) }}</span>
-            </div>
-            
-            <div class="data-row absolute left-[4mm] top-[9mm] flex w-full">
-              <span class="text-[5.5pt] font-bold w-[21mm]">Jenis Kelamin</span>
-              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
-              <span class="text-[5.5pt] absolute left-[23mm]">{{ s.jk === 'L' ? 'Laki-Laki' : 'Perempuan' }}</span>
-            </div>
-            
-            <div class="data-row absolute left-[4mm] top-[13.5mm] flex w-full">
-              <span class="text-[5.5pt] font-bold w-[21mm]">NISM</span>
-              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
-              <div class="absolute left-[23mm] flex flex-col">
-                <span class="text-[5.5pt] font-bold leading-none">{{ s.nism || '-' }}</span>
-                <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Madrasah)</span>
-              </div>
-            </div>
-            
-            <div class="data-row absolute left-[4mm] top-[19mm] flex w-full">
-              <span class="text-[5.5pt] font-bold w-[21mm]">NISN</span>
-              <span class="text-[5.5pt] font-bold absolute left-[21mm]">:</span>
-              <div class="absolute left-[23mm] flex flex-col">
-                <span class="text-[5.5pt] font-bold leading-none">{{ s.nisn }}</span>
-                <span class="text-[4.5pt] italic text-[#787878] mt-[1mm] leading-none">(Nomor Induk Siswa Nasional)</span>
-              </div>
-            </div>
+          <!-- Header Kartu Belakang -->
+          <div class="id-card-header absolute top-0 left-0 w-full h-[10mm] bg-[#059669] flex items-center justify-center text-white rounded-t-[2mm]">
+            <h2 class="text-[8pt] font-bold m-0 tracking-wide">TATA TERTIB PERPUSTAKAAN</h2>
           </div>
-
-          <div class="qr-area absolute left-[65mm] top-[8mm] w-[18mm] h-[18mm]">
-            <!-- Peningkatan size sedikit agar tajam saat pdf -->
-            <QRCodeVue :value="s.nisn" :size="68" level="M" />
+          <div class="absolute top-[2mm] left-0 w-full h-[8mm] bg-[#059669] z-[-1]"></div>
+          
+          <!-- Body Kartu Belakang -->
+          <div class="id-card-body absolute top-[11mm] left-0 w-full h-[43mm] px-[5.5mm] py-[2.5mm] text-[#1e1e1e]">
+             <ol class="list-decimal pl-[3mm] text-[5.5pt] leading-[1.6] m-0">
+                <li>Kartu Anggota dibawa pada saat berkunjung, meminjam dan mengembalikan koleksi perpustakaan.</li>
+                <li class="mt-[1mm]">Kartu ini <span class="font-bold">TIDAK BOLEH</span> digunakan orang lain.</li>
+                <li class="mt-[1mm]">Jumlah buku yang dipinjam maksimal 2 judul.</li>
+                <li class="mt-[1mm]">Pinjaman berlaku untuk 7 hari.</li>
+                <li class="mt-[1mm]">Apabila terjadi kehilangan/kerusakan buku yang dipinjam, menjadi tanggungjawab pemilik.</li>
+                <li class="mt-[1mm]">Apabila kartu hilang, pemilik kartu harus melakukan registrasi ulang.</li>
+                <li class="mt-[1mm]">Taatilah peraturan perpustakaan untuk kepentingan bersama.</li>
+             </ol>
           </div>
         </div>
-
-        <!-- Footer Kartu -->
-        <div class="id-card-footer absolute bottom-[1.5mm] left-0 w-full px-[3mm] flex justify-between items-end">
-          <div class="text-[5pt] italic text-[#787878]">
-            * Kartu perpus aktif selama menjadi siswa di {{ namaSekolah }}.
-          </div>
-          <div class="text-[5pt] italic text-[#787878] text-right">
-            Tanggal Cetak: {{ todayStr }}
-          </div>
-        </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>

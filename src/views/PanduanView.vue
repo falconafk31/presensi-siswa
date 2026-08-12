@@ -121,6 +121,19 @@ const tabs = [
               <p><strong>4. Menggunakan Barcode Scanner:</strong> Di halaman Kunjungan Perpus, terdapat tombol "Buka Scanner QR". Arahkan kamera ke kartu siswa untuk mencatat kunjungan super cepat. Gunakan tombol "⬅️ Kembali" di pojok kanan atas untuk keluar dari mode scanner.</p>
             </div>
           </div>
+
+          <div>
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
+              <Book class="w-5 h-5 text-indigo-500"/> Cetak Kartu Anggota (Bolak-Balik)
+            </h3>
+            <p class="text-sm text-gray-600 mb-3">Anda dapat mencetak kartu anggota perpustakaan yang dilengkapi dengan QR Code NISN.</p>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
+              <li>Pilih menu <strong>Cetak Kartu</strong>. Pilih Kelas untuk memuat data siswa.</li>
+              <li>Aplikasi akan otomatis membuat 2 desain: <strong>Sisi Depan</strong> (Data & QR Code) dan <strong>Sisi Belakang</strong> (Tata Tertib Perpustakaan).</li>
+              <li>Klik tombol <strong>Download PDF</strong> atau gunakan perintah <strong>Ctrl+P</strong>. Aplikasi otomatis menyusun kartu sisi depan dan belakang secara berdampingan.</li>
+              <li>Setelah dicetak di kertas tebal, Anda cukup <strong>memotong kotaknya, melipat bagian tengahnya</strong>, lalu me-laminating kartu tersebut.</li>
+            </ul>
+          </div>
         </div>
 
         <!-- PANDUAN ADMIN -->
@@ -158,7 +171,7 @@ const tabs = [
           </div>
           
           <div class="bg-gray-100 p-4 rounded-xl text-sm text-gray-600">
-            <strong>Tips Admin:</strong> Menu <strong>Log Aktivitas</strong> dapat digunakan untuk memantau siapa saja yang rajin mengisi presensi dan jam berapa mereka mengisinya. Anda bisa menegur wali kelas yang sering terlambat mengisi presensi.
+            <strong>Tips Admin:</strong> Menu <strong>Log Aktivitas</strong> kini merekam semua tindakan tidak hanya tentang presensi, tetapi juga mencatat siapa yang menambah, meminjam, atau mengembalikan buku di perpustakaan. Ini sangat berguna untuk <em>audit trail</em>!
           </div>
 
           <div>

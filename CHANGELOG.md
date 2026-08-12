@@ -5,6 +5,13 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-12
+
+### Ditambahkan (Added)
+- **Cetak Kartu Bolak-Balik:** Penambahan cetak sisi belakang (Back Side) kartu perpustakaan yang berisi tata tertib perpustakaan secara otomatis ketika mencetak PDF.
+- **Log Aktivitas:** Sistem log aktivitas perpustakaan dan riwayat peminjaman buku untuk pelacakan yang lebih baik.
+- **UI/UX Perpustakaan:** Pembaruan antarmuka tabel sirkulasi dan laporan perpustakaan agar lebih responsif di perangkat mobile dan memberikan informasi yang lebih intuitif dengan pagination.
+
 ## [0.1.0] - 2026-06-21
 
 ### Ditambahkan (Added)
