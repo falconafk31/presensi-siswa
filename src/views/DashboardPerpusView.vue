@@ -103,9 +103,10 @@ async function fetchDashboardData() {
 
     const currentYearStr = todayStr.substring(0, 4)
     const currentMonthStr = todayStr.substring(0, 7)
+    const currentMonth = Number(todayStr.substring(5, 7))
     // Hari terakhir bulan berjalan — jangan hardcode -31 (bukan tanggal nyata
     // untuk bulan < 31 hari; Postgres menolaknya → HTTP 400 setiap fetch).
-    const lastDayOfMonth = new Date(Number(currentYearStr), Number(currentMonthStr), 0).getDate()
+    const lastDayOfMonth = new Date(Number(currentYearStr), currentMonth, 0).getDate()
     const currentMonthEnd = `${currentMonthStr}-${String(lastDayOfMonth).padStart(2, '0')}`
 
     const [{ count: cTahun }, { count: cBulan }, { count: cHari }] = await Promise.all([
