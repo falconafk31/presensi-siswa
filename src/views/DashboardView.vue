@@ -157,12 +157,21 @@ async function fetchToday() {
   absentStudents.value = absents
 }
 
+let trendRun = 0 // token anti-balapan: hanya fetch terakhir yang commit
+
 async function fetchTrend() {
+  // Tangkap mode di awal panggilan. fetchTrend() dapat tumpang-tindih saat
+  // pengguna berpindah tab/bulan/tahun dengan cepat; tanpa ini, dateList yang
+  // dibangun untuk satu mode bisa dipetakan dengan logika mode lain
+  // (number[] ke dayNumber / string[] ke namaBulan) → TypeError.
+  const mode = trendMode.value
+  const run = ++trendRun
+
   let startDate = ''
   let endDate = ''
   let dateList = []
 
-  if (trendMode.value === 'daily') {
+  if (mode === 'daily') {
     const d = new Date(today)
     d.setDate(d.getDate() - 6)
     startDate = d.toISOString().split('T')[0]
@@ -172,11 +181,11 @@ async function fetchTrend() {
       dt.setDate(dt.getDate() + i)
       dateList.push(dt.toISOString().split('T')[0])
     }
-  } else if (trendMode.value === 'monthly') {
+  } else if (mode === 'monthly') {
     dateList = daysInMonth(year.value, month.value)
     startDate = dateList[0]
     endDate = dateList[dateList.length - 1]
-  } else if (trendMode.value === 'yearly') {
+  } else if (mode === 'yearly') {
     startDate = `${year.value}-01-01`
     endDate = `${year.value}-12-31`
     dateList = Array.from({ length: 12 }, (_, i) => i + 1)
@@ -188,7 +197,7 @@ async function fetchTrend() {
   ])
 
   const liburSet = new Set((kal || []).map((k) => k.date))
-  if (trendMode.value !== 'yearly') {
+  if (mode !== 'yearly') {
     for (const d of dateList) if (isWeekend(d)) liburSet.add(d)
   }
 
@@ -203,6 +212,9 @@ async function fetchTrend() {
   if (kelasFilter.value) q = q.eq('kelas', kelasFilter.value)
   const { data } = await q
 
+  // Abaikan respons basi: hanya panggilan terbaru yang boleh menulis hasil.
+  if (run !== trendRun) return
+
   const exceptionsPerDay = {}
   for (const row of data || []) {
     if (!submittedMap[row.date]) submittedMap[row.date] = new Set()
@@ -210,7 +222,7 @@ async function fetchTrend() {
     if (row.status !== 'Hadir') exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
   }
 
-  if (trendMode.value === 'yearly') {
+  if (mode === 'yearly') {
     monthly.value = dateList.map((m) => {
       const mStr = String(m).padStart(2, '0')
       const prefix = `${year.value}-${mStr}`
@@ -232,7 +244,7 @@ async function fetchTrend() {
     })
   } else {
     monthly.value = dateList.map((d) => {
-      const displayDay = trendMode.value === 'daily' ? `${d.substring(8, 10)}/${d.substring(5, 7)}` : dayNumber(d)
+      const displayDay = mode === 'daily' ? `${d.substring(8, 10)}/${d.substring(5, 7)}` : dayNumber(d)
       if (d > today) return { day: displayDay, hadir: null }
       if (liburSet.has(d)) return { day: displayDay, hadir: 0 }
       let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []

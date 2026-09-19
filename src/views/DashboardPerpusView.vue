@@ -74,7 +74,18 @@ function loanLabel(l) {
   return 'Dipinjam'
 }
 
+let dashRun = 0 // token anti-balapan: hanya fetch terakhir yang commit
+
 async function fetchDashboardData() {
+  // Tangkap mode & filter di awal panggilan. Fetch dapat tumpang-tindih saat
+  // pengguna berpindah mode/tanggal cepat; pembacaan ulang ref setelah await
+  // akan mencampur label satu mode dengan grouping mode lain (chart salah).
+  const mode = filterMode.value
+  const selDate = selectedDate.value
+  const selMonth = selectedMonth.value
+  const selYear = selectedYear.value
+  const run = ++dashRun
+
   loading.value = true
   try {
     const { data: books } = await supabase.from('books').select('stok')
@@ -114,28 +125,28 @@ async function fetchDashboardData() {
     let endQuery = ''
     let dateGrouper = (dateStr) => dateStr
 
-    if (filterMode.value === 'daily') {
-      startQuery = selectedDate.value
-      endQuery = selectedDate.value
+    if (mode === 'daily') {
+      startQuery = selDate
+      endQuery = selDate
       chartLabels.value = Array.from({ length: 10 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`)
       dateGrouper = (isoStr) => {
         const hour = new Date(isoStr).getHours()
         return `${String(hour).padStart(2, '0')}:00`
       }
-    } else if (filterMode.value === 'monthly') {
-      const mStr = String(selectedMonth.value).padStart(2, '0')
-      const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
-      startQuery = `${selectedYear.value}-${mStr}-01`
-      endQuery = `${selectedYear.value}-${mStr}-${String(lastDay).padStart(2, '0')}`
+    } else if (mode === 'monthly') {
+      const mStr = String(selMonth).padStart(2, '0')
+      const lastDay = new Date(selYear, selMonth, 0).getDate()
+      startQuery = `${selYear}-${mStr}-01`
+      endQuery = `${selYear}-${mStr}-${String(lastDay).padStart(2, '0')}`
 
-      chartLabels.value = Array.from({ length: lastDay }, (_, i) => `${i + 1} ${namaBulan(selectedMonth.value).substring(0, 3)}`)
+      chartLabels.value = Array.from({ length: lastDay }, (_, i) => `${i + 1} ${namaBulan(selMonth).substring(0, 3)}`)
       dateGrouper = (dateStr) => {
         const d = new Date(dateStr)
-        return `${d.getDate()} ${namaBulan(selectedMonth.value).substring(0, 3)}`
+        return `${d.getDate()} ${namaBulan(selMonth).substring(0, 3)}`
       }
     } else {
-      startQuery = `${selectedYear.value}-01-01`
-      endQuery = `${selectedYear.value}-12-31`
+      startQuery = `${selYear}-01-01`
+      endQuery = `${selYear}-12-31`
       chartLabels.value = monthOptions.map((m) => namaBulan(m))
       dateGrouper = (dateStr) => namaBulan(new Date(dateStr).getMonth() + 1)
     }
@@ -146,20 +157,23 @@ async function fetchDashboardData() {
     const loansQuery = supabase.from('book_loans').select('tanggal_pinjam, created_at').gte('tanggal_pinjam', startQuery).lte('tanggal_pinjam', endQuery)
     const { data: chartL } = await loansQuery
 
+    // Abaikan respons basi: hanya panggilan terbaru yang boleh menulis hasil.
+    if (run !== dashRun) return
+
     const visitCounts = {}
     const loanCounts = {}
     chartLabels.value.forEach((l) => { visitCounts[l] = 0; loanCounts[l] = 0 })
 
     if (chartV) {
       chartV.forEach((v) => {
-        const key = filterMode.value === 'daily' ? dateGrouper(v.created_at) : dateGrouper(v.tanggal)
+        const key = mode === 'daily' ? dateGrouper(v.created_at) : dateGrouper(v.tanggal)
         if (visitCounts[key] !== undefined) visitCounts[key]++
       })
     }
 
     if (chartL) {
       chartL.forEach((l) => {
-        const key = filterMode.value === 'daily' ? dateGrouper(l.created_at) : dateGrouper(l.tanggal_pinjam)
+        const key = mode === 'daily' ? dateGrouper(l.created_at) : dateGrouper(l.tanggal_pinjam)
         if (loanCounts[key] !== undefined) loanCounts[key]++
       })
     }
@@ -169,7 +183,7 @@ async function fetchDashboardData() {
   } catch (e) {
     console.error(e)
   } finally {
-    loading.value = false
+    if (run === dashRun) loading.value = false
   }
 }
 
