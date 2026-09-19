@@ -81,7 +81,7 @@ async function fetchDashboardData() {
   // pengguna berpindah mode/tanggal cepat; pembacaan ulang ref setelah await
   // akan mencampur label satu mode dengan grouping mode lain (chart salah).
   const mode = filterMode.value
-  const selDate = selectedDate.value
+  const selDate = selectedDate.value || todayStr // input tanggal yang dikosongkan → fallback hari ini
   const selMonth = selectedMonth.value
   const selYear = selectedYear.value
   const run = ++dashRun
@@ -103,10 +103,14 @@ async function fetchDashboardData() {
 
     const currentYearStr = todayStr.substring(0, 4)
     const currentMonthStr = todayStr.substring(0, 7)
+    // Hari terakhir bulan berjalan — jangan hardcode -31 (bukan tanggal nyata
+    // untuk bulan < 31 hari; Postgres menolaknya → HTTP 400 setiap fetch).
+    const lastDayOfMonth = new Date(Number(currentYearStr), Number(currentMonthStr), 0).getDate()
+    const currentMonthEnd = `${currentMonthStr}-${String(lastDayOfMonth).padStart(2, '0')}`
 
     const [{ count: cTahun }, { count: cBulan }, { count: cHari }] = await Promise.all([
       supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentYearStr}-01-01`),
-      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentMonthStr}-01`).lte('tanggal', `${currentMonthStr}-31`),
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentMonthStr}-01`).lte('tanggal', currentMonthEnd),
       supabase.from('library_visits').select('*', { count: 'exact', head: true }).eq('tanggal', todayStr),
     ])
 
@@ -305,16 +309,16 @@ onMounted(() => {
           <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
         </template>
         <div class="mb-2 flex flex-wrap items-center gap-1.5">
-          <input v-if="filterMode === 'daily'" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
+          <input v-if="filterMode === 'daily'" id="library-trend-date" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
           <template v-if="filterMode === 'monthly'">
-            <select v-model.number="selectedMonth" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan">
+            <select id="library-trend-month" v-model.number="selectedMonth" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan">
               <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
             </select>
-            <select v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+            <select id="library-trend-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
               <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
             </select>
           </template>
-          <select v-if="filterMode === 'yearly'" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+          <select v-if="filterMode === 'yearly'" id="library-trend-annual-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
             <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
           </select>
         </div>
