@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/dates'
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { CheckCircle2, XCircle, ScanLine, Clock, ArrowLeft } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
+import {
+  AppPageHeader, AppCard, AppBadge, AppEmptyState, AppButton,
+} from '@/components/ui'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -245,92 +247,80 @@ function formatTime(ms) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Scan Kunjungan" subtitle="Gunakan kamera untuk memindai QR Code Kartu Pelajar">
+  <div class="page-stack">
+    <AppPageHeader title="Scan Kunjungan" subtitle="Pindai QR Code pada kartu pelajar dengan kamera">
       <template #actions>
-        <button class="rounded-xl px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition flex items-center gap-2" @click="router.push({ name: 'kunjungan-perpus' })">
-          <ArrowLeft class="w-4 h-4" /> Kembali
-        </button>
-        <button v-if="scanning" class="rounded-xl px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm transition flex items-center gap-2" @click="stopScanner">
+        <AppButton variant="secondary" size="sm" @click="router.push({ name: 'kunjungan-perpus' })">
+          <template #icon><ArrowLeft class="h-4 w-4" aria-hidden="true" /></template>
+          Kembali
+        </AppButton>
+        <AppButton v-if="scanning" variant="danger-soft" size="sm" @click="stopScanner">
           Matikan Kamera
-        </button>
-        <button v-else class="btn-primary flex items-center gap-2" @click="initScanner">
-          <ScanLine class="w-4 h-4" /> Nyalakan Kamera
-        </button>
+        </AppButton>
+        <AppButton v-else variant="library" size="sm" @click="initScanner">
+          <template #icon><ScanLine class="h-4 w-4" aria-hidden="true" /></template>
+          Nyalakan Kamera
+        </AppButton>
       </template>
-    </PageHeader>
+    </AppPageHeader>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Scanner Column -->
-      <div class="lg:col-span-2 space-y-4">
-        <div class="card p-4">
-          <div class="min-h-[400px] md:min-h-0 md:aspect-video w-full bg-black rounded-xl overflow-hidden relative shadow-inner">
-            <div id="qr-reader" class="w-full h-full"></div>
-            
-            <!-- Overlay when not scanning -->
-            <div v-if="!scanning" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/80 text-white backdrop-blur-sm z-10">
-              <ScanLine class="w-16 h-16 mb-4 opacity-50" />
-              <p class="font-medium text-lg">Kamera Nonaktif</p>
-              <p class="text-sm text-gray-300 mt-1">Klik tombol di atas untuk menyalakan kamera</p>
-            </div>
-          </div>
-          <div class="mt-4 text-center text-sm text-gray-500">
-            Pastikan memberikan izin akses kamera (Allow Camera) pada browser Anda.
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <!-- Scanner — fokus utama halaman -->
+      <AppCard class="lg:col-span-2" title="Kamera Scanner" subtitle="Arahkan QR Code ke dalam bingkai">
+        <div class="relative min-h-[380px] w-full overflow-hidden rounded-xl bg-slate-950 sm:min-h-[420px]">
+          <div id="qr-reader" class="h-full w-full" />
+
+          <div v-if="!scanning" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/85 px-4 text-center text-white">
+            <ScanLine class="mb-3 h-14 w-14 opacity-40" aria-hidden="true" />
+            <p class="text-[15px] font-semibold">Kamera nonaktif</p>
+            <p class="mt-1 text-[13px] text-slate-300">Nyalakan kamera untuk mulai memindai</p>
+            <AppButton variant="library" size="sm" class="mt-4" @click="initScanner">
+              <template #icon><ScanLine class="h-4 w-4" aria-hidden="true" /></template>
+              Nyalakan Kamera
+            </AppButton>
           </div>
         </div>
-      </div>
+        <p class="mt-3 text-center text-[13px] text-slate-400">
+          Izinkan akses kamera (Allow Camera) pada browser agar scanner berfungsi.
+        </p>
+      </AppCard>
 
-      <!-- Result & History Column -->
-      <div class="space-y-6">
-        
-        <!-- Last Scanned Result -->
-        <div class="card p-0 overflow-hidden">
-          <div class="bg-gray-50 p-4 border-b border-gray-100 font-medium text-sm flex items-center gap-2">
-            Status Terakhir
+      <div class="flex flex-col gap-4">
+        <!-- Status terakhir -->
+        <AppCard title="Status Terakhir" :padded="true">
+          <div v-if="!lastScanned" class="py-4 text-center">
+            <ScanLine class="mx-auto mb-2 h-10 w-10 text-slate-200" aria-hidden="true" />
+            <p class="text-sm text-slate-400">Menunggu scan QR Code…</p>
           </div>
-          <div class="p-6 text-center" v-if="!lastScanned">
-            <ScanLine class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <p class="text-gray-500 text-sm">Menunggu scan QR Code...</p>
+          <div v-else class="py-2 text-center" aria-live="polite">
+            <CheckCircle2 v-if="lastScanned.success" class="mx-auto mb-3 h-14 w-14 text-emerald-500" aria-hidden="true" />
+            <XCircle v-else class="mx-auto mb-3 h-14 w-14 text-rose-500" aria-hidden="true" />
+            <h3 class="text-lg font-bold text-slate-900">{{ lastScanned.student.nama }}</h3>
+            <p class="mb-3 text-[13px] text-slate-500 tnum">Kelas {{ lastScanned.student.kelas || '–' }} · {{ lastScanned.student.nisn }}</p>
+            <AppBadge :label="lastScanned.message" :tone="lastScanned.success ? 'success' : 'danger'" />
           </div>
-          
-          <div v-else class="p-6 text-center animate-in fade-in zoom-in duration-300">
-            <CheckCircle2 v-if="lastScanned.success" class="w-16 h-16 mx-auto text-emerald-500 mb-4" />
-            <XCircle v-else class="w-16 h-16 mx-auto text-rose-500 mb-4" />
-            
-            <h3 class="text-xl font-bold text-gray-800 mb-1">{{ lastScanned.student.nama }}</h3>
-            <p class="text-gray-500 font-medium mb-3">Kelas {{ lastScanned.student.kelas || '-' }} • NISN: {{ lastScanned.student.nisn }}</p>
-            
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium" 
-                 :class="lastScanned.success ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'">
-              {{ lastScanned.message }}
-            </div>
-          </div>
-        </div>
+        </AppCard>
 
-        <!-- Recent History -->
-        <div class="card p-0 overflow-hidden">
-          <div class="bg-gray-50 p-4 border-b border-gray-100 font-medium text-sm flex items-center gap-2">
-            <Clock class="w-4 h-4 text-gray-400" /> Riwayat Scan Hari Ini
-          </div>
-          <div class="divide-y divide-gray-100">
-            <div v-if="recentScans.length === 0" class="p-6 text-center text-sm text-gray-500">
-              Belum ada riwayat
-            </div>
-            <div v-for="scan in recentScans" :key="scan.time" class="p-4 flex items-start gap-3 hover:bg-gray-50 transition">
-              <CheckCircle2 v-if="scan.success" class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-              <XCircle v-else class="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <!-- Riwayat -->
+        <AppCard title="Riwayat Hari Ini" :subtitle="`${recentScans.length} pindaian`" :padded="false">
+          <AppEmptyState
+            v-if="recentScans.length === 0"
+            title="Belum ada riwayat"
+            description="Hasil pindaian hari ini akan tercatat di sini."
+            :icon="Clock"
+          />
+          <ul v-else class="divide-y divide-slate-100">
+            <li v-for="scan in recentScans" :key="scan.time" class="flex items-start gap-3 p-3.5">
+              <CheckCircle2 v-if="scan.success" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden="true" />
+              <XCircle v-else class="mt-0.5 h-5 w-5 shrink-0 text-rose-500" aria-hidden="true" />
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-gray-800 truncate">{{ scan.student.nama }}</p>
-                <p class="text-xs text-gray-500 truncate">{{ scan.message }}</p>
+                <p class="truncate text-sm font-medium text-slate-800">{{ scan.student.nama }}</p>
+                <p class="truncate text-xs text-slate-400">{{ scan.message }}</p>
               </div>
-              <div class="text-xs text-gray-400 font-medium shrink-0">
-                {{ formatTime(scan.time) }}
-              </div>
-            </div>
-          </div>
-        </div>
-
+              <span class="shrink-0 text-xs font-medium text-slate-400 tnum">{{ formatTime(scan.time) }}</span>
+            </li>
+          </ul>
+        </AppCard>
       </div>
     </div>
   </div>

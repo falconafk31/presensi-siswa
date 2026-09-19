@@ -1,17 +1,18 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import { Construction } from 'lucide-vue-next'
+import { AppEmptyState } from '@/components/ui'
+
 const route = useRoute()
+const pageName = String(route.name || 'Halaman').replace(/-/g, ' ')
 </script>
 
 <template>
-  <div class="flex min-h-[60vh] flex-col items-center justify-center text-center">
-    <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-accent">
-      <Construction class="h-8 w-8 text-primary" />
-    </div>
-    <h2 class="text-lg font-semibold text-gray-800 capitalize">
-      {{ String(route.name).replace('-', ' ') }}
-    </h2>
-    <p class="mt-1 text-sm text-gray-500">Halaman ini sedang dibangun.</p>
+  <div class="flex min-h-[60vh] items-center justify-center">
+    <AppEmptyState
+      :title="pageName"
+      description="Halaman ini sedang dibangun dan akan segera tersedia."
+      :icon="Construction"
+    />
   </div>
 </template>

@@ -1,23 +1,23 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Plus, Pencil, LogOut, Search, UserPlus, Trash2, TriangleAlert } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
-import BaseModal from '@/components/BaseModal.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
-import SkeletonLoader from '@/components/SkeletonLoader.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import { Pencil, LogOut, Search, UserPlus, Trash2, Users, FileUp, FileDown, X } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { todayISO } from '@/lib/dates'
 import { useSettingsStore } from '@/stores/settings'
-import { FileUp, FileDown } from 'lucide-vue-next'
+import {
+  AppPageHeader, AppFilterBar, AppInput, AppSelect, AppTable,
+  AppBadge, AppModal, AppConfirmDialog, AppEmptyState, AppErrorState,
+  AppSkeleton, AppButton, AppPagination,
+} from '@/components/ui'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
 
 const students = ref([])
 const loading = ref(false)
+const loadError = ref('')
 const search = ref('')
 const filterKelas = ref('')
 const filterStatus = ref('aktif')
@@ -25,6 +25,7 @@ const filterStatus = ref('aktif')
 const showForm = ref(false)
 const showMutasi = ref(false)
 const showConfirmDelete = ref(false)
+const showBulkConfirm = ref(false)
 const siswaToDelete = ref(null)
 const saving = ref(false)
 const editing = ref(false)
@@ -96,12 +97,9 @@ async function exportDataSiswa() {
     const ws = xlsx.utils.json_to_sheet(wsData)
     const wb = xlsx.utils.book_new()
     xlsx.utils.book_append_sheet(wb, ws, 'Data Siswa')
-    
-    // Atur lebar kolom
     ws['!cols'] = [
-      {wch: 5}, {wch: 15}, {wch: 15}, {wch: 30}, {wch: 5}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 10}
+      { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
     ]
-    
     xlsx.writeFile(wb, `Data_Siswa_${todayISO()}.xlsx`)
     toast.success('Data siswa berhasil diekspor')
     logActivity({ aksi: 'export_siswa', tabel_terkait: 'students' })
@@ -109,7 +107,6 @@ async function exportDataSiswa() {
     toast.error('Gagal mengekspor data: ' + e.message)
   }
 }
-
 
 async function processUpload() {
   uploadError.value = null
@@ -121,7 +118,7 @@ async function processUpload() {
     const wb = xlsx.read(data)
     const ws = wb.Sheets[wb.SheetNames[0]]
     const rows = xlsx.utils.sheet_to_json(ws)
-    
+
     if (!rows.length) throw new Error('File kosong atau format salah')
 
     const rawToInsert = rows.map((r, idx) => {
@@ -135,7 +132,7 @@ async function processUpload() {
       } else if (tglLahir) {
         tglLahir = String(tglLahir).trim()
       }
-      
+
       return {
         nisn: r.NISN ? String(r.NISN).trim() : `TMP${String(Date.now() + idx).slice(-7)}`,
         nism: r.NISM ? String(r.NISM).trim() : null,
@@ -146,25 +143,20 @@ async function processUpload() {
         kelas: String(r.Kelas || '1').trim().toUpperCase(),
         status: 'aktif',
         active: true,
-        tanggal_masuk: todayISO()
+        tanggal_masuk: todayISO(),
       }
-    }).filter(r => r.nama)
+    }).filter((r) => r.nama)
 
-    // Deduplicate dari Excel berdasarkan Nama + Tanggal Lahir (case insensitive)
     const uniqueMap = new Map()
-    rawToInsert.forEach(item => {
-      const key = `${item.nama.toLowerCase()}_${item.tanggal_lahir || ''}`
-      uniqueMap.set(key, item)
+    rawToInsert.forEach((item) => {
+      uniqueMap.set(`${item.nama.toLowerCase()}_${item.tanggal_lahir || ''}`, item)
     })
     const excelStudents = Array.from(uniqueMap.values())
 
     if (!excelStudents.length) throw new Error('Tidak ada data valid (Nama wajib)')
 
-    // Ambil data siswa yang sudah ada di database untuk dicocokkan
     let query = supabase.from('students').select('id, nisn, nama, tanggal_lahir, kelas')
-    if (targetKelasUpload.value) {
-      query = query.eq('kelas', targetKelasUpload.value)
-    }
+    if (targetKelasUpload.value) query = query.eq('kelas', targetKelasUpload.value)
     const { data: dbStudents, error: dbErr } = await query
     if (dbErr) throw dbErr
 
@@ -172,55 +164,41 @@ async function processUpload() {
     let updateCount = 0
     let insertCount = 0
 
-    excelStudents.forEach(ex => {
+    excelStudents.forEach((ex) => {
       const keyEx = `${ex.nama.toLowerCase()}_${ex.tanggal_lahir || ''}`
-      // Cari apakah siswa dengan Nama & Tgl Lahir yang sama persis sudah ada
-      const match = dbStudents.find(db => `${db.nama.toLowerCase()}_${db.tanggal_lahir || ''}` === keyEx)
-      
+      const match = dbStudents.find((db) => `${db.nama.toLowerCase()}_${db.tanggal_lahir || ''}` === keyEx)
       if (match) {
-        // Jika ada, kita Update data tersebut (sisipkan ID-nya)
         allUpserts.push({ ...ex, id: match.id })
         updateCount++
       } else {
-        // Jika tidak ada, insert sebagai siswa baru
         allUpserts.push(ex)
         insertCount++
       }
     })
 
-    // Validasi NISN ganda di internal file Excel (opsional tapi disarankan)
     const errors = []
-    const nisnMap = new Map() // Simpan mapping NISN -> Nama
-    
-    allUpserts.forEach(s => {
+    const nisnMap = new Map()
+    allUpserts.forEach((s) => {
       if (s.nisn && !s.nisn.startsWith('TMP')) {
         if (nisnMap.has(s.nisn)) {
-          errors.push(`NISN ${s.nisn} terdeteksi ganda (diketik lebih dari 1 kali) di dalam file Excel Anda (antara "${s.nama}" dengan "${nisnMap.get(s.nisn)}").`)
+          errors.push(`NISN ${s.nisn} terdeteksi ganda di dalam file Excel (antara "${s.nama}" dengan "${nisnMap.get(s.nisn)}").`)
         } else {
           nisnMap.set(s.nisn, s.nama)
         }
       }
     })
-    
-    // Cek bentrok dengan DB (hanya untuk siswa baru/beda id)
-    dbStudents.forEach(db => {
+
+    dbStudents.forEach((db) => {
       if (db.nisn && !db.nisn.startsWith('TMP')) {
-        const found = allUpserts.find(u => u.nisn === db.nisn && u.id !== db.id)
+        const found = allUpserts.find((u) => u.nisn === db.nisn && u.id !== db.id)
         if (found) {
-          errors.push(`NISN ${db.nisn} di Excel diinput sebagai siswa baru ("${found.nama}"), tetapi NISN tersebut sudah terdaftar di sistem atas nama "${db.nama}".\nSolusi: Jika ini orang yang sama, pastikan penulisan Nama dan Tanggal Lahir di Excel persis sama dengan di sistem agar data terupdate (bukan ganda).`)
+          errors.push(`NISN ${db.nisn} di Excel diinput sebagai siswa baru ("${found.nama}"), tetapi sudah terdaftar atas nama "${db.nama}". Samakan Nama & Tanggal Lahir agar terupdate.`)
         }
       }
     })
 
-    uploadPreview.value = {
-      allUpserts,
-      insertCount,
-      updateCount,
-      dbCount: dbStudents.length,
-      errors
-    }
-
-  } catch(e) {
+    uploadPreview.value = { allUpserts, insertCount, updateCount, dbCount: dbStudents.length, errors }
+  } catch (e) {
     uploadError.value = e.message
   } finally {
     uploadingExcel.value = false
@@ -229,41 +207,34 @@ async function processUpload() {
 
 async function confirmUpload() {
   if (!uploadPreview.value || uploadPreview.value.errors.length > 0) return
-  
   uploadingExcel.value = true
   uploadError.value = null
-
   try {
     const { allUpserts } = uploadPreview.value
-    
-    const toUpdate = allUpserts.filter(u => u.id)
-    const toInsert = allUpserts.filter(u => !u.id)
-
+    const toUpdate = allUpserts.filter((u) => u.id)
+    const toInsert = allUpserts.filter((u) => !u.id)
     const checkErr = (err) => {
       if (err) {
         if (err.message?.includes('duplicate key') || err.code === '23505') {
-          throw new Error('Gagal: Terdapat NISN ganda. Pastikan NISN di Excel tidak ada yang sama dengan NISN siswa lain di database.')
+          throw new Error('Gagal: Terdapat NISN ganda. Pastikan NISN di Excel tidak sama dengan siswa lain di database.')
         }
         throw err
       }
     }
-
     if (toUpdate.length > 0) {
       const { error } = await supabase.from('students').upsert(toUpdate)
       checkErr(error)
     }
-
     if (toInsert.length > 0) {
       const { error } = await supabase.from('students').insert(toInsert)
       checkErr(error)
     }
-
     await logActivity({ aksi: 'import_siswa', tabel_terkait: 'students', detail: { jumlah: allUpserts.length } })
     toast.success(`${allUpserts.length} siswa berhasil diproses`)
     showUpload.value = false
     uploadPreview.value = null
     await load()
-  } catch(e) {
+  } catch (e) {
     uploadError.value = e.message
   } finally {
     uploadingExcel.value = false
@@ -272,7 +243,7 @@ async function confirmUpload() {
 
 const mutasiForm = ref({ id: null, nama: '', nisn: '', status: 'pindah', tanggal_keluar: todayISO(), keterangan: '' })
 
-const statusColor = { aktif: 'green', lulus: 'sky', pindah: 'amber', keluar: 'rose' }
+const statusTone = { aktif: 'success', lulus: 'info', pindah: 'warning', keluar: 'danger' }
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
@@ -284,17 +255,21 @@ const filtered = computed(() => {
   })
 })
 
+const hasActiveFilter = computed(() => search.value.trim() !== '' || filterKelas.value !== '' || filterStatus.value !== 'aktif')
+function clearFilters() {
+  search.value = ''
+  filterKelas.value = ''
+  filterStatus.value = 'aktif'
+}
+
 const itemsPerPage = 50
 const currentPage = ref(1)
 const selectedIds = ref([])
 
-// Reset halaman dan seleksi setiap kali filter berubah
 watch([search, filterKelas, filterStatus], () => {
   currentPage.value = 1
   selectedIds.value = []
 })
-
-const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage))
 
 const paginated = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
@@ -302,22 +277,21 @@ const paginated = computed(() => {
 })
 
 const selectAll = computed({
-  get: () => paginated.value.length > 0 && paginated.value.every(s => selectedIds.value.includes(s.id)),
+  get: () => paginated.value.length > 0 && paginated.value.every((s) => selectedIds.value.includes(s.id)),
   set: (val) => {
-    if (val) {
-      const pageIds = paginated.value.map(s => s.id)
-      selectedIds.value = [...new Set([...selectedIds.value, ...pageIds])]
-    } else {
-      const pageIds = paginated.value.map(s => s.id)
-      selectedIds.value = selectedIds.value.filter(id => !pageIds.includes(id))
-    }
-  }
+    const pageIds = paginated.value.map((s) => s.id)
+    if (val) selectedIds.value = [...new Set([...selectedIds.value, ...pageIds])]
+    else selectedIds.value = selectedIds.value.filter((id) => !pageIds.includes(id))
+  },
 })
+
+function confirmHapusTerpilih() {
+  if (!selectedIds.value.length) return
+  showBulkConfirm.value = true
+}
 
 async function hapusTerpilih() {
   if (!selectedIds.value.length) return
-  if (!confirm(`Yakin ingin menghapus permanen ${selectedIds.value.length} siswa terpilih?`)) return
-  
   saving.value = true
   try {
     const { error } = await supabase.from('students').delete().in('id', selectedIds.value)
@@ -325,6 +299,7 @@ async function hapusTerpilih() {
     toast.success(`${selectedIds.value.length} siswa berhasil dihapus`)
     logActivity({ aksi: 'hapus_siswa_masal', tabel_terkait: 'students', detail: { jumlah: selectedIds.value.length } })
     selectedIds.value = []
+    showBulkConfirm.value = false
     await load()
   } catch (e) {
     toast.error('Gagal menghapus siswa: ' + e.message)
@@ -335,16 +310,13 @@ async function hapusTerpilih() {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .order('kelas')
-      .order('nama')
+    const { data, error } = await supabase.from('students').select('*').order('kelas').order('nama')
     if (error) throw error
     students.value = data || []
   } catch (e) {
-    toast.error('Gagal memuat: ' + e.message)
+    loadError.value = e.message
   } finally {
     loading.value = false
   }
@@ -492,382 +464,336 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Data Siswa" subtitle="Kelola data siswa, siswa baru/pindahan, dan mutasi keluar">
+  <div class="page-stack">
+    <AppPageHeader title="Data Siswa" :subtitle="`${filtered.length} siswa ditampilkan`">
       <template #actions>
-        <button v-if="selectedIds.length > 0" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100 font-medium" @click="hapusTerpilih" title="Hapus Permanen Terpilih">
-          <Trash2 class="h-4 w-4" /> Hapus Terpilih ({{ selectedIds.length }})
-        </button>
-        <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50" @click="exportDataSiswa" title="Download data sesuai filter saat ini ke Excel">
-          <FileDown class="h-4 w-4" /> Download Data
-        </button>
-        <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50" @click="openUpload">
-          <FileUp class="h-4 w-4" /> Upload Excel
-        </button>
-        <button class="btn-primary" @click="openCreate">
-          <UserPlus class="h-4 w-4" /> Siswa Baru
-        </button>
+        <AppButton v-if="selectedIds.length > 0" variant="danger-soft" size="sm" @click="confirmHapusTerpilih">
+          <template #icon><Trash2 class="h-4 w-4" aria-hidden="true" /></template>
+          Hapus ({{ selectedIds.length }})
+        </AppButton>
+        <AppButton variant="secondary" size="sm" @click="exportDataSiswa">
+          <template #icon><FileDown class="h-4 w-4" aria-hidden="true" /></template>
+          <span class="hidden sm:inline">Download Data</span><span class="sm:hidden">Unduh</span>
+        </AppButton>
+        <AppButton variant="secondary" size="sm" @click="openUpload">
+          <template #icon><FileUp class="h-4 w-4" aria-hidden="true" /></template>
+          Upload Excel
+        </AppButton>
+        <AppButton size="sm" @click="openCreate">
+          <template #icon><UserPlus class="h-4 w-4" aria-hidden="true" /></template>
+          Siswa Baru
+        </AppButton>
       </template>
-    </PageHeader>
+    </AppPageHeader>
 
-    <div class="card mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <div class="relative">
-        <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input v-model="search" class="input-field pl-9" placeholder="Cari nama / NISN" />
-      </div>
-      <select v-model="filterKelas" class="input-field">
+    <AppFilterBar columns="sm:grid-cols-3">
+      <AppInput v-model="search" placeholder="Cari nama / NISN…" aria-label="Cari siswa">
+        <template #leading><Search class="h-4 w-4" aria-hidden="true" /></template>
+      </AppInput>
+      <AppSelect v-model="filterKelas" aria-label="Filter kelas">
         <option value="">Semua Kelas</option>
         <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
-      </select>
-      <select v-model="filterStatus" class="input-field">
+      </AppSelect>
+      <AppSelect v-model="filterStatus" aria-label="Filter status">
         <option value="">Semua Status</option>
         <option value="aktif">Aktif</option>
         <option value="lulus">Lulus</option>
         <option value="pindah">Pindah</option>
         <option value="keluar">Keluar</option>
-      </select>
+      </AppSelect>
+      <template v-if="hasActiveFilter" #footer>
+        <span class="text-[13px] text-slate-500">{{ filtered.length }} hasil</span>
+        <button class="link inline-flex items-center gap-1 text-[13px]" @click="clearFilters">
+          <X class="h-3.5 w-3.5" aria-hidden="true" /> Hapus filter
+        </button>
+      </template>
+    </AppFilterBar>
+
+    <!-- Bulk selection bar -->
+    <div v-if="selectedIds.length > 0" class="alert-warning !items-center !py-2.5" role="status">
+      <p class="text-[13px]"><strong>{{ selectedIds.length }}</strong> siswa dipilih</p>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="link text-[13px]" @click="selectedIds = []">Batalkan</button>
+        <AppButton variant="danger" size="sm" :loading="saving" @click="confirmHapusTerpilih">Hapus Terpilih</AppButton>
+      </div>
     </div>
 
-    <!-- Desktop Table -->
-    <div class="card overflow-x-auto hidden md:block">
-      <SkeletonLoader v-if="loading" type="table" :rows="5" />
-      <EmptyState 
-        v-else-if="!paginated.length" 
-        title="Tidak ada siswa" 
-        description="Data siswa kosong atau tidak ditemukan dengan filter yang dipilih."
-      />
-      <table v-else class="min-w-full text-sm">
+    <!-- Error -->
+    <AppErrorState v-if="!loading && loadError" description="Periksa koneksi atau coba lagi." @retry="load" />
+
+    <!-- Desktop table -->
+    <template v-else>
+      <div v-if="loading" class="card-flat hidden p-4 md:block">
+        <AppSkeleton type="table" :rows="6" />
+      </div>
+      <div v-else-if="!paginated.length" class="card-flat hidden p-4 md:block">
+        <AppEmptyState
+          title="Tidak ada siswa"
+          description="Data siswa kosong atau tidak cocok dengan filter yang dipilih."
+          :icon="Users"
+        >
+          <template #action>
+            <AppButton size="sm" variant="secondary" @click="clearFilters">Hapus Filter</AppButton>
+            <AppButton size="sm" @click="openCreate">Tambah Siswa</AppButton>
+          </template>
+        </AppEmptyState>
+      </div>
+      <AppTable v-else class="hidden md:block" caption="Daftar siswa">
         <thead>
-          <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
-            <th class="px-3 py-2 w-10 text-center"><input type="checkbox" v-model="selectAll" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" /></th>
-            <th class="px-3 py-2 w-12 text-center">No</th>
-            <th class="px-3 py-2">NISN</th>
-            <th class="px-3 py-2">Nama</th>
-            <th class="px-3 py-2">JK</th>
-            <th class="px-3 py-2">Kelas</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2 text-right">Aksi</th>
+          <tr>
+            <th class="w-10 !text-center"><input v-model="selectAll" type="checkbox" class="checkbox" aria-label="Pilih semua di halaman ini" /></th>
+            <th class="w-12 !text-center">No</th>
+            <th>NISN</th>
+            <th>Nama</th>
+            <th>JK</th>
+            <th>Kelas</th>
+            <th>Status</th>
+            <th class="!text-right">Aksi</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
-          <tr v-for="(s, idx) in paginated" :key="s.id" :class="['hover:bg-gray-50 transition-colors', selectedIds.includes(s.id) ? 'bg-emerald-50/50' : '']">
-            <td class="px-3 py-2 text-center"><input type="checkbox" :value="s.id" v-model="selectedIds" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" /></td>
-            <td class="px-3 py-2 text-center text-gray-400">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
-            <td class="px-3 py-2 text-gray-500">{{ s.nisn }}</td>
-            <td class="px-3 py-2 font-medium text-gray-800">{{ s.nama }}</td>
-            <td class="px-3 py-2">{{ s.jk }}</td>
-            <td class="px-3 py-2">{{ s.kelas || '-' }}</td>
-            <td class="px-3 py-2"><StatusBadge :label="s.status" :color="statusColor[s.status]" /></td>
-            <td class="px-3 py-2">
-              <div class="flex justify-end gap-1">
-                <button class="rounded-lg p-2 text-gray-500 hover:bg-gray-100" title="Edit" @click="openEdit(s)">
+        <tbody>
+          <tr v-for="(s, idx) in paginated" :key="s.id" :class="selectedIds.includes(s.id) ? 'row-selected' : ''">
+            <td class="!text-center"><input v-model="selectedIds" :value="s.id" type="checkbox" class="checkbox" :aria-label="`Pilih ${s.nama}`" /></td>
+            <td class="!text-center text-slate-400">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
+            <td class="text-slate-500 tnum">{{ s.nisn }}</td>
+            <td class="cell-main">{{ s.nama }}</td>
+            <td>{{ s.jk }}</td>
+            <td>{{ s.kelas || '—' }}</td>
+            <td><AppBadge :label="s.status" :tone="statusTone[s.status] || 'neutral'" dot /></td>
+            <td>
+              <div class="flex justify-end gap-0.5">
+                <button class="btn-icon !h-8 !w-8" title="Edit" :aria-label="`Edit ${s.nama}`" @click="openEdit(s)">
                   <Pencil class="h-4 w-4" />
                 </button>
-                <button
-                  v-if="s.active"
-                  class="rounded-lg p-2 text-amber-500 hover:bg-amber-50"
-                  title="Mutasi keluar"
-                  @click="openMutasi(s)"
-                >
+                <button v-if="s.active" class="btn-icon !h-8 !w-8 hover:!bg-amber-50 hover:!text-amber-600" title="Mutasi keluar" :aria-label="`Mutasi ${s.nama}`" @click="openMutasi(s)">
                   <LogOut class="h-4 w-4" />
                 </button>
-                <button
-                  class="rounded-lg p-2 text-rose-500 hover:bg-rose-50"
-                  title="Hapus Permanen"
-                  @click="confirmHapus(s)"
-                >
+                <button class="btn-icon !h-8 !w-8 hover:!bg-rose-50 hover:!text-rose-600" title="Hapus permanen" :aria-label="`Hapus ${s.nama}`" @click="confirmHapus(s)">
                   <Trash2 class="h-4 w-4" />
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
-    </div>
+        <template #footer>
+          <AppPagination v-model="currentPage" :total-items="filtered.length" :items-per-page="itemsPerPage" />
+        </template>
+      </AppTable>
 
-    <!-- Mobile Card List -->
-    <div class="md:hidden">
-      <SkeletonLoader v-if="loading" type="card" :rows="3" />
-      <EmptyState 
-        v-else-if="!paginated.length" 
-        title="Tidak ada siswa" 
-        description="Data siswa kosong atau tidak ditemukan dengan filter yang dipilih."
-      />
-      <div v-else class="space-y-3">
-        <div class="flex items-center gap-2 px-1 mb-2">
-          <input type="checkbox" v-model="selectAll" id="selectAllMobile" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
-          <label for="selectAllMobile" class="text-sm font-medium text-gray-600 cursor-pointer">Pilih Semua di Halaman Ini</label>
-        </div>
-        <div v-for="(s, idx) in paginated" :key="s.id" :class="['card p-4 transition-colors', selectedIds.includes(s.id) ? 'bg-emerald-50/50 border-emerald-200' : '']">
-          <div class="flex items-start justify-between mb-2 gap-2">
-            <div class="flex items-start gap-3">
-              <input type="checkbox" :value="s.id" v-model="selectedIds" class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
-              <div>
-                <div class="font-medium text-gray-800 text-base leading-tight">{{ s.nama }}</div>
-                <div class="text-xs text-gray-400 mt-0.5">#{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</div>
+      <!-- Mobile cards -->
+      <div class="md:hidden">
+        <AppSkeleton v-if="loading" type="card" :rows="4" />
+        <AppEmptyState
+          v-else-if="!paginated.length"
+          title="Tidak ada siswa"
+          description="Data siswa kosong atau tidak cocok dengan filter yang dipilih."
+          :icon="Users"
+        >
+          <template #action>
+            <AppButton size="sm" variant="secondary" @click="clearFilters">Hapus Filter</AppButton>
+            <AppButton size="sm" @click="openCreate">Tambah Siswa</AppButton>
+          </template>
+        </AppEmptyState>
+        <div v-else class="flex flex-col gap-2.5">
+          <label class="flex cursor-pointer items-center gap-2 px-1 text-[13px] font-medium text-slate-600">
+            <input v-model="selectAll" type="checkbox" class="checkbox" /> Pilih semua di halaman ini
+          </label>
+          <article
+            v-for="(s, idx) in paginated"
+            :key="s.id"
+            class="card-flat p-3.5"
+            :class="selectedIds.includes(s.id) ? 'ring-1 ring-primary-300' : ''"
+          >
+            <div class="mb-2 flex items-start justify-between gap-2">
+              <div class="flex min-w-0 items-start gap-2.5">
+                <input v-model="selectedIds" :value="s.id" type="checkbox" class="checkbox mt-1" :aria-label="`Pilih ${s.nama}`" />
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-slate-900">{{ s.nama }}</p>
+                  <p class="text-xs text-slate-400 tnum">#{{ (currentPage - 1) * itemsPerPage + idx + 1 }} · {{ s.nisn }}</p>
+                </div>
               </div>
+              <AppBadge :label="s.status" :tone="statusTone[s.status] || 'neutral'" dot />
             </div>
-            <StatusBadge :label="s.status" :color="statusColor[s.status]" />
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4">
-            <div><span class="font-medium">NISN:</span> {{ s.nisn }}</div>
-            <div><span class="font-medium">Kelas:</span> {{ s.kelas || '-' }}</div>
-            <div><span class="font-medium">JK:</span> {{ s.jk === 'L' ? 'Laki-laki' : 'Perempuan' }}</div>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-gray-100 pt-3">
-            <button class="flex-1 rounded-lg border border-gray-200 py-1.5 text-center text-xs font-medium hover:bg-gray-50 flex items-center justify-center gap-1 text-gray-600" @click="openEdit(s)">
-              <Pencil class="h-3 w-3" /> Edit
-            </button>
-            <button v-if="s.active" class="flex-1 rounded-lg border border-amber-200 py-1.5 text-center text-xs font-medium hover:bg-amber-50 flex items-center justify-center gap-1 text-amber-600" @click="openMutasi(s)">
-              <LogOut class="h-3 w-3" /> Mutasi
-            </button>
-            <button class="flex-1 rounded-lg border border-rose-200 py-1.5 text-center text-xs font-medium hover:bg-rose-50 flex items-center justify-center gap-1 text-rose-600" @click="confirmHapus(s)">
-              <Trash2 class="h-3 w-3" /> Hapus
-            </button>
+            <dl class="mb-3 grid grid-cols-2 gap-1.5 text-xs text-slate-500">
+              <div>Kelas: <span class="font-medium text-slate-700">{{ s.kelas || '—' }}</span></div>
+              <div>JK: <span class="font-medium text-slate-700">{{ s.jk === 'L' ? 'Laki-laki' : 'Perempuan' }}</span></div>
+            </dl>
+            <div class="flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
+              <AppButton variant="secondary" size="sm" class="flex-1" @click="openEdit(s)">Edit</AppButton>
+              <AppButton v-if="s.active" variant="secondary" size="sm" class="flex-1 !text-amber-700" @click="openMutasi(s)">Mutasi</AppButton>
+              <AppButton variant="danger-soft" size="sm" class="flex-1" @click="confirmHapus(s)">Hapus</AppButton>
+            </div>
+          </article>
+          <div class="card-flat">
+            <AppPagination v-model="currentPage" :total-items="filtered.length" :items-per-page="itemsPerPage" />
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Pagination Controls -->
-    <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between text-sm text-gray-600">
-      <div>
-        Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, filtered.length) }} dari {{ filtered.length }} siswa
-      </div>
-      <div class="flex gap-2">
-        <button 
-          class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
-          :disabled="currentPage === 1"
-          @click="currentPage--"
-        >
-          Sebelumnya
-        </button>
-        <div class="flex items-center px-2 font-medium">{{ currentPage }} / {{ totalPages }}</div>
-        <button 
-          class="rounded-lg border border-gray-200 px-3 py-1 hover:bg-gray-50 disabled:opacity-50"
-          :disabled="currentPage === totalPages"
-          @click="currentPage++"
-        >
-          Selanjutnya
-        </button>
-      </div>
-    </div>
+    </template>
 
     <!-- Form tambah/edit -->
-    <BaseModal v-model="showForm" :title="editing ? 'Edit Siswa' : 'Siswa Baru / Pindahan Masuk'">
-      <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">NISN (Opsional)</label>
-            <input v-model="form.nisn" class="input-field" :disabled="editing && form.nisn" placeholder="10 digit (Kosongkan jika belum ada)" />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">NISM (Opsional)</label>
-            <input v-model="form.nism" class="input-field" placeholder="18 digit" />
-          </div>
+    <AppModal v-model="showForm" :title="editing ? 'Edit Siswa' : 'Siswa Baru / Pindahan'" subtitle="Lengkapi data siswa dengan benar">
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <AppInput v-model="form.nisn" label="NISN (opsional)" placeholder="10 digit" :disabled="editing && !!form.nisn" />
+          <AppInput v-model="form.nism" label="NISM (opsional)" placeholder="18 digit" />
         </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Nama Lengkap</label>
-          <input v-model="form.nama" class="input-field" />
+        <AppInput v-model="form.nama" label="Nama lengkap" placeholder="Nama siswa" required />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <AppInput v-model="form.tempat_lahir" label="Tempat lahir" placeholder="Kota" />
+          <AppInput v-model="form.tanggal_lahir" type="date" label="Tanggal lahir" />
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Tempat Lahir</label>
-            <input v-model="form.tempat_lahir" class="input-field" placeholder="Kota" />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal Lahir</label>
-            <input v-model="form.tanggal_lahir" type="date" class="input-field" />
-          </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <AppSelect v-model="form.jk" label="Jenis kelamin">
+            <option value="L">Laki-laki</option>
+            <option value="P">Perempuan</option>
+          </AppSelect>
+          <AppSelect v-model="form.kelas" label="Kelas">
+            <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
+          </AppSelect>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Jenis Kelamin</label>
-            <select v-model="form.jk" class="input-field">
-              <option value="L">Laki-laki</option>
-              <option value="P">Perempuan</option>
-            </select>
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Kelas</label>
-            <select v-model="form.kelas" class="input-field">
-              <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal Masuk</label>
-          <input v-model="form.tanggal_masuk" type="date" class="input-field" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Keterangan</label>
-          <input v-model="form.keterangan" class="input-field" placeholder="mis. pindahan dari SD ..." />
-        </div>
+        <AppInput v-model="form.tanggal_masuk" type="date" label="Tanggal masuk" />
+        <AppInput v-model="form.keterangan" label="Keterangan" placeholder="mis. pindahan dari SD …" />
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showForm = false">Batal</button>
-        <button class="btn-primary" :disabled="saving" @click="save">{{ saving ? 'Menyimpan...' : 'Simpan' }}</button>
+        <AppButton variant="secondary" @click="showForm = false">Batal</AppButton>
+        <AppButton :loading="saving" @click="save">{{ saving ? 'Menyimpan…' : 'Simpan' }}</AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Mutasi keluar -->
-    <BaseModal v-model="showMutasi" title="Mutasi Siswa Keluar" max-width="max-w-md">
-      <p class="mb-3 text-sm text-gray-600">
-        Siswa <strong>{{ mutasiForm.nama }}</strong> ({{ mutasiForm.nisn }}) akan dinonaktifkan.
+    <!-- Mutasi -->
+    <AppModal v-model="showMutasi" title="Mutasi Siswa Keluar" max-width="max-w-md">
+      <p class="mb-3 text-sm text-slate-600">
+        Siswa <strong class="text-slate-900">{{ mutasiForm.nama }}</strong>
+        <span class="text-slate-400">({{ mutasiForm.nisn }})</span> akan dinonaktifkan.
       </p>
-      <div class="space-y-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Jenis Mutasi</label>
-          <select v-model="mutasiForm.status" class="input-field">
-            <option value="pindah">Pindah</option>
-            <option value="keluar">Keluar</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal Keluar</label>
-          <input v-model="mutasiForm.tanggal_keluar" type="date" class="input-field" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Keterangan</label>
-          <input v-model="mutasiForm.keterangan" class="input-field" placeholder="alasan / tujuan" />
-        </div>
+      <div class="flex flex-col gap-3">
+        <AppSelect v-model="mutasiForm.status" label="Jenis mutasi">
+          <option value="pindah">Pindah</option>
+          <option value="keluar">Keluar</option>
+        </AppSelect>
+        <AppInput v-model="mutasiForm.tanggal_keluar" type="date" label="Tanggal keluar" />
+        <AppInput v-model="mutasiForm.keterangan" label="Keterangan" placeholder="Alasan / tujuan" />
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showMutasi = false">Batal</button>
-        <button class="btn-primary" :disabled="saving" @click="prosesMutasi">{{ saving ? 'Memproses...' : 'Proses Mutasi' }}</button>
+        <AppButton variant="secondary" @click="showMutasi = false">Batal</AppButton>
+        <AppButton variant="warning" :loading="saving" @click="prosesMutasi">{{ saving ? 'Memproses…' : 'Proses Mutasi' }}</AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal Konfirmasi Hapus -->
-    <BaseModal v-model="showConfirmDelete" title="Hapus Siswa Permanen" max-width="max-w-md">
-      <div v-if="siswaToDelete" class="space-y-4">
-        <div class="rounded-xl bg-rose-50 p-4 border border-rose-100">
-          <div class="flex items-start gap-3">
-            <div class="rounded-full bg-rose-100 p-2 text-rose-600">
-              <Trash2 class="h-5 w-5" />
-            </div>
-            <div>
-              <h4 class="text-sm font-medium text-rose-800">Peringatan Penghapusan</h4>
-              <p class="mt-1 text-sm text-rose-600">
-                Apakah Anda yakin ingin menghapus siswa <strong>{{ siswaToDelete.nama }}</strong> ({{ siswaToDelete.nisn }}) secara permanen?
-                Seluruh rekam data presensi yang terkait juga akan dihapus.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showConfirmDelete = false">Batal</button>
-        <button class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-70 flex items-center gap-2" :disabled="saving" @click="hapus">
-          <Trash2 v-if="!saving" class="h-4 w-4" />
-          {{ saving ? 'Menghapus...' : 'Hapus Permanen' }}
-        </button>
+    <!-- Hapus tunggal -->
+    <AppConfirmDialog
+      v-model="showConfirmDelete"
+      title="Hapus Siswa Permanen?"
+      tone="danger"
+      confirm-label="Hapus Permanen"
+      :loading="saving"
+      @confirm="hapus"
+    >
+      <template v-if="siswaToDelete">
+        <strong>{{ siswaToDelete.nama }}</strong> ({{ siswaToDelete.nisn }}) akan dihapus permanen
+        beserta seluruh rekam presensinya. Tindakan ini tidak dapat dibatalkan.
       </template>
-    </BaseModal>
+    </AppConfirmDialog>
 
-    <!-- Modal Upload Excel -->
-    <BaseModal v-model="showUpload" title="Upload Siswa (Excel)">
-      <div class="space-y-4">
-        <!-- Template Area -->
-        <div class="flex items-center justify-between rounded-xl bg-blue-50/50 p-4 border border-blue-100">
+    <!-- Hapus massal -->
+    <AppConfirmDialog
+      v-model="showBulkConfirm"
+      title="Hapus Massal?"
+      tone="danger"
+      :confirm-label="`Hapus ${selectedIds.length} Siswa`"
+      :loading="saving"
+      @confirm="hapusTerpilih"
+    >
+      <strong>{{ selectedIds.length }} siswa terpilih</strong> akan dihapus permanen beserta rekam presensinya.
+      Tindakan ini tidak dapat dibatalkan.
+    </AppConfirmDialog>
+
+    <!-- Upload Excel -->
+    <AppModal v-model="showUpload" title="Upload Siswa via Excel" subtitle="Impor banyak siswa sekaligus">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5">
           <div>
-            <h4 class="text-sm font-semibold text-blue-800">Template Excel</h4>
-            <p class="text-xs text-blue-600 mt-1">Gunakan template ini agar format data sesuai.</p>
+            <p class="text-sm font-semibold text-blue-800">Template Excel</p>
+            <p class="mt-0.5 text-xs text-blue-600">Gunakan template agar format data sesuai.</p>
           </div>
-          <button class="btn-primary flex items-center gap-2 text-xs py-2 px-3 shrink-0" @click="downloadTemplate">
-            <FileDown class="h-4 w-4" /> Template
-          </button>
+          <AppButton variant="library" size="sm" @click="downloadTemplate">
+            <template #icon><FileDown class="h-4 w-4" aria-hidden="true" /></template>
+            Template
+          </AppButton>
         </div>
 
-        <div v-if="!uploadPreview">
-          <label class="mb-1 block text-xs font-medium text-gray-600">Target Kelas (Opsional)</label>
-          <select v-model="targetKelasUpload" class="input-field mb-2">
-            <option value="">Deteksi Otomatis Semua Kelas</option>
-            <option v-for="k in daftarKelas" :key="k" :value="k">Validasi Khusus Kelas {{ k }}</option>
-          </select>
-          <p class="text-[10px] text-gray-500 leading-tight">Jika dipilih, sistem hanya akan mengecek duplikasi terhadap data siswa yang saat ini berada di kelas tersebut.</p>
-        </div>
+        <AppSelect v-if="!uploadPreview" v-model="targetKelasUpload" label="Target kelas (opsional)" hint="Jika dipilih, duplikasi hanya dicek terhadap kelas tersebut.">
+          <option value="">Deteksi otomatis semua kelas</option>
+          <option v-for="k in daftarKelas" :key="k" :value="k">Validasi khusus kelas {{ k }}</option>
+        </AppSelect>
 
-        <!-- Dropzone Area -->
-        <div v-if="!uploadPreview" class="relative group mt-2">
-          <input type="file" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="onFileSelected" />
-          <div :class="['rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300', selectedFile ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-200 bg-gray-50 group-hover:border-emerald-300 group-hover:bg-emerald-50/30']">
-            <div v-if="!selectedFile" class="animate-in fade-in zoom-in duration-300">
-              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
-                <FileUp class="h-6 w-6" />
-              </div>
-              <p class="text-sm font-medium text-gray-700">Klik atau seret file Excel ke sini</p>
-              <p class="mt-1 text-xs text-gray-500">Mendukung format .xlsx dan .xls</p>
+        <div v-if="!uploadPreview" class="group relative">
+          <input type="file" accept=".xlsx,.xls" class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" aria-label="Pilih file Excel" @change="onFileSelected" />
+          <div class="rounded-xl border-2 border-dashed p-7 text-center transition-colors" :class="selectedFile ? 'border-primary-400 bg-primary-50/60' : 'border-slate-200 bg-slate-50 group-hover:border-primary-300'">
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary-600 shadow-xs ring-1 ring-slate-200">
+              <FileUp class="h-5 w-5" aria-hidden="true" />
             </div>
-            <div v-else class="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
-              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-4 ring-emerald-100">
-                <FileUp class="h-6 w-6" />
-              </div>
-              <p class="text-sm font-bold text-emerald-800">{{ selectedFile.name }}</p>
-              <p class="mt-1 text-xs text-emerald-600 font-medium">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
-              <p class="mt-3 text-[10px] text-gray-400 bg-white px-2 py-1 rounded-full border border-gray-100">Klik untuk mengganti file</p>
-            </div>
+            <template v-if="!selectedFile">
+              <p class="text-sm font-medium text-slate-700">Klik atau seret file Excel ke sini</p>
+              <p class="mt-1 text-xs text-slate-400">Mendukung .xlsx dan .xls</p>
+            </template>
+            <template v-else>
+              <p class="text-sm font-semibold text-primary-800">{{ selectedFile.name }}</p>
+              <p class="mt-1 text-xs text-primary-600">{{ (selectedFile.size / 1024).toFixed(1) }} KB · klik untuk mengganti</p>
+            </template>
           </div>
         </div>
 
-        <!-- Preview Area -->
-        <div v-else class="space-y-4 animate-in fade-in slide-in-from-right-2">
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center">
-              <div class="text-xl font-bold text-gray-700">{{ uploadPreview.dbCount }}</div>
-              <div class="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wider">Total Awal</div>
+        <template v-else>
+          <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+              <p class="text-xl font-bold text-slate-700 tnum">{{ uploadPreview.dbCount }}</p>
+              <p class="tiny mt-0.5 uppercase tracking-wider text-slate-400">Total awal</p>
             </div>
-            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-              <div class="text-xl font-bold text-emerald-700">+{{ uploadPreview.insertCount }}</div>
-              <div class="text-[10px] font-medium text-emerald-600 mt-1 uppercase tracking-wider">Data Baru</div>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+              <p class="text-xl font-bold text-emerald-700 tnum">+{{ uploadPreview.insertCount }}</p>
+              <p class="tiny mt-0.5 uppercase tracking-wider text-emerald-600">Data baru</p>
             </div>
-            <div class="rounded-xl border border-sky-100 bg-sky-50 p-3 text-center">
-              <div class="text-xl font-bold text-sky-700">{{ uploadPreview.updateCount }}</div>
-              <div class="text-[10px] font-medium text-sky-600 mt-1 uppercase tracking-wider">Di-update</div>
+            <div class="rounded-xl border border-sky-200 bg-sky-50 p-3 text-center">
+              <p class="text-xl font-bold text-sky-700 tnum">{{ uploadPreview.updateCount }}</p>
+              <p class="tiny mt-0.5 uppercase tracking-wider text-sky-600">Di-update</p>
             </div>
-            <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-center ring-1 ring-indigo-200 ring-offset-1">
-              <div class="text-xl font-bold text-indigo-700">{{ uploadPreview.dbCount + uploadPreview.insertCount }}</div>
-              <div class="text-[10px] font-medium text-indigo-600 mt-1 uppercase tracking-wider">Total Akhir</div>
-            </div>
-          </div>
-          
-          <div v-if="uploadPreview.errors.length > 0" class="rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <div class="flex items-start gap-3">
-              <TriangleAlert class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <h4 class="text-sm font-semibold text-rose-800">Ditemukan Masalah Validasi</h4>
-                <ul class="mt-2 list-disc pl-4 text-sm text-rose-600 space-y-1">
-                  <li v-for="(err, i) in uploadPreview.errors" :key="i">{{ err }}</li>
-                </ul>
-                <p class="mt-3 text-xs text-rose-700 font-medium">Anda tidak dapat menyimpan data sebelum memperbaiki masalah ini di file Excel Anda.</p>
-              </div>
+            <div class="rounded-xl border border-primary-300 bg-primary-50 p-3 text-center">
+              <p class="text-xl font-bold text-primary-700 tnum">{{ uploadPreview.dbCount + uploadPreview.insertCount }}</p>
+              <p class="tiny mt-0.5 uppercase tracking-wider text-primary-600">Total akhir</p>
             </div>
           </div>
-          <div v-else class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 flex items-center justify-center font-medium">
-            ✅ Data valid dan siap disimpan!
-          </div>
-        </div>
-
-        <!-- Error Display -->
-        <div v-if="uploadError" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 animate-in fade-in slide-in-from-bottom-2">
-          <div class="flex items-start gap-3">
-            <TriangleAlert class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+          <div v-if="uploadPreview.errors.length > 0" class="alert-danger">
             <div>
-              <h4 class="text-sm font-semibold text-rose-800">Gagal Mengimpor Data</h4>
-              <p class="mt-1 text-sm text-rose-600 whitespace-pre-line">{{ uploadError }}</p>
+              <p class="font-semibold">Ditemukan {{ uploadPreview.errors.length }} masalah validasi</p>
+              <ul class="mt-1.5 list-disc space-y-1 pl-4 text-[13px]">
+                <li v-for="(err, i) in uploadPreview.errors" :key="i">{{ err }}</li>
+              </ul>
+              <p class="mt-2 text-xs font-medium">Perbaiki file Excel sebelum menyimpan.</p>
             </div>
+          </div>
+          <div v-else class="alert-success !items-center">
+            <p class="font-medium">Data valid dan siap disimpan.</p>
+          </div>
+        </template>
+
+        <div v-if="uploadError" class="alert-danger">
+          <div>
+            <p class="font-semibold">Gagal mengimpor data</p>
+            <p class="mt-1 whitespace-pre-line text-[13px]">{{ uploadError }}</p>
           </div>
         </div>
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showUpload = false; uploadPreview = null; uploadError = null; selectedFile = null">Batal</button>
-        <button v-if="!uploadPreview" class="btn-primary" :disabled="uploadingExcel || !selectedFile" @click="processUpload">
-          {{ uploadingExcel ? 'Memeriksa...' : 'Lanjutkan' }}
-        </button>
-        <button v-else class="btn-primary" :disabled="uploadingExcel || uploadPreview.errors.length > 0" @click="confirmUpload">
-          {{ uploadingExcel ? 'Menyimpan...' : 'Simpan Data' }}
-        </button>
+        <AppButton variant="secondary" @click="showUpload = false; uploadPreview = null; uploadError = null; selectedFile = null">Batal</AppButton>
+        <AppButton v-if="!uploadPreview" :loading="uploadingExcel" :disabled="!selectedFile" @click="processUpload">
+          {{ uploadingExcel ? 'Memeriksa…' : 'Lanjutkan' }}
+        </AppButton>
+        <AppButton v-else :loading="uploadingExcel" :disabled="uploadPreview.errors.length > 0" @click="confirmUpload">
+          {{ uploadingExcel ? 'Menyimpan…' : 'Simpan Data' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
   </div>
 </template>

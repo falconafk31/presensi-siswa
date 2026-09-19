@@ -3,10 +3,12 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
-import { Book, Plus, Edit, Trash2, Upload, Loader2, Download, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp, Info } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
-import BaseModal from '@/components/BaseModal.vue'
-import Pagination from '@/components/Pagination.vue'
+import { Book, Plus, Edit, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp, Info, Search, X } from 'lucide-vue-next'
+import {
+  AppPageHeader, AppFilterBar, AppInput, AppTable, AppBadge,
+  AppModal, AppConfirmDialog, AppEmptyState, AppSkeleton,
+  AppButton, AppPagination,
+} from '@/components/ui'
 
 const books = ref([])
 const loading = ref(false)
@@ -23,6 +25,10 @@ const selectedBookHistory = ref([])
 const historyCurrentPage = ref(1)
 const historyItemsPerPage = 10
 
+const showDeleteConfirm = ref(false)
+const bookToDelete = ref(null)
+const deleting = ref(false)
+
 const form = ref({
   id: null,
   judul: '',
@@ -31,7 +37,7 @@ const form = ref({
   tahun_terbit: '',
   isbn: '',
   stok: 1,
-  kategori: ''
+  kategori: '',
 })
 
 const sortKey = ref('judul')
@@ -45,19 +51,23 @@ function setSort(key) {
     sortOrder.value = 'asc'
   }
 }
+function ariaSort(key) {
+  if (sortKey.value !== key) return 'none'
+  return sortOrder.value === 'asc' ? 'ascending' : 'descending'
+}
 
 const filteredBooks = computed(() => {
   let result = books.value
-  
+
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter(b => b.judul.toLowerCase().includes(q) || (b.pengarang && b.pengarang.toLowerCase().includes(q)))
+    result = result.filter((b) => b.judul.toLowerCase().includes(q) || (b.pengarang && b.pengarang.toLowerCase().includes(q)))
   }
-  
+
   result = [...result].sort((a, b) => {
     let valA = a[sortKey.value] || ''
     let valB = b[sortKey.value] || ''
-    
+
     if (['stok', 'dipinjam', 'tersedia'].includes(sortKey.value)) {
       valA = Number(a[sortKey.value]) || 0
       valB = Number(b[sortKey.value]) || 0
@@ -68,12 +78,12 @@ const filteredBooks = computed(() => {
       valA = (a.pengarang || '').toLowerCase()
       valB = (b.pengarang || '').toLowerCase()
     }
-    
+
     if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
     if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
     return 0
   })
-  
+
   return result
 })
 
@@ -99,25 +109,21 @@ async function fetchBooks() {
   try {
     const [{ data: b, error }, { data: l }] = await Promise.all([
       supabase.from('books').select('*').order('created_at', { ascending: false }),
-      supabase.from('book_loans').select('book_id').eq('status', 'dipinjam')
+      supabase.from('book_loans').select('book_id').eq('status', 'dipinjam'),
     ])
-    
+
     if (error) throw error
 
     const borrowedCounts = {}
     if (l) {
-      l.forEach(loan => {
+      l.forEach((loan) => {
         borrowedCounts[loan.book_id] = (borrowedCounts[loan.book_id] || 0) + 1
       })
     }
 
-    books.value = (b || []).map(book => {
+    books.value = (b || []).map((book) => {
       const dipinjam = borrowedCounts[book.id] || 0
-      return {
-        ...book,
-        dipinjam,
-        tersedia: book.stok - dipinjam
-      }
+      return { ...book, dipinjam, tersedia: book.stok - dipinjam }
     })
   } catch (e) {
     toast.error('Gagal memuat data buku: ' + e.message)
@@ -130,16 +136,7 @@ function openModal(book = null) {
   if (book) {
     form.value = { ...book }
   } else {
-    form.value = {
-      id: null,
-      judul: '',
-      pengarang: '',
-      penerbit: '',
-      tahun_terbit: '',
-      isbn: '',
-      stok: 1,
-      kategori: ''
-    }
+    form.value = { id: null, judul: '', pengarang: '', penerbit: '', tahun_terbit: '', isbn: '', stok: 1, kategori: '' }
   }
   showModal.value = true
 }
@@ -158,7 +155,7 @@ async function saveBook() {
       tahun_terbit: form.value.tahun_terbit,
       isbn: form.value.isbn,
       stok: form.value.stok,
-      kategori: form.value.kategori
+      kategori: form.value.kategori,
     }
 
     if (form.value.id) {
@@ -181,16 +178,26 @@ async function saveBook() {
   }
 }
 
-async function deleteBook(id, judul) {
-  if (!confirm(`Yakin ingin menghapus buku "${judul}"?`)) return
+function confirmDeleteBook(book) {
+  bookToDelete.value = book
+  showDeleteConfirm.value = true
+}
+
+async function deleteBook() {
+  if (!bookToDelete.value) return
+  deleting.value = true
   try {
-    const { error } = await supabase.from('books').delete().eq('id', id)
+    const { error } = await supabase.from('books').delete().eq('id', bookToDelete.value.id)
     if (error) throw error
     toast.success('Buku berhasil dihapus')
-    logActivity({ aksi: 'hapus_buku', tabel_terkait: 'books', record_id: id, detail: { judul } })
+    logActivity({ aksi: 'hapus_buku', tabel_terkait: 'books', record_id: bookToDelete.value.id, detail: { judul: bookToDelete.value.judul } })
+    showDeleteConfirm.value = false
+    bookToDelete.value = null
     fetchBooks()
   } catch (e) {
     toast.error('Gagal menghapus buku: ' + e.message)
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -205,15 +212,14 @@ function handleFileUpload(event) {
       const data = new Uint8Array(e.target.result)
       const workbook = XLSX.read(data, { type: 'array' })
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-      // Header harus: Judul | Pengarang | Penerbit | Tahun | ISBN | Stok | Kategori
       const jsonData = XLSX.utils.sheet_to_json(firstSheet)
-      
+
       if (!jsonData.length) {
         toast.error('File Excel kosong atau format salah')
         return
       }
 
-      const payload = jsonData.map(row => ({
+      const payload = jsonData.map((row) => ({
         judul: row['Judul'] || row['judul'] || 'Tanpa Judul',
         pengarang: row['Pengarang'] || row['pengarang'] || null,
         penerbit: row['Penerbit'] || row['penerbit'] || null,
@@ -235,7 +241,7 @@ function handleFileUpload(event) {
       toast.error('Gagal membaca file: ' + err.message)
     } finally {
       saving.value = false
-      fileInput.value.value = ''
+      if (fileInput.value) fileInput.value.value = ''
     }
   }
   reader.readAsArrayBuffer(file)
@@ -246,11 +252,11 @@ async function downloadTemplate() {
   const wsData = [
     ['Judul', 'Pengarang', 'Penerbit', 'Tahun', 'ISBN', 'Stok', 'Kategori'],
     ['Laskar Pelangi', 'Andrea Hirata', 'Bentang Pustaka', '2005', '978-979-3062-79-2', 5, 'Fiksi'],
-    ['Buku Tema 1', 'Kemdikbud', 'Pusat Kurikulum', '2018', '', 30, 'Pelajaran']
+    ['Buku Tema 1', 'Kemdikbud', 'Pusat Kurikulum', '2018', '', 30, 'Pelajaran'],
   ]
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.aoa_to_sheet(wsData)
-  ws['!cols'] = [{wch:30},{wch:20},{wch:20},{wch:10},{wch:20},{wch:10},{wch:15}]
+  ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 20 }, { wch: 10 }, { wch: 15 }]
   XLSX.utils.book_append_sheet(wb, ws, 'Data Buku')
   XLSX.writeFile(wb, 'Template_Import_Buku.xlsx')
 }
@@ -261,16 +267,15 @@ async function openHistoryModal(book) {
   loadingHistory.value = true
   selectedBookHistory.value = []
   historyCurrentPage.value = 1
-  
+
   try {
     const { data, error } = await supabase
       .from('book_loans')
       .select('*, students!book_loans_student_nisn_fkey(nama, kelas)')
       .eq('book_id', book.id)
       .order('created_at', { ascending: false })
-      
+
     if (error) {
-      // Jika terjadi error foreign key name (kadang Supabase otomatis generate nama fkey), coba nama lain atau table langsung
       const { data: data2, error: err2 } = await supabase
         .from('book_loans')
         .select('*, students(nama, kelas)')
@@ -288,289 +293,256 @@ async function openHistoryModal(book) {
   }
 }
 
-function getStatusBadge(status) {
-  switch (status) {
-    case 'dipinjam': return 'bg-sky-100 text-sky-700'
-    case 'dikembalikan': return 'bg-emerald-100 text-emerald-700'
-    case 'terlambat': return 'bg-rose-100 text-rose-700'
-    case 'hilang': return 'bg-gray-100 text-gray-700'
-    default: return 'bg-gray-100 text-gray-700'
-  }
+const historyStatusTone = { dipinjam: 'info', dikembalikan: 'success', terlambat: 'danger', hilang: 'neutral' }
+function formatDateID(iso) {
+  if (!iso) return '–'
+  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 onMounted(fetchBooks)
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Data Koleksi" subtitle="Manajemen bibliografi dan inventaris perpustakaan">
+  <div class="page-stack">
+    <AppPageHeader title="Data Koleksi" :subtitle="`${filteredBooks.length} judul ditampilkan`">
       <template #actions>
-        <div class="flex gap-2">
-          <button class="btn-primary bg-sky-600 hover:bg-sky-700" @click="showImportModal = true">
-            <Upload class="h-4 w-4" /> Import Excel
-          </button>
-          <button class="btn-primary" @click="openModal()">
-            <Plus class="h-4 w-4" /> Tambah Buku
-          </button>
-        </div>
+        <AppButton variant="secondary" size="sm" @click="showImportModal = true">
+          <template #icon><Upload class="h-4 w-4" aria-hidden="true" /></template>
+          Import Excel
+        </AppButton>
+        <AppButton variant="library" size="sm" @click="openModal()">
+          <template #icon><Plus class="h-4 w-4" aria-hidden="true" /></template>
+          Tambah Buku
+        </AppButton>
       </template>
-    </PageHeader>
+    </AppPageHeader>
 
-    <div class="card mb-4 flex items-center justify-between gap-4">
-      <div class="relative w-full max-w-md">
-        <input v-model="searchQuery" class="input-field pl-10" placeholder="Cari judul atau pengarang..." />
-        <Book class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-      </div>
-    </div>
-
-    <div class="card overflow-x-auto">
-      <table class="min-w-full table-fixed text-left text-sm">
-        <thead>
-          <tr class="border-b border-gray-200 text-gray-500">
-            <th class="px-4 py-3 font-semibold w-16 text-center">No</th>
-            <th class="px-4 py-3 font-semibold w-[35%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('judul')">
-              <div class="flex items-center gap-2">
-                Judul Buku
-                <ArrowUp v-if="sortKey === 'judul' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'judul' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </th>
-            <th class="px-4 py-3 font-semibold w-[20%] cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('pengarang')">
-              <div class="flex items-center gap-2">
-                Pengarang & Penerbit
-                <ArrowUp v-if="sortKey === 'pengarang' && sortOrder === 'asc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'pengarang' && sortOrder === 'desc'" class="w-4 h-4 text-emerald-600" />
-                <ArrowUpDown v-else class="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </th>
-            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('stok')">
-              <div class="flex items-center justify-center gap-1">
-                Total
-                <ArrowUp v-if="sortKey === 'stok' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'stok' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </th>
-            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('dipinjam')">
-              <div class="flex items-center justify-center gap-1">
-                Pinjam
-                <ArrowUp v-if="sortKey === 'dipinjam' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'dipinjam' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </th>
-            <th class="px-2 py-3 font-semibold w-[8%] text-center cursor-pointer select-none hover:bg-gray-50 group" @click="setSort('tersedia')">
-              <div class="flex items-center justify-center gap-1">
-                Sisa
-                <ArrowUp v-if="sortKey === 'tersedia' && sortOrder === 'asc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowDown v-else-if="sortKey === 'tersedia' && sortOrder === 'desc'" class="w-3 h-3 text-emerald-600" />
-                <ArrowUpDown v-else class="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </th>
-            <th class="px-4 py-3 font-semibold w-[15%] text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-              <Loader2 class="mx-auto h-6 w-6 animate-spin text-emerald-500" />
-              <p class="mt-2">Memuat buku...</p>
-            </td>
-          </tr>
-          <tr v-else-if="!filteredBooks.length">
-            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-              Belum ada buku atau pencarian tidak ditemukan.
-            </td>
-          </tr>
-          <tr v-for="(b, idx) in paginatedBooks" :key="b.id" class="border-b border-gray-100 hover:bg-gray-50">
-            <td class="px-4 py-3 text-center text-sm font-medium text-gray-500">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
-            <td class="px-4 py-3">
-              <div class="font-semibold text-gray-800">{{ b.judul }}</div>
-              <div class="text-xs text-gray-500">Kategori: {{ b.kategori || '-' }} | ISBN: {{ b.isbn || '-' }}</div>
-            </td>
-            <td class="px-4 py-3">
-              <div class="text-gray-700">{{ b.pengarang || '-' }}</div>
-              <div class="text-xs text-gray-500">{{ b.penerbit || '-' }} ({{ b.tahun_terbit || '-' }})</div>
-            </td>
-            <td class="px-2 py-3 text-center align-middle">
-              <div class="text-sm font-bold text-gray-800">{{ b.stok }}</div>
-            </td>
-            <td class="px-2 py-3 text-center align-middle">
-              <div class="text-sm font-medium text-rose-600">{{ b.dipinjam }}</div>
-            </td>
-            <td class="px-2 py-3 text-center align-middle">
-              <div class="text-sm font-semibold text-emerald-600">{{ b.tersedia }}</div>
-            </td>
-            <td class="px-4 py-3 text-right">
-              <div class="flex items-center justify-end gap-2">
-                <button class="rounded-lg p-2 text-blue-600 hover:bg-blue-50" title="Riwayat Peminjaman" @click="openHistoryModal(b)">
-                  <Info class="h-4 w-4" />
-                </button>
-                <button class="rounded-lg p-2 text-amber-600 hover:bg-amber-50" title="Edit Buku" @click="openModal(b)">
-                  <Edit class="h-4 w-4" />
-                </button>
-                <button class="rounded-lg p-2 text-rose-600 hover:bg-rose-50" title="Hapus Buku" @click="deleteBook(b.id, b.judul)">
-                  <Trash2 class="h-4 w-4" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <Pagination
-      v-if="!loading && filteredBooks.length > 0"
-      v-model="currentPage"
-      :total-items="filteredBooks.length"
-      :items-per-page="itemsPerPage"
-      class="mt-4 rounded-2xl shadow-sm border border-gray-100"
-    />
-
-    <!-- Modal Form Buku -->
-    <BaseModal v-model="showModal" :title="form.id ? 'Edit Buku' : 'Tambah Buku'">
-      <div class="space-y-4 p-5">
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Judul Buku <span class="text-rose-500">*</span></label>
-          <input v-model="form.judul" class="input-field" placeholder="Masukkan judul buku" />
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">Pengarang</label>
-            <input v-model="form.pengarang" class="input-field" placeholder="Nama pengarang" />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">Penerbit</label>
-            <input v-model="form.penerbit" class="input-field" placeholder="Nama penerbit" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">Tahun Terbit</label>
-            <input v-model="form.tahun_terbit" class="input-field" placeholder="Contoh: 2023" />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">ISBN</label>
-            <input v-model="form.isbn" class="input-field" placeholder="Kode ISBN" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">Stok <span class="text-rose-500">*</span></label>
-            <input v-model.number="form.stok" type="number" min="1" class="input-field" />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-medium text-gray-700">Kategori</label>
-            <input v-model="form.kategori" class="input-field" placeholder="Fiksi, Pelajaran, dll" />
-          </div>
-        </div>
-      </div>
-      <div class="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 p-4">
-        <button class="btn-secondary" @click="showModal = false">Batal</button>
-        <button class="btn-primary" :disabled="saving" @click="saveBook">
-          <Save class="h-4 w-4" /> {{ saving ? 'Menyimpan...' : 'Simpan' }}
+    <AppFilterBar columns="sm:grid-cols-2">
+      <AppInput v-model="searchQuery" placeholder="Cari judul atau pengarang…" aria-label="Cari buku">
+        <template #leading><Search class="h-4 w-4" aria-hidden="true" /></template>
+      </AppInput>
+      <template v-if="searchQuery" #footer>
+        <span class="text-[13px] text-slate-500">{{ filteredBooks.length }} hasil</span>
+        <button class="link inline-flex items-center gap-1 text-[13px]" @click="searchQuery = ''">
+          <X class="h-3.5 w-3.5" aria-hidden="true" /> Hapus pencarian
         </button>
-      </div>
-    </BaseModal>
+      </template>
+    </AppFilterBar>
 
-    <!-- Modal Import Excel -->
-    <BaseModal v-model="showImportModal" title="Import Buku via Excel">
-      <div class="space-y-4">
-        <!-- Template Area -->
-        <div class="flex items-center justify-between rounded-xl bg-blue-50/50 p-4 border border-blue-100">
+    <div v-if="loading" class="card-flat p-4">
+      <AppSkeleton type="table" :rows="6" />
+    </div>
+    <div v-else-if="!filteredBooks.length" class="card-flat p-4">
+      <AppEmptyState
+        title="Koleksi tidak ditemukan"
+        description="Belum ada buku atau pencarian tidak cocok. Tambahkan buku baru atau impor dari Excel."
+        :icon="Book"
+      >
+        <template #action>
+          <AppButton size="sm" variant="secondary" @click="searchQuery = ''">Hapus Pencarian</AppButton>
+          <AppButton size="sm" variant="library" @click="openModal()">Tambah Buku</AppButton>
+        </template>
+      </AppEmptyState>
+    </div>
+    <AppTable v-else sticky-header caption="Daftar koleksi buku">
+      <thead>
+        <tr>
+          <th class="w-12 !text-center">No</th>
+          <th class="cursor-pointer select-none" :aria-sort="ariaSort('judul')" @click="setSort('judul')">
+            <span class="inline-flex items-center gap-1.5">
+              Judul Buku
+              <ArrowUp v-if="sortKey === 'judul' && sortOrder === 'asc'" class="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
+              <ArrowDown v-else-if="sortKey === 'judul' && sortOrder === 'desc'" class="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
+              <ArrowUpDown v-else class="h-3.5 w-3.5 text-slate-300" aria-hidden="true" />
+            </span>
+          </th>
+          <th class="cursor-pointer select-none" :aria-sort="ariaSort('pengarang')" @click="setSort('pengarang')">
+            <span class="inline-flex items-center gap-1.5">
+              Pengarang & Penerbit
+              <ArrowUp v-if="sortKey === 'pengarang' && sortOrder === 'asc'" class="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
+              <ArrowDown v-else-if="sortKey === 'pengarang' && sortOrder === 'desc'" class="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
+              <ArrowUpDown v-else class="h-3.5 w-3.5 text-slate-300" aria-hidden="true" />
+            </span>
+          </th>
+          <th class="!text-center cursor-pointer select-none" :aria-sort="ariaSort('stok')" title="Total eksemplar" @click="setSort('stok')">Total</th>
+          <th class="!text-center cursor-pointer select-none" :aria-sort="ariaSort('dipinjam')" title="Sedang dipinjam" @click="setSort('dipinjam')">Pinjam</th>
+          <th class="!text-center cursor-pointer select-none" :aria-sort="ariaSort('tersedia')" title="Sisa tersedia" @click="setSort('tersedia')">Sisa</th>
+          <th class="!text-right">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(b, idx) in paginatedBooks" :key="b.id">
+          <td class="!text-center text-slate-400">{{ (currentPage - 1) * itemsPerPage + idx + 1 }}</td>
+          <td>
+            <p class="cell-main">{{ b.judul }}</p>
+            <p class="cell-sub">{{ b.kategori || 'Tanpa kategori' }} · ISBN {{ b.isbn || '–' }}</p>
+          </td>
+          <td>
+            <p class="text-slate-700">{{ b.pengarang || '–' }}</p>
+            <p class="cell-sub">{{ b.penerbit || '–' }} ({{ b.tahun_terbit || '–' }})</p>
+          </td>
+          <td class="cell-num">{{ b.stok }}</td>
+          <td class="cell-num" :class="b.dipinjam > 0 ? 'text-sky-700' : 'text-slate-300'">{{ b.dipinjam }}</td>
+          <td class="cell-num" :class="b.tersedia > 0 ? 'text-emerald-700' : 'text-rose-600'">{{ b.tersedia }}</td>
+          <td>
+            <div class="flex justify-end gap-0.5">
+              <button class="btn-icon !h-8 !w-8 hover:!bg-blue-50 hover:!text-blue-600" title="Riwayat peminjaman" :aria-label="`Riwayat ${b.judul}`" @click="openHistoryModal(b)">
+                <Info class="h-4 w-4" />
+              </button>
+              <button class="btn-icon !h-8 !w-8" title="Edit buku" :aria-label="`Edit ${b.judul}`" @click="openModal(b)">
+                <Edit class="h-4 w-4" />
+              </button>
+              <button class="btn-icon !h-8 !w-8 hover:!bg-rose-50 hover:!text-rose-600" title="Hapus buku" :aria-label="`Hapus ${b.judul}`" @click="confirmDeleteBook(b)">
+                <Trash2 class="h-4 w-4" />
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+      <template #footer>
+        <AppPagination v-model="currentPage" :total-items="filteredBooks.length" :items-per-page="itemsPerPage" />
+      </template>
+    </AppTable>
+
+    <!-- Form buku -->
+    <AppModal v-model="showModal" :title="form.id ? 'Edit Buku' : 'Tambah Buku'" subtitle="Lengkapi data bibliografi">
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="input-label" for="buku-judul">Judul buku <span class="text-rose-500" aria-hidden="true">*</span></label>
+          <input id="buku-judul" v-model="form.judul" class="input-field" placeholder="Masukkan judul buku" />
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <h4 class="text-sm font-semibold text-blue-800">Template Excel</h4>
-            <p class="text-xs text-blue-600 mt-1">Gunakan template ini agar format data sesuai.</p>
+            <label class="input-label" for="buku-pengarang">Pengarang</label>
+            <input id="buku-pengarang" v-model="form.pengarang" class="input-field" placeholder="Nama pengarang" />
           </div>
-          <button class="btn-primary flex items-center gap-2 text-xs py-2 px-3 shrink-0" @click="downloadTemplate">
-            <FileDown class="h-4 w-4" /> Template
-          </button>
+          <div>
+            <label class="input-label" for="buku-penerbit">Penerbit</label>
+            <input id="buku-penerbit" v-model="form.penerbit" class="input-field" placeholder="Nama penerbit" />
+          </div>
         </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="input-label" for="buku-tahun">Tahun terbit</label>
+            <input id="buku-tahun" v-model="form.tahun_terbit" class="input-field" placeholder="Contoh: 2023" inputmode="numeric" />
+          </div>
+          <div>
+            <label class="input-label" for="buku-isbn">ISBN</label>
+            <input id="buku-isbn" v-model="form.isbn" class="input-field" placeholder="Kode ISBN" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="input-label" for="buku-stok">Stok <span class="text-rose-500" aria-hidden="true">*</span></label>
+            <input id="buku-stok" v-model.number="form.stok" type="number" min="0" class="input-field" />
+          </div>
+          <div>
+            <label class="input-label" for="buku-kategori">Kategori</label>
+            <input id="buku-kategori" v-model="form.kategori" class="input-field" placeholder="Fiksi, Pelajaran, dll" list="kategori-buku" />
+            <datalist id="kategori-buku">
+              <option value="Fiksi" />
+              <option value="Pelajaran" />
+              <option value="Referensi" />
+              <option value="Keagamaan" />
+            </datalist>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <AppButton variant="secondary" @click="showModal = false">Batal</AppButton>
+        <AppButton variant="library" :loading="saving" @click="saveBook">{{ saving ? 'Menyimpan…' : 'Simpan' }}</AppButton>
+      </template>
+    </AppModal>
 
-        <!-- Dropzone Area -->
-        <div class="relative group mt-2">
-          <input type="file" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handleFileUpload" />
-          <div class="rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300 border-gray-200 bg-gray-50 group-hover:border-emerald-300 group-hover:bg-emerald-50/30">
-            <div v-if="!saving" class="animate-in fade-in zoom-in duration-300">
-              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-100 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
-                <FileUp class="h-6 w-6" />
-              </div>
-              <p class="text-sm font-medium text-gray-700">Klik atau seret file Excel ke sini</p>
-              <p class="mt-1 text-xs text-gray-500">Mendukung format .xlsx dan .xls</p>
-            </div>
-            <div v-else class="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
-              <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-4 ring-emerald-100">
-                <Loader2 class="h-6 w-6 animate-spin" />
-              </div>
-              <p class="text-sm font-bold text-emerald-800">Mengimpor Data...</p>
-              <p class="mt-1 text-xs text-emerald-600 font-medium">Mohon tunggu sebentar</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </BaseModal>
+    <!-- Hapus buku -->
+    <AppConfirmDialog
+      v-model="showDeleteConfirm"
+      title="Hapus Buku?"
+      tone="danger"
+      confirm-label="Hapus Buku"
+      :loading="deleting"
+      @confirm="deleteBook"
+    >
+      <template v-if="bookToDelete">
+        <strong>{{ bookToDelete.judul }}</strong> akan dihapus dari koleksi. Riwayat peminjaman terkait ikut terhapus.
+      </template>
+    </AppConfirmDialog>
 
-    <!-- Modal Riwayat Peminjaman -->
-    <BaseModal v-model="showHistoryModal" :title="`Riwayat: ${selectedHistoryBookTitle}`" maxWidth="3xl">
-      <div class="p-5">
-        <div v-if="loadingHistory" class="py-12 text-center text-gray-500">
-          <Loader2 class="mx-auto h-8 w-8 animate-spin text-emerald-500" />
-          <p class="mt-2 text-sm">Memuat riwayat peminjaman...</p>
-        </div>
-        
-        <div v-else-if="!selectedBookHistory.length" class="py-12 text-center text-gray-500">
-          Buku ini belum pernah dipinjam.
-        </div>
-        
-        <div v-else class="space-y-4">
-          <!-- Tampilan Tabel Responsif (Bisa digeser ke kanan-kiri di Mobile) -->
-          <div class="overflow-x-auto rounded-xl border border-gray-100">
-            <table class="min-w-full text-left text-sm whitespace-nowrap">
-              <thead>
-                <tr class="border-b border-gray-100 bg-gray-50/50 text-gray-500">
-                  <th class="px-4 py-3 font-semibold w-12 text-center">No</th>
-                  <th class="px-4 py-3 font-semibold">Peminjam</th>
-                  <th class="px-4 py-3 font-semibold text-center">Tgl Pinjam</th>
-                  <th class="px-4 py-3 font-semibold text-center">Tenggat</th>
-                  <th class="px-4 py-3 font-semibold text-center">Tgl Kembali</th>
-                  <th class="px-4 py-3 font-semibold text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(h, idx) in paginatedBookHistory" :key="h.id" class="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td class="px-4 py-3 text-center text-gray-500">{{ (historyCurrentPage - 1) * historyItemsPerPage + idx + 1 }}</td>
-                  <td class="px-4 py-3">
-                    <div class="font-medium text-gray-800">{{ h.students?.nama || h.student_nisn }}</div>
-                    <div class="text-xs text-gray-500">Kelas Saat Ini: {{ h.students?.kelas || '-' }}</div>
-                  </td>
-                  <td class="px-4 py-3 text-center text-gray-600">{{ new Date(h.tanggal_pinjam).toLocaleDateString('id-ID') }}</td>
-                  <td class="px-4 py-3 text-center text-gray-600">{{ new Date(h.tanggal_kembali_seharusnya).toLocaleDateString('id-ID') }}</td>
-                  <td class="px-4 py-3 text-center text-gray-600">
-                    {{ h.tanggal_kembali_aktual ? new Date(h.tanggal_kembali_aktual).toLocaleDateString('id-ID') : '-' }}
-                  </td>
-                  <td class="px-4 py-3 text-center">
-                    <span :class="['inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold capitalize', getStatusBadge(h.status)]">
-                      {{ h.status }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <!-- Import Excel -->
+    <AppModal v-model="showImportModal" title="Import Buku via Excel" subtitle="Tambahkan banyak judul sekaligus">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5">
+          <div>
+            <p class="text-sm font-semibold text-blue-800">Template Excel</p>
+            <p class="mt-0.5 text-xs text-blue-600">Kolom: Judul · Pengarang · Penerbit · Tahun · ISBN · Stok · Kategori</p>
           </div>
-          
-          <Pagination
-            v-if="selectedBookHistory.length > historyItemsPerPage"
-            v-model="historyCurrentPage"
-            :total-items="selectedBookHistory.length"
-            :items-per-page="historyItemsPerPage"
-            class="mt-2 rounded-2xl border border-gray-100"
-          />
+          <AppButton variant="library" size="sm" @click="downloadTemplate">
+            <template #icon><FileDown class="h-4 w-4" aria-hidden="true" /></template>
+            Template
+          </AppButton>
+        </div>
+        <div class="group relative">
+          <input ref="fileInput" type="file" accept=".xlsx,.xls" class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" aria-label="Pilih file Excel" :disabled="saving" @change="handleFileUpload" />
+          <div class="rounded-xl border-2 border-dashed p-7 text-center transition-colors" :class="saving ? 'border-blue-400 bg-blue-50/60' : 'border-slate-200 bg-slate-50 group-hover:border-blue-300'">
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-blue-600 shadow-xs ring-1 ring-slate-200">
+              <FileUp class="h-5 w-5" :class="saving ? 'animate-pulse' : ''" aria-hidden="true" />
+            </div>
+            <p class="text-sm font-medium text-slate-700">{{ saving ? 'Mengimpor data…' : 'Klik atau seret file Excel ke sini' }}</p>
+            <p class="mt-1 text-xs text-slate-400">Mendukung .xlsx dan .xls</p>
+          </div>
         </div>
       </div>
-      <div class="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 p-4">
-        <button class="btn-secondary" @click="showHistoryModal = false">Tutup</button>
+      <template #footer>
+        <AppButton variant="secondary" @click="showImportModal = false">Tutup</AppButton>
+      </template>
+    </AppModal>
+
+    <!-- Riwayat peminjaman -->
+    <AppModal v-model="showHistoryModal" :title="`Riwayat: ${selectedHistoryBookTitle}`" max-width="max-w-3xl">
+      <div v-if="loadingHistory" class="py-10 text-center">
+        <AppSkeleton type="table" :rows="3" />
       </div>
-    </BaseModal>
+      <AppEmptyState
+        v-else-if="!selectedBookHistory.length"
+        title="Belum pernah dipinjam"
+        description="Buku ini belum memiliki riwayat peminjaman."
+        :icon="Book"
+      />
+      <div v-else class="table-scroll rounded-xl border border-slate-100">
+        <table class="table whitespace-nowrap">
+          <thead>
+            <tr>
+              <th class="!text-center">No</th>
+              <th>Peminjam</th>
+              <th class="!text-center">Tgl Pinjam</th>
+              <th class="!text-center">Tenggat</th>
+              <th class="!text-center">Tgl Kembali</th>
+              <th class="!text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(h, idx) in paginatedBookHistory" :key="h.id">
+              <td class="!text-center text-slate-400">{{ (historyCurrentPage - 1) * historyItemsPerPage + idx + 1 }}</td>
+              <td>
+                <p class="cell-main">{{ h.students?.nama || h.student_nisn }}</p>
+                <p class="cell-sub">Kelas {{ h.students?.kelas || '–' }}</p>
+              </td>
+              <td class="!text-center">{{ formatDateID(h.tanggal_pinjam) }}</td>
+              <td class="!text-center">{{ formatDateID(h.tanggal_kembali_seharusnya) }}</td>
+              <td class="!text-center">{{ h.tanggal_kembali_aktual ? formatDateID(h.tanggal_kembali_aktual) : '–' }}</td>
+              <td class="!text-center">
+                <AppBadge :label="h.status" :tone="historyStatusTone[h.status] || 'neutral'" dot />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="selectedBookHistory.length > historyItemsPerPage" class="border-t border-slate-100">
+          <AppPagination v-model="historyCurrentPage" :total-items="selectedBookHistory.length" :items-per-page="historyItemsPerPage" />
+        </div>
+      </div>
+      <template #footer>
+        <AppButton variant="secondary" @click="showHistoryModal = false">Tutup</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

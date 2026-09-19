@@ -1,28 +1,30 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Users, UserCheck, UserX, CalendarDays } from 'lucide-vue-next'
+import {
+  Users, UserCheck, CalendarX2, TriangleAlert, FileSpreadsheet,
+  ClipboardCheck, CalendarDays, ArrowRight, CircleAlert, PartyPopper,
+} from 'lucide-vue-next'
 import { Doughnut, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
+  ArcElement, Tooltip, Legend, CategoryScale, LinearScale,
+  PointElement, LineElement, Filler,
 } from 'chart.js'
-import PageHeader from '@/components/PageHeader.vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-import { todayISO, daysInMonth, dayNumber, namaBulan, isWeekend } from '@/lib/dates'
+import { todayISO, daysInMonth, dayNumber, namaBulan, isWeekend, formatTanggalPanjang } from '@/lib/dates'
+import { CHART_COLORS } from '@/config/designSystem'
+import {
+  AppPageHeader, AppStatCard, AppCard, AppTabs, AppAlert,
+  AppSkeleton, AppBadge, AppButton,
+} from '@/components/ui'
 
-ChartJS.register(
-  ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler
-)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
+ChartJS.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif'
+ChartJS.defaults.font.size = 11
+ChartJS.defaults.color = '#64748b'
 
 const auth = useAuthStore()
 const loading = ref(true)
@@ -38,6 +40,8 @@ const counts = ref({ Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 })
 const totalSiswa = ref(0)
 const monthly = ref([])
 const absentStudents = ref({ Izin: [], Sakit: [], Alfa: [] })
+const unsubmittedClasses = ref([])
+const submittedCount = ref(0)
 const trendMode = ref('monthly')
 let channel = null
 
@@ -45,23 +49,49 @@ const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
 const selectedTab = ref('')
 
-// Guru hanya melihat kelasnya; Admin melihat semua, difilter via tab.
 const kelasFilter = computed(() => (auth.isAdmin ? (selectedTab.value || null) : auth.kelas))
+const kelasTabs = computed(() => [
+  { value: '', label: 'Semua Kelas' },
+  ...daftarKelas.value.map((k) => ({ value: k, label: `Kelas ${k}` })),
+])
 
-const totalHadir = computed(() => counts.value.Hadir)
-const totalTidakHadir = computed(
-  () => counts.value.Izin + counts.value.Sakit + counts.value.Alfa
+const totalTidakHadir = computed(() => counts.value.Izin + counts.value.Sakit + counts.value.Alfa)
+const totalAbsenNames = computed(() =>
+  absentStudents.value.Izin.length + absentStudents.value.Sakit.length + absentStudents.value.Alfa.length
 )
 const isHariLibur = ref(false)
 const isBelumAbsen = ref(false)
 
+const attendanceRate = computed(() => {
+  const total = counts.value.Hadir + totalTidakHadir.value
+  if (total === 0) return null
+  return Math.round((counts.value.Hadir / total) * 100)
+})
+
+const quickActions = computed(() => {
+  const actions = [
+    { label: 'Input Presensi', desc: 'Catat kehadiran', icon: ClipboardCheck, to: { name: 'presensi' } },
+    { label: 'Rekap Bulanan', desc: 'Lihat & unduh', icon: FileSpreadsheet, to: { name: 'rekap' } },
+  ]
+  if (auth.isAdmin) {
+    actions.push(
+      { label: 'Data Siswa', desc: 'Kelola siswa', icon: Users, to: { name: 'siswa' } },
+      { label: 'Kalender', desc: 'Hari efektif', icon: CalendarDays, to: { name: 'kalender' } },
+    )
+  } else {
+    actions.push(
+      { label: 'Statistik', desc: 'Kehadiran kelas', icon: TriangleAlert, to: { name: 'statistik' } },
+      { label: 'Kalender', desc: 'Hari efektif', icon: CalendarDays, to: { name: 'rekap' } },
+    )
+  }
+  return actions
+})
+
+// ---- Data fetching (business logic preserved) ----
 async function fetchTotalSiswa() {
   let q = supabase.from('students').select('id', { count: 'exact', head: true }).eq('active', true)
-  if (kelasFilter.value) {
-    q = q.eq('kelas', kelasFilter.value)
-  } else if (auth.isAdmin && daftarKelas.value.length > 0) {
-    q = q.in('kelas', daftarKelas.value)
-  }
+  if (kelasFilter.value) q = q.eq('kelas', kelasFilter.value)
+  else if (auth.isAdmin && daftarKelas.value.length > 0) q = q.in('kelas', daftarKelas.value)
   const { count } = await q
   totalSiswa.value = count || 0
 }
@@ -70,6 +100,8 @@ async function fetchToday() {
   const { data: kal } = await supabase.from('academic_calendar').select('status').eq('date', today).maybeSingle()
   isHariLibur.value = kal?.status === 'Libur' || (!kal && isWeekend(today))
   isBelumAbsen.value = false
+  unsubmittedClasses.value = []
+  submittedCount.value = 0
 
   if (isHariLibur.value) {
     counts.value = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
@@ -79,19 +111,22 @@ async function fetchToday() {
 
   const [{ data: acts }, { data: attLogs }] = await Promise.all([
     supabase.from('activity_logs').select('record_id').eq('aksi', 'input_presensi').like('record_id', `${today}:%`),
-    supabase.from('attendance_logs').select('kelas').eq('date', today)
+    supabase.from('attendance_logs').select('kelas').eq('date', today),
   ])
-  
+
   const subSet = new Set()
   for (const a of acts || []) subSet.add(a.record_id.split(':')[1])
   for (const l of attLogs || []) subSet.add(l.kelas)
-  
+
   let classesSub = Array.from(subSet)
-  if (kelasFilter.value) {
-    classesSub = classesSub.filter(c => c === kelasFilter.value)
-  } else if (auth.isAdmin && daftarKelas.value.length > 0) {
-    classesSub = classesSub.filter(c => daftarKelas.value.includes(c))
+  if (kelasFilter.value) classesSub = classesSub.filter((c) => c === kelasFilter.value)
+  else if (auth.isAdmin && daftarKelas.value.length > 0) classesSub = classesSub.filter((c) => daftarKelas.value.includes(c))
+
+  // Attention data: which classes haven't submitted yet (admin overview)
+  if (auth.isAdmin && !kelasFilter.value && daftarKelas.value.length > 0) {
+    unsubmittedClasses.value = daftarKelas.value.filter((k) => !classesSub.includes(k))
   }
+  submittedCount.value = classesSub.length
 
   if (classesSub.length === 0) {
     counts.value = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
@@ -100,26 +135,23 @@ async function fetchToday() {
     return
   }
 
-  let qSiswa = supabase.from('students').select('id', { count: 'exact', head: true }).eq('active', true).in('kelas', classesSub)
+  const qSiswa = supabase.from('students').select('id', { count: 'exact', head: true }).eq('active', true).in('kelas', classesSub)
   const { count: submittedSiswaCount } = await qSiswa
 
-  let q = supabase.from('attendance_logs').select('status, students(nama, kelas)').eq('date', today).in('kelas', classesSub)
+  const q = supabase.from('attendance_logs').select('status, students(nama, kelas)').eq('date', today).in('kelas', classesSub)
   const { data } = await q
   const c = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
   const absents = { Izin: [], Sakit: [], Alfa: [] }
   for (const row of data || []) {
     if (row.status !== 'Hadir') {
       c[row.status] = (c[row.status] || 0) + 1
-      if (absents[row.status] && row.students) {
-        absents[row.status].push(row.students)
-      }
+      if (absents[row.status] && row.students) absents[row.status].push(row.students)
     }
   }
-  
   absents.Izin.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''))
   absents.Sakit.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''))
   absents.Alfa.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''))
-  
+
   c.Hadir = (submittedSiswaCount || 0) - c.Izin - c.Sakit - c.Alfa
   counts.value = c
   absentStudents.value = absents
@@ -129,7 +161,7 @@ async function fetchTrend() {
   let startDate = ''
   let endDate = ''
   let dateList = []
-  
+
   if (trendMode.value === 'daily') {
     const d = new Date(today)
     d.setDate(d.getDate() - 6)
@@ -147,17 +179,17 @@ async function fetchTrend() {
   } else if (trendMode.value === 'yearly') {
     startDate = `${year.value}-01-01`
     endDate = `${year.value}-12-31`
-    dateList = Array.from({length: 12}, (_, i) => i + 1)
+    dateList = Array.from({ length: 12 }, (_, i) => i + 1)
   }
-  
+
   const [{ data: kal }, { data: acts }] = await Promise.all([
     supabase.from('academic_calendar').select('date').gte('date', startDate).lte('date', endDate).eq('status', 'Libur'),
-    supabase.from('activity_logs').select('record_id').eq('aksi', 'input_presensi').gte('record_id', startDate).lte('record_id', endDate + '~')
+    supabase.from('activity_logs').select('record_id').eq('aksi', 'input_presensi').gte('record_id', startDate).lte('record_id', endDate + '~'),
   ])
 
-  const liburSet = new Set((kal||[]).map(k=>k.date))
+  const liburSet = new Set((kal || []).map((k) => k.date))
   if (trendMode.value !== 'yearly') {
-    for(const d of dateList) if(isWeekend(d)) liburSet.add(d)
+    for (const d of dateList) if (isWeekend(d)) liburSet.add(d)
   }
 
   const submittedMap = {}
@@ -167,44 +199,34 @@ async function fetchTrend() {
     submittedMap[d].add(k)
   }
 
-  let q = supabase
-    .from('attendance_logs')
-    .select('date, kelas, status')
-    .gte('date', startDate)
-    .lte('date', endDate)
+  let q = supabase.from('attendance_logs').select('date, kelas, status').gte('date', startDate).lte('date', endDate)
   if (kelasFilter.value) q = q.eq('kelas', kelasFilter.value)
   const { data } = await q
-  
+
   const exceptionsPerDay = {}
   for (const row of data || []) {
     if (!submittedMap[row.date]) submittedMap[row.date] = new Set()
     submittedMap[row.date].add(row.kelas)
-    if (row.status !== 'Hadir') {
-      exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
-    }
+    if (row.status !== 'Hadir') exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
   }
-  
+
   if (trendMode.value === 'yearly') {
     monthly.value = dateList.map((m) => {
       const mStr = String(m).padStart(2, '0')
       const prefix = `${year.value}-${mStr}`
       let daysWithSubmissions = 0
       let totalHadirMonth = 0
-      
       for (let i = 1; i <= 31; i++) {
         const d = `${prefix}-${String(i).padStart(2, '0')}`
         if (d > today) continue
-        
         let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
-        if (kelasFilter.value) kSub = kSub.filter(c => c === kelasFilter.value)
-        else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter(c => daftarKelas.value.includes(c))
-        
+        if (kelasFilter.value) kSub = kSub.filter((c) => c === kelasFilter.value)
+        else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter((c) => daftarKelas.value.includes(c))
         if (kSub.length > 0) {
           daysWithSubmissions++
-          totalHadirMonth += (totalSiswa.value - (exceptionsPerDay[d] || 0))
+          totalHadirMonth += totalSiswa.value - (exceptionsPerDay[d] || 0)
         }
       }
-      
       const avgHadir = daysWithSubmissions > 0 ? Math.round(totalHadirMonth / daysWithSubmissions) : null
       return { day: namaBulan(m).substring(0, 3), hadir: avgHadir }
     })
@@ -213,13 +235,10 @@ async function fetchTrend() {
       const displayDay = trendMode.value === 'daily' ? `${d.substring(8, 10)}/${d.substring(5, 7)}` : dayNumber(d)
       if (d > today) return { day: displayDay, hadir: null }
       if (liburSet.has(d)) return { day: displayDay, hadir: 0 }
-      
       let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
-      if (kelasFilter.value) kSub = kSub.filter(c => c === kelasFilter.value)
-      else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter(c => daftarKelas.value.includes(c))
-      
+      if (kelasFilter.value) kSub = kSub.filter((c) => c === kelasFilter.value)
+      else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter((c) => daftarKelas.value.includes(c))
       if (kSub.length === 0) return { day: displayDay, hadir: null }
-      
       return { day: displayDay, hadir: totalSiswa.value - (exceptionsPerDay[d] || 0) }
     })
   }
@@ -228,7 +247,6 @@ async function fetchTrend() {
 async function loadAll() {
   loading.value = true
   try {
-    // Selalu ambil pengaturan terbaru dari server secara paksa (bypass cache) agar sinkron otomatis
     await settingsStore.fetchSettings(true)
     await Promise.all([fetchTotalSiswa(), fetchToday(), fetchTrend()])
   } finally {
@@ -242,20 +260,10 @@ onMounted(async () => {
     fetchToday()
     fetchTrend()
   }, 1000)
-
-  // Gunakan nama channel yang unik untuk mencegah error HMR (Hot-Reload)
   const channelName = `dashboard-attendance-${Date.now()}`
-  
-  // Realtime hanya di Dashboard.
   channel = supabase
     .channel(channelName)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'attendance_logs' },
-      () => {
-        debouncedRefresh()
-      }
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => debouncedRefresh())
     .subscribe()
 })
 
@@ -265,181 +273,246 @@ onUnmounted(() => {
 
 watch(selectedTab, loadAll)
 
+// ---- Charts ----
 const doughnutData = computed(() => ({
   labels: ['Hadir', 'Izin', 'Sakit', 'Alfa'],
-  datasets: [
-    {
-      data: [counts.value.Hadir, counts.value.Izin, counts.value.Sakit, counts.value.Alfa],
-      backgroundColor: ['#059669', '#0ea5e9', '#f59e0b', '#f43f5e'],
-      borderWidth: 0,
-    },
-  ],
+  datasets: [{
+    data: [counts.value.Hadir, counts.value.Izin, counts.value.Sakit, counts.value.Alfa],
+    backgroundColor: [CHART_COLORS.hadir, CHART_COLORS.izin, CHART_COLORS.sakit, CHART_COLORS.alfa],
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    hoverOffset: 4,
+  }],
 }))
-
 const doughnutOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { position: 'bottom' } },
-  cutout: '62%',
+  cutout: '68%',
+  plugins: {
+    legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, borderRadius: 5, useBorderRadius: true, padding: 14 } },
+    tooltip: { padding: 10, cornerRadius: 8 },
+  },
 }
-
 const lineData = computed(() => ({
   labels: monthly.value.map((d) => d.day),
-  datasets: [
-    {
-      label: 'Hadir',
-      data: monthly.value.map((d) => d.hadir),
-      borderColor: '#064e3b',
-      backgroundColor: 'rgba(6,78,59,0.12)',
-      fill: true,
-      tension: 0.35,
-      pointRadius: 2,
-      spanGaps: false,
-    },
-  ],
+  datasets: [{
+    label: 'Hadir',
+    data: monthly.value.map((d) => d.hadir),
+    borderColor: CHART_COLORS.line,
+    backgroundColor: CHART_COLORS.lineFill,
+    fill: true,
+    tension: 0.35,
+    pointRadius: 2.5,
+    pointBackgroundColor: CHART_COLORS.line,
+    borderWidth: 2,
+    spanGaps: false,
+  }],
 }))
-
 const lineOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { display: false } },
-  scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+  plugins: { legend: { display: false }, tooltip: { padding: 10, cornerRadius: 8 } },
+  scales: {
+    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+    x: { grid: { display: false } },
+  },
 }
-
 const trendTitle = computed(() => {
-  if (trendMode.value === 'daily') return 'Tren Kehadiran — 7 Hari Terakhir'
-  if (trendMode.value === 'monthly') return `Tren Kehadiran — ${namaBulan(month.value)} ${year.value}`
-  return `Tren Kehadiran — Tahun ${year.value}`
+  if (trendMode.value === 'daily') return '7 hari terakhir'
+  if (trendMode.value === 'monthly') return `${namaBulan(month.value)} ${year.value}`
+  return `Tahun ${year.value}`
+})
+const trendModes = [
+  { value: 'daily', label: '7 Hari' },
+  { value: 'monthly', label: 'Bulanan' },
+  { value: 'yearly', label: 'Tahunan' },
+]
+
+const overviewStats = computed(() => {
+  const dash = isHariLibur.value || isBelumAbsen.value
+  return [
+    { label: 'Total Siswa', value: totalSiswa.value, icon: Users, tone: 'primary', sub: kelasFilter.value ? `Kelas ${kelasFilter.value}` : `${daftarKelas.value.length} kelas` },
+    { label: 'Hadir', value: dash ? '—' : counts.value.Hadir, icon: UserCheck, tone: 'success', sub: attendanceRate.value != null && !dash ? `${attendanceRate.value}% kehadiran` : 'Hari ini' },
+    { label: 'Izin', value: dash ? '—' : counts.value.Izin, icon: CalendarX2, tone: 'info', sub: 'Hari ini' },
+    { label: 'Sakit', value: dash ? '—' : counts.value.Sakit, icon: CircleAlert, tone: 'warning', sub: 'Hari ini' },
+    { label: 'Alfa', value: dash ? '—' : counts.value.Alfa, icon: TriangleAlert, tone: 'danger', sub: 'Hari ini' },
+  ]
 })
 
-const stats = computed(() => [
-  { label: 'Total Siswa', value: totalSiswa.value, icon: Users, color: 'bg-primary' },
-  { label: 'Hadir Hari Ini', value: isHariLibur.value ? '-' : (isBelumAbsen.value ? 'Belum Absen' : totalHadir.value), icon: UserCheck, color: 'bg-emerald-600' },
-  { label: 'Tidak Hadir', value: isHariLibur.value ? '-' : (isBelumAbsen.value ? '-' : totalTidakHadir.value), icon: UserX, color: 'bg-rose-500' },
-  { label: 'Status Hari Ini', value: isHariLibur.value ? 'Libur' : (isBelumAbsen.value ? 'Menunggu' : 'Aktif'), icon: CalendarDays, color: 'bg-gold' },
-])
+const hasAttention = computed(() =>
+  !isHariLibur.value && (unsubmittedClasses.value.length > 0 || counts.value.Alfa > 0 || isBelumAbsen.value)
+)
 </script>
 
 <template>
-  <div>
-    <PageHeader
-      title="Dashboard"
-      :subtitle="auth.isAdmin ? (selectedTab ? `Ringkasan kehadiran kelas ${selectedTab}` : 'Ringkasan kehadiran seluruh kelas') : `Ringkasan kehadiran kelas ${auth.kelas || '-'}`"
+  <div class="page-stack">
+    <AppPageHeader
+      title="Dashboard Presensi"
+      :subtitle="`${formatTanggalPanjang(today)}${auth.isAdmin ? (selectedTab ? ` · Kelas ${selectedTab}` : ' · Semua kelas') : ` · Kelas ${auth.kelas || '-'}`}`"
+    >
+      <template #actions>
+        <AppButton :to="{ name: 'presensi' }">
+          <template #icon><ClipboardCheck class="h-4 w-4" aria-hidden="true" /></template>
+          Input Presensi
+        </AppButton>
+      </template>
+    </AppPageHeader>
+
+    <!-- Class filter (admin) -->
+    <AppTabs
+      v-if="auth.isAdmin && daftarKelas.length > 0"
+      v-model="selectedTab"
+      :options="kelasTabs"
+      ariaLabel="Filter kelas"
     />
 
-    <!-- Filter Tab Kelas (Admin Only) -->
-    <div v-if="auth.isAdmin" class="mb-4 flex flex-wrap gap-2">
-      <button 
-        class="rounded-xl px-4 py-2 text-sm font-medium transition"
-        :class="selectedTab === '' ? 'bg-primary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
-        @click="selectedTab = ''"
-      >
-        Semua Kelas
-      </button>
-      <button 
-        v-for="k in daftarKelas" :key="k"
-        class="rounded-xl px-4 py-2 text-sm font-medium transition"
-        :class="selectedTab === k ? 'bg-primary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
-        @click="selectedTab = k"
-      >
-        Kelas {{ k }}
-      </button>
-    </div>
+    <!-- Loading -->
+    <AppSkeleton v-if="loading" type="stat" />
+    <AppSkeleton v-if="loading" type="line" />
 
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-      <div v-for="s in stats" :key="s.label" class="card flex items-center gap-3">
-        <div :class="['flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white', s.color]">
-          <component :is="s.icon" class="h-5 w-5" />
-        </div>
-        <div class="min-w-0">
-          <p class="truncate text-xs text-gray-500">{{ s.label }}</p>
-          <p class="text-lg font-bold text-gray-800">{{ s.value }}</p>
-        </div>
-      </div>
-    </div>
+    <template v-else>
+      <!-- Holiday / not-submitted banner -->
+      <AppAlert v-if="isHariLibur" tone="neutral" title="Hari libur">
+        Hari ini tidak ada kegiatan presensi sesuai kalender akademik.
+      </AppAlert>
+      <AppAlert v-else-if="isBelumAbsen" tone="warning" title="Belum ada presensi hari ini">
+        {{ kelasFilter ? `Kelas ${kelasFilter} belum mengisi presensi hari ini.` : 'Belum ada kelas yang mengisi presensi hari ini.' }}
+        Segera isi agar rekap tetap akurat.
+        <template #action>
+          <AppButton size="sm" :to="{ name: 'presensi' }">Isi Sekarang</AppButton>
+        </template>
+      </AppAlert>
 
-    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div class="card lg:col-span-1">
-        <h3 class="mb-3 text-sm font-semibold text-gray-700">Komposisi Hari Ini</h3>
-        <div class="relative h-64">
-          <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
-          <p v-else-if="isHariLibur" class="flex h-full items-center justify-center text-sm text-gray-400">
-            Hari ini Libur
-          </p>
-          <p v-else-if="isBelumAbsen" class="flex h-full items-center justify-center text-sm font-medium text-rose-500">
-            Belum Diabsen
-          </p>
-          <p v-else class="flex h-full items-center justify-center text-sm text-gray-400">
-            Belum ada data siswa
-          </p>
+      <!-- 1. Attendance overview -->
+      <section aria-label="Ringkasan kehadiran hari ini">
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-5">
+          <AppStatCard
+            v-for="s in overviewStats"
+            :key="s.label"
+            :label="s.label"
+            :value="s.value"
+            :icon="s.icon"
+            :tone="s.tone"
+            :sub="s.sub"
+          />
         </div>
+      </section>
 
-        <div v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0 && (absentStudents.Izin.length > 0 || absentStudents.Sakit.length > 0 || absentStudents.Alfa.length > 0)" class="mt-6 border-t border-gray-100 pt-4">
-          <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tidak Hadir ({{ absentStudents.Izin.length + absentStudents.Sakit.length + absentStudents.Alfa.length }})</h4>
-          
-          <div class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-            <div v-if="absentStudents.Izin.length > 0">
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-[#0ea5e9]"></span>
-                <span class="text-xs font-medium text-gray-700">Izin ({{ absentStudents.Izin.length }})</span>
-              </div>
-              <ul class="ml-4 space-y-1">
-                <li v-for="s in absentStudents.Izin" :key="s.nama" class="text-xs text-gray-600">
-                  {{ s.nama }} <span v-if="!selectedTab" class="text-gray-400">({{ s.kelas }})</span>
-                </li>
-              </ul>
+      <!-- 2. Quick actions -->
+      <section aria-label="Aksi cepat">
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+          <RouterLink
+            v-for="a in quickActions"
+            :key="a.label"
+            :to="a.to"
+            class="card-flat card-interactive group flex items-center gap-3 p-3.5"
+          >
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-primary-700 group-hover:text-white">
+              <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
             </div>
-            
-            <div v-if="absentStudents.Sakit.length > 0">
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
-                <span class="text-xs font-medium text-gray-700">Sakit ({{ absentStudents.Sakit.length }})</span>
-              </div>
-              <ul class="ml-4 space-y-1">
-                <li v-for="s in absentStudents.Sakit" :key="s.nama" class="text-xs text-gray-600">
-                  {{ s.nama }} <span v-if="!selectedTab" class="text-gray-400">({{ s.kelas }})</span>
-                </li>
-              </ul>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-[13.5px] font-semibold text-slate-800">{{ a.label }}</p>
+              <p class="truncate text-xs text-slate-400">{{ a.desc }}</p>
             </div>
-            
-            <div v-if="absentStudents.Alfa.length > 0">
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-[#f43f5e]"></span>
-                <span class="text-xs font-medium text-gray-700">Alfa ({{ absentStudents.Alfa.length }})</span>
-              </div>
-              <ul class="ml-4 space-y-1">
-                <li v-for="s in absentStudents.Alfa" :key="s.nama" class="text-xs text-gray-600">
-                  {{ s.nama }} <span v-if="!selectedTab" class="text-gray-400">({{ s.kelas }})</span>
-                </li>
-              </ul>
+            <ArrowRight class="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-600" aria-hidden="true" />
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- 3. Attention required -->
+      <AppCard
+        v-if="hasAttention"
+        title="Perlu Perhatian"
+        subtitle="Tindak lanjut agar data presensi hari ini lengkap"
+      >
+        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-if="unsubmittedClasses.length > 0" class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <div class="flex items-center gap-2">
+              <CircleAlert class="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <p class="text-[13px] font-semibold text-amber-800">Belum presensi · {{ unsubmittedClasses.length }} kelas</p>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span v-for="k in unsubmittedClasses.slice(0, 8)" :key="k" class="badge-warning !text-[11px]">{{ k }}</span>
+              <span v-if="unsubmittedClasses.length > 8" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 8 }} lagi</span>
+            </div>
+          </div>
+          <div v-if="counts.Alfa > 0" class="rounded-lg border border-rose-200 bg-rose-50/60 p-3">
+            <div class="flex items-center gap-2">
+              <TriangleAlert class="h-4 w-4 text-rose-600" aria-hidden="true" />
+              <p class="text-[13px] font-semibold text-rose-800">Alfa hari ini · {{ counts.Alfa }} siswa</p>
+            </div>
+            <p class="mt-1.5 truncate text-xs text-rose-600">
+              {{ absentStudents.Alfa.slice(0, 3).map((s) => s.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}
+            </p>
+          </div>
+          <div v-if="isBelumAbsen && kelasFilter" class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <div class="flex items-center gap-2">
+              <ClipboardCheck class="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <p class="text-[13px] font-semibold text-amber-800">Kelas {{ kelasFilter }} belum diabsen</p>
+            </div>
+            <AppButton size="sm" class="mt-2" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
+          </div>
+          <div v-if="!isBelumAbsen && submittedCount > 0 && unsubmittedClasses.length === 0 && counts.Alfa === 0" class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 sm:col-span-2 lg:col-span-3">
+            <div class="flex items-center gap-2">
+              <PartyPopper class="h-4 w-4 text-emerald-600" aria-hidden="true" />
+              <p class="text-[13px] font-semibold text-emerald-800">Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!</p>
             </div>
           </div>
         </div>
-      </div>
+      </AppCard>
 
-      <div class="card lg:col-span-2">
-        <div class="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-gray-700">
-            {{ trendTitle }}
-          </h3>
-          <div class="flex items-center gap-2">
-            <select v-model="trendMode" class="input-field py-1 text-xs" @change="fetchTrend">
-              <option value="daily">7 Hari</option>
-              <option value="monthly">Bulanan</option>
-              <option value="yearly">Tahunan</option>
-            </select>
-            <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field py-1 text-xs" @change="fetchTrend">
+      <!-- 4 & 5. Trend + composition -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <AppCard class="lg:col-span-2" title="Tren Kehadiran" :subtitle="trendTitle">
+          <template #actions>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <AppTabs v-model="trendMode" :options="trendModes" ariaLabel="Mode tren" @update:model-value="fetchTrend" />
+            </div>
+          </template>
+          <div class="mb-2 flex flex-wrap items-center gap-1.5">
+            <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan" @change="fetchTrend">
               <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
             </select>
-            <select v-if="trendMode !== 'daily'" v-model.number="year" class="input-field py-1 text-xs" @change="fetchTrend">
+            <select v-if="trendMode !== 'daily'" v-model.number="year" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun" @change="fetchTrend">
               <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
             </select>
           </div>
-        </div>
-        <div class="h-64">
-          <Line :data="lineData" :options="lineOptions" />
-        </div>
+          <div class="h-60 sm:h-64" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+            <Line :data="lineData" :options="lineOptions" />
+          </div>
+        </AppCard>
+
+        <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
+          <div class="relative h-52">
+            <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
+            <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
+              <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
+              <ClipboardCheck v-else class="h-8 w-8 text-slate-200" aria-hidden="true" />
+              <p class="text-sm text-slate-400">{{ isHariLibur ? 'Hari ini libur' : isBelumAbsen ? 'Belum ada data presensi' : 'Belum ada data siswa' }}</p>
+            </div>
+          </div>
+
+          <div v-if="!isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-4 border-t border-slate-100 pt-3">
+            <p class="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Tidak hadir ({{ totalAbsenNames }})
+            </p>
+            <div class="max-h-56 space-y-3 overflow-y-auto pr-1">
+              <div v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
+                <template v-if="absentStudents[key].length > 0">
+                  <div class="mb-1 flex items-center gap-1.5">
+                    <AppBadge :label="`${key} (${absentStudents[key].length})`" :tone="key === 'Izin' ? 'info' : key === 'Sakit' ? 'warning' : 'danger'" dot />
+                  </div>
+                  <ul class="space-y-0.5">
+                    <li v-for="s in absentStudents[key]" :key="s.nama + s.kelas" class="truncate text-[13px] text-slate-600">
+                      {{ s.nama }} <span v-if="!kelasFilter" class="text-slate-400">· {{ s.kelas }}</span>
+                    </li>
+                  </ul>
+                </template>
+              </div>
+            </div>
+          </div>
+        </AppCard>
       </div>
-    </div>
+    </template>
   </div>
 </template>
