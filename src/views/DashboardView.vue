@@ -4,6 +4,7 @@ import { useDebounceFn } from '@vueuse/core'
 import {
   Users, UserCheck, CalendarX2, TriangleAlert, FileSpreadsheet,
   ClipboardCheck, CalendarDays, ArrowRight, CircleAlert, PartyPopper,
+  Loader2,
 } from 'lucide-vue-next'
 import { Doughnut, Line } from 'vue-chartjs'
 import {
@@ -27,7 +28,8 @@ ChartJS.defaults.font.size = 11
 ChartJS.defaults.color = '#64748b'
 
 const auth = useAuthStore()
-const loading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
 const today = todayISO()
 const now = new Date()
 const year = ref(now.getFullYear())
@@ -256,18 +258,23 @@ async function fetchTrend() {
   }
 }
 
-async function loadAll() {
-  loading.value = true
+async function loadAll({ initial = false } = {}) {
+  // Initial load → full skeleton; filter change → light refresh indicator.
+  if (initial) initialLoading.value = true
+  else refreshing.value = true
   try {
-    await settingsStore.fetchSettings(true)
+    // Settings are global (not class-dependent): refetch only on initial
+    // load, or if missing. Class-filter changes reuse cached settings.
+    if (initial || !settingsStore.settings) await settingsStore.fetchSettings(true)
     await Promise.all([fetchTotalSiswa(), fetchToday(), fetchTrend()])
   } finally {
-    loading.value = false
+    if (initial) initialLoading.value = false
+    else refreshing.value = false
   }
 }
 
 onMounted(async () => {
-  await loadAll()
+  await loadAll({ initial: true })
   const debouncedRefresh = useDebounceFn(() => {
     fetchToday()
     fetchTrend()
@@ -283,7 +290,7 @@ onUnmounted(() => {
   if (channel) supabase.removeChannel(channel)
 })
 
-watch(selectedTab, loadAll)
+watch(selectedTab, () => loadAll())
 
 // ---- Charts ----
 const doughnutData = computed(() => ({
@@ -363,6 +370,10 @@ const hasAttention = computed(() =>
       :subtitle="`${formatTanggalPanjang(today)}${auth.isAdmin ? (selectedTab ? ` · Kelas ${selectedTab}` : ' · Semua kelas') : ` · Kelas ${auth.kelas || '-'}`}`"
     >
       <template #actions>
+        <span v-if="refreshing" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400" role="status">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          Memperbarui…
+        </span>
         <AppButton :to="{ name: 'presensi' }">
           <template #icon><ClipboardCheck class="h-4 w-4" aria-hidden="true" /></template>
           Input Presensi
@@ -378,9 +389,11 @@ const hasAttention = computed(() =>
       ariaLabel="Filter kelas"
     />
 
-    <!-- Loading -->
-    <AppSkeleton v-if="loading" type="stat" />
-    <AppSkeleton v-if="loading" type="line" />
+    <!-- Initial loading only; refresh keeps dashboard visible -->
+    <div v-if="initialLoading" aria-live="polite" aria-busy="true">
+      <AppSkeleton type="stat" />
+      <AppSkeleton type="line" />
+    </div>
 
     <template v-else>
       <!-- Holiday / not-submitted banner -->
