@@ -5,6 +5,16 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Konten tertutup bottom navigation (root cause global):** `sm:p-5` menimpa padding bawah konten pada rentang 640–1023px sementara bottom-nav baru tersembunyi di ≥1024px — konten terakhir (mis. baris terakhir Rekap) tertutup nav. Kini padding bawah konten = `calc(61px + env(safe-area-inset-bottom) + 16px)` di satu titik global (`AppLayout`), mencakup inset iOS/gesture navigation. Sticky save bar Input Presensi turut disesuaikan offset-nya.
+
+### Diubah (Changed)
+- **Dashboard presensi (density final):** KPI bar min. 60px, pill aksi cepat 48px (touch ≥44px), donut 140–170px dengan daftar "Tidak Hadir" yang readable (nama wrap, tidak truncate, scroll internal), grafik tren 200–240px desktop, jarak antar-section 10–12px. Urutan section sesuai standar: header → filter kelas → strip status → stats → quick actions → trend+komposisi (2/3 : 1/3).
+- **Dashboard perpustakaan:** layout baru — Trend (2/3) + Kunjungan (1/3) sejajar, **Peminjaman Terakhir full width** (tetap 5 transaksi, list 2 kolom dengan scroll internal), KPI 60px, pill 48px, grafik 200–240px.
+- **Sidebar:** tinggi item menu 34px (dari ±37px), jarak antar-grup lebih rapat — seluruh menu dipertahankan.
+
 ## [0.2.7] - 2026-09-21
 
 ### Ditambahkan (Added)

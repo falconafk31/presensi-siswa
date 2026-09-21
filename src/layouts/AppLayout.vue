@@ -161,7 +161,7 @@ const isActive = (name) => route.name === name
         <template v-for="(item, idx) in visibleNav" :key="idx">
           <p
             v-if="item.isHeader"
-            class="mb-1.5 mt-4 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 first:mt-0"
+            class="mb-1.5 mt-3 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 first:mt-0"
             :class="isCollapsed && '!px-0'"
             aria-hidden="true"
           >
@@ -171,7 +171,7 @@ const isActive = (name) => route.name === name
           <RouterLink
             v-else
             :to="item.to"
-            class="group relative mb-0.5 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition-colors"
+            class="group relative mb-0.5 flex min-h-[34px] items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium transition-colors"
             :class="[
               isActive(item.to.name)
                 ? 'bg-primary-50 text-primary-800'
@@ -283,7 +283,7 @@ const isActive = (name) => route.name === name
       </header>
 
       <!-- Page content -->
-      <main class="p-4 pb-24 sm:p-5 lg:p-5 lg:pb-4">
+      <main class="p-4 pb-[calc(77px_+_env(safe-area-inset-bottom,0px))] sm:px-5 lg:p-5 lg:pb-4">
         <div class="page">
           <RouterView />
         </div>
@@ -291,7 +291,7 @@ const isActive = (name) => route.name === name
     </div>
 
     <!-- ============ Bottom navigation (mobile) ============ -->
-    <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/98 backdrop-blur-sm lg:hidden safe-area-pb" aria-label="Navigasi cepat">
+    <nav style="--nav-total: calc(61px + env(safe-area-inset-bottom, 0px))" class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/98 backdrop-blur-sm lg:hidden safe-area-pb" aria-label="Navigasi cepat">
       <div class="flex items-stretch">
         <RouterLink
           v-for="tab in bottomTabs"

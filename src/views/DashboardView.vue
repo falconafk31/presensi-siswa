@@ -361,7 +361,7 @@ const hasAttention = computed(() =>
 </script>
 
 <template>
-  <div class="page-stack">
+  <div class="flex flex-col gap-2.5 sm:gap-3">
     <AppPageHeader
       inline
       title="Dashboard Presensi"
@@ -426,7 +426,7 @@ const hasAttention = computed(() =>
       <!-- 1. Attendance overview: KPI bar satu kartu (ringkas, semua info tetap ada) -->
       <section aria-label="Ringkasan kehadiran hari ini">
         <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 sm:grid-cols-3 xl:grid-cols-5">
-          <div v-for="s in overviewStats" :key="s.label" class="flex items-center gap-2.5 bg-white px-3 py-2">
+          <div v-for="s in overviewStats" :key="s.label" class="flex min-h-[60px] items-center gap-2.5 bg-white px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP[s.tone]">
               <component :is="s.icon" class="h-4 w-4" aria-hidden="true" />
             </span>
@@ -446,7 +446,7 @@ const hasAttention = computed(() =>
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="group inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-[12.5px] font-medium text-slate-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800"
+            class="group inline-flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800"
           >
             <component :is="a.icon" class="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary-700" aria-hidden="true" />
             <span class="whitespace-nowrap">{{ a.label }}</span>
@@ -470,13 +470,13 @@ const hasAttention = computed(() =>
               </select>
             </div>
           </template>
-          <div class="h-[clamp(140px,24vh,220px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+          <div class="h-[clamp(170px,26vh,240px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>
         </AppCard>
 
         <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
-          <div class="relative h-[clamp(120px,20vh,180px)]">
+          <div class="relative h-[clamp(140px,22vh,170px)]">
             <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
               <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
@@ -489,13 +489,15 @@ const hasAttention = computed(() =>
             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>
-            <div class="flex max-h-14 flex-col gap-1 overflow-y-auto pr-1">
+            <div class="flex max-h-28 flex-col gap-2 overflow-y-auto pr-1">
               <template v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
-                <div v-if="absentStudents[key].length > 0" class="flex items-center gap-1.5 text-[12px] leading-snug">
-                  <AppBadge :label="`${key} ${absentStudents[key].length}`" :tone="key === 'Izin' ? 'info' : key === 'Sakit' ? 'warning' : 'danger'" dot />
-                  <span class="min-w-0 truncate text-slate-500">
-                    {{ absentStudents[key].map((st) => st.nama).join(', ') }}<span v-if="!kelasFilter"> · {{ absentStudents[key].map((st) => st.kelas).join(', ') }}</span>
-                  </span>
+                <div v-if="absentStudents[key].length > 0">
+                  <AppBadge :label="`${key} (${absentStudents[key].length})`" :tone="key === 'Izin' ? 'info' : key === 'Sakit' ? 'warning' : 'danger'" dot />
+                  <p class="mt-0.5 text-[12.5px] leading-snug text-slate-600">
+                    <template v-for="(st, i) in absentStudents[key]" :key="st.nama + st.kelas">
+                      {{ i > 0 ? ',' : '' }} {{ st.nama }}<span v-if="!kelasFilter" class="text-slate-400"> · {{ st.kelas }}</span>
+                    </template>
+                  </p>
                 </div>
               </template>
             </div>

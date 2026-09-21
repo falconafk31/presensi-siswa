@@ -251,7 +251,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-stack">
+  <div class="flex flex-col gap-2.5 sm:gap-3">
     <AppPageHeader
       inline
       title="Beranda Perpustakaan"
@@ -274,7 +274,7 @@ onMounted(() => {
       <!-- Library overview: KPI bar satu kartu -->
       <section aria-label="Ringkasan perpustakaan">
         <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 sm:grid-cols-4">
-          <div v-for="st in overviewStats" :key="st.label" class="flex items-center gap-2.5 bg-white px-3 py-2">
+          <div v-for="st in overviewStats" :key="st.label" class="flex min-h-[60px] items-center gap-2.5 bg-white px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP[st.tone]">
               <component :is="st.icon" class="h-4 w-4" aria-hidden="true" />
             </span>
@@ -294,7 +294,7 @@ onMounted(() => {
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="group inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-[12.5px] font-medium text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+            class="group inline-flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
           >
             <component :is="a.icon" class="h-4 w-4 text-slate-400 transition-colors group-hover:text-blue-700" aria-hidden="true" />
             <span class="whitespace-nowrap">{{ a.label }}</span>
@@ -303,8 +303,11 @@ onMounted(() => {
         </div>
       </section>
 
+
+      <div class="grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3">
+        <!-- Main: Trend (2/3) + Kunjungan (1/3) -->
       <!-- Trend -->
-      <AppCard title="Tren Kunjungan & Peminjaman" subtitle="Perbandingan antusiasme kunjungan dengan sirkulasi buku">
+      <AppCard class="lg:col-span-2" title="Tren Kunjungan & Peminjaman" subtitle="Perbandingan antusiasme kunjungan dengan sirkulasi buku">
         <template #actions>
           <!-- Mode + filter tanggal/bulan/tahun digabung di header kartu (hemat satu baris) -->
           <div class="flex flex-wrap items-center justify-end gap-1.5">
@@ -323,15 +326,13 @@ onMounted(() => {
             </select>
           </div>
         </template>
-        <div class="relative h-[clamp(104px,20vh,150px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
+        <div class="relative h-[clamp(150px,26vh,240px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
             <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />
           </div>
           <Line :data="mixedChartData" :options="chartOptions" />
         </div>
       </AppCard>
-
-      <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <!-- Visit stats -->
         <AppCard title="Kunjungan" subtitle="Akumulasi pengunjung">
           <div class="flex flex-col gap-1.5">
@@ -361,9 +362,11 @@ onMounted(() => {
             </div>
           </div>
         </AppCard>
+      </div>
 
-        <!-- Recent loans -->
-        <AppCard title="Peminjaman Terakhir" subtitle="5 transaksi terbaru" class="lg:col-span-2">
+
+      <!-- Secondary: Peminjaman Terakhir (full width, tetap 5 transaksi) -->
+      <AppCard title="Peminjaman Terakhir" subtitle="5 transaksi terbaru">
           <template #actions>
             <RouterLink :to="{ name: 'peminjaman' }" class="link text-[13px]">Lihat semua</RouterLink>
           </template>
@@ -373,7 +376,7 @@ onMounted(() => {
             description="Transaksi peminjaman akan muncul di sini."
             :icon="BookOpen"
           />
-          <ul v-else class="flex max-h-[clamp(56px,9vh,90px)] flex-col gap-1.5 overflow-y-auto pr-1">
+          <ul v-else class="grid max-h-[clamp(110px,15vh,190px)] gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
             <li
               v-for="l in recentLoans"
               :key="l.id"
@@ -397,7 +400,6 @@ onMounted(() => {
             </li>
           </ul>
         </AppCard>
-      </div>
     </template>
   </div>
 </template>

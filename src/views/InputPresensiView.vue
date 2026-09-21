@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
     <!-- Sticky save bar -->
     <div
       v-if="!hariLibur && students.length"
-      class="sticky bottom-[60px] z-10 -mx-4 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:rounded-xl lg:border lg:px-5 lg:shadow-card safe-area-pb"
+      class="sticky bottom-[calc(69px_+_env(safe-area-inset-bottom,0px))] z-10 -mx-4 mb-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-5 sm:px-5 lg:bottom-2 lg:mx-0 lg:mb-0 lg:rounded-xl lg:border lg:px-5 lg:shadow-card"
     >
       <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <p class="hidden text-[13px] text-slate-500 sm:block">
