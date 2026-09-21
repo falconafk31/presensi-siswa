@@ -78,7 +78,7 @@ const quickActions = computed(() => {
   } else {
     actions.push(
       { label: 'Statistik', desc: 'Kehadiran kelas', icon: TriangleAlert, to: { name: 'statistik' } },
-      { label: 'Kalender', desc: 'Hari efektif', icon: CalendarDays, to: { name: 'rekap' } },
+      { label: 'Kalender', desc: 'Hari efektif', icon: CalendarDays, to: { name: 'kalender' } },
     )
   }
   return actions

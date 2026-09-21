@@ -27,6 +27,7 @@ export const navItems = [
   { to: { name: 'rekap' }, label: 'Rekap Bulanan', icon: FileSpreadsheet, presensiOnly: true },
   { to: { name: 'rekap-semester' }, label: 'Rekap Semester', icon: CalendarCheck, presensiOnly: true },
   { to: { name: 'statistik' }, label: 'Statistik Kehadiran', icon: TriangleAlert, presensiOnly: true },
+  { to: { name: 'kalender' }, label: 'Kalender Akademik', icon: CalendarDays, presensiOnly: true },
   
   { isHeader: true, label: 'PERPUSTAKAAN', perpusOnly: true },
   { to: { name: 'dashboard-perpus' }, label: 'Beranda Perpustakaan', icon: PieChart, perpusOnly: true },
@@ -39,7 +40,6 @@ export const navItems = [
   { isHeader: true, label: 'ADMINISTRASI', adminOnly: true },
   { to: { name: 'siswa' }, label: 'Data Siswa', icon: Users, adminOnly: true },
   { to: { name: 'guru' }, label: 'Guru & Wali Kelas', icon: GraduationCap, adminOnly: true },
-  { to: { name: 'kalender' }, label: 'Kalender Akademik', icon: CalendarDays, adminOnly: true },
   { to: { name: 'riwayat-kelas' }, label: 'Riwayat Kelas', icon: History, adminOnly: true },
   { to: { name: 'aktivitas' }, label: 'Log Aktivitas', icon: ScrollText, adminOnly: true },
   { to: { name: 'pengaturan' }, label: 'Pengaturan', icon: Settings, adminOnly: true },

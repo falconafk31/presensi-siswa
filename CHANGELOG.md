@@ -5,6 +5,17 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.13] - 2026-09-21
+
+### Ditambahkan (Added)
+- **Menu Kalender Akademik untuk Guru:** sidebar role Guru kini menampilkan Kalender Akademik di MAIN MENU (setelah Statistik Kehadiran). Route `kalender` beralih dari `adminOnly` ke `presensiOnly` (Admin + Guru).
+
+### Diubah (Changed)
+- **Pemisahan VIEW vs MANAGE kalender:** KalenderView kini read-only untuk non-Admin — sel tanggal non-Admin di-disable (tanpa aksi/hover), `toggle()` diguard `canManage` (defense in depth), subtitle menjelaskan bahwa pengubahan status hanya oleh Admin. Admin tetap mengelola kalender penuh tanpa perubahan.
+
+### Diperbaiki (Fixed)
+- **Quick action Kalender di Dashboard Guru** sebelumnya salah route ke `{ name: 'rekap' }`; kini benar menuju `{ name: 'kalender' }`. Quick action Admin tidak berubah.
+
 ## [0.2.12] - 2026-09-21
 
 ### Diubah (Changed)

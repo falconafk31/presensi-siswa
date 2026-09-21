@@ -54,7 +54,9 @@ const routes = [
         path: 'kalender',
         name: 'kalender',
         component: () => import('@/views/KalenderView.vue'),
-        meta: { adminOnly: true },
+        // presensiOnly: Admin + Guru boleh MELIHAT kalender (relevan untuk presensi).
+        // Pengelolaan (tandai Masuk/Libur) tetap khusus Admin — digate di KalenderView.
+        meta: { presensiOnly: true },
       },
       {
         path: 'statistik',

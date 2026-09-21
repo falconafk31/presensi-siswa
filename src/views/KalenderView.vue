@@ -3,11 +3,16 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth'
 import { logActivity } from '@/lib/activityLog'
 import { daysInMonth, isWeekend, namaBulan } from '@/lib/dates'
 import {
   AppPageHeader, AppCard, AppModal, AppInput, AppButton, AppSkeleton,
 } from '@/components/ui'
+
+const auth = useAuthStore()
+// VIEW kalender: Admin + Guru. MANAGE (tandai Masuk/Libur): hanya Admin.
+const canManage = computed(() => auth.isAdmin)
 
 const now = new Date()
 const month = ref(now.getMonth() + 1)
@@ -59,7 +64,7 @@ function targetLabel() {
 }
 
 async function toggle(iso) {
-  if (!iso) return
+  if (!iso || !canManage.value) return
   const sekarangLibur = isLibur(iso)
   const baru = sekarangLibur ? 'Masuk' : 'Libur'
 
@@ -107,7 +112,12 @@ onMounted(load)
 
 <template>
   <div class="page-stack">
-    <AppPageHeader title="Kalender Akademik" subtitle="Ketuk tanggal untuk mengubah status Masuk / Libur" />
+    <AppPageHeader
+      title="Kalender Akademik"
+      :subtitle="canManage
+        ? 'Ketuk tanggal untuk mengubah status Masuk / Libur'
+        : 'Tanggal masuk & libur untuk kegiatan presensi. Pengubahan status hanya oleh Admin.'"
+    />
 
     <AppCard class="mx-auto w-full max-w-2xl">
       <div class="mb-3 flex items-center justify-between">
@@ -137,11 +147,12 @@ onMounted(load)
               v-else
               :title="calendarMap[iso]?.keterangan || (isLibur(iso) ? 'Libur' : 'Masuk')"
               :aria-pressed="isLibur(iso) ? 'true' : 'false'"
-              :aria-label="`${iso} — ${isLibur(iso) ? 'Libur' : 'Masuk'}`"
+              :aria-label="`${iso} — ${isLibur(iso) ? 'Libur' : 'Masuk'}${canManage ? '' : ' (hanya Admin dapat mengubah)'}`"
+              :disabled="!canManage"
               class="flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-lg border text-sm transition-colors"
               :class="isLibur(iso)
-                ? 'border-rose-200 bg-rose-50 font-semibold text-rose-600 hover:bg-rose-100'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50'"
+                ? `border-rose-200 bg-rose-50 font-semibold text-rose-600 ${canManage ? 'hover:bg-rose-100' : ''}`
+                : `border-slate-200 bg-white text-slate-700 ${canManage ? 'hover:border-primary-300 hover:bg-primary-50' : ''}`"
               @click="toggle(iso)"
             >
               <span class="tnum">{{ Number(iso.slice(8, 10)) }}</span>
@@ -157,7 +168,7 @@ onMounted(load)
           <span class="inline-flex items-center gap-1.5">
             <span class="h-3 w-3 rounded bg-white ring-1 ring-slate-200" aria-hidden="true" /> Masuk
           </span>
-          <span class="ml-auto italic text-slate-400">Akhir pekan otomatis libur (dapat diubah).</span>
+          <span class="ml-auto italic text-slate-400">Akhir pekan otomatis libur{{ canManage ? ' (dapat diubah)' : '' }}.</span>
         </div>
       </template>
     </AppCard>
