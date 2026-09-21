@@ -5,6 +5,7 @@ import {
   Users, UserCheck, CalendarX2, TriangleAlert, FileSpreadsheet,
   ClipboardCheck, CalendarDays, ArrowRight, CircleAlert, PartyPopper,
   Loader2,
+  CheckCircle2,
 } from 'lucide-vue-next'
 import { defineAsyncComponent } from 'vue'
 import { supabase, whenRealtimeReady } from '@/lib/supabase'
@@ -399,29 +400,49 @@ const hasAttention = computed(() =>
         <CalendarDays class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
         Hari libur — tidak ada kegiatan presensi sesuai kalender akademik.
       </div>
-      <div v-else-if="isBelumAbsen" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-        <ClipboardCheck class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-        <span><strong>{{ kelasFilter ? `Kelas ${kelasFilter}` : 'Belum ada kelas' }}</strong> yang mengisi presensi hari ini — segera isi agar rekap tetap akurat.</span>
-        <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Sekarang</AppButton>
-      </div>
-      <div v-else-if="hasAttention" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-        <TriangleAlert class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-        <span class="font-semibold">Perlu perhatian:</span>
-        <template v-if="unsubmittedClasses.length">
-          <span>{{ unsubmittedClasses.length }} kelas belum presensi</span>
-          <span v-for="k in unsubmittedClasses.slice(0, 4)" :key="k" class="badge-warning !text-[11px]">{{ k }}</span>
-          <span v-if="unsubmittedClasses.length > 4" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 4 }}</span>
-        </template>
-        <template v-if="counts.Alfa > 0">
-          <span class="font-medium text-rose-700">· {{ counts.Alfa }} siswa Alfa</span>
-          <span class="min-w-0 truncate text-xs text-rose-600">{{ absentStudents.Alfa.slice(0, 3).map((st) => st.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}</span>
-        </template>
-        <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
-      </div>
-      <div v-else-if="submittedCount > 0" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
-        <PartyPopper class="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-        Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!
-      </div>
+      <!-- Admin: strip monitoring ringkas (jumlah saja, detail via CTA) -->
+      <template v-else-if="auth.isAdmin">
+        <div v-if="hasAttention" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+          <TriangleAlert class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <span class="font-semibold">Perlu perhatian</span>
+          <span class="min-w-0 truncate">
+            <span v-if="unsubmittedClasses.length">{{ unsubmittedClasses.length }} kelas belum presensi</span>
+            <span v-else-if="isBelumAbsen">Kelas {{ kelasFilter }} belum presensi</span>
+            <template v-if="counts.Alfa > 0"><span v-if="unsubmittedClasses.length || isBelumAbsen"> · </span><span class="font-medium text-rose-700">{{ counts.Alfa }} siswa Alfa</span></template>
+          </span>
+          <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'rekap' }">Lihat</AppButton>
+        </div>
+        <div v-else-if="submittedCount > 0" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
+          <CheckCircle2 class="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          Semua kelas sudah presensi · Tidak ada Alfa
+        </div>
+      </template>
+      <!-- Guru: strip status existing (tidak diubah) -->
+      <template v-else>
+        <div v-if="isBelumAbsen" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+          <ClipboardCheck class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <span><strong>{{ kelasFilter ? `Kelas ${kelasFilter}` : 'Belum ada kelas' }}</strong> yang mengisi presensi hari ini — segera isi agar rekap tetap akurat.</span>
+          <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Sekarang</AppButton>
+        </div>
+        <div v-else-if="hasAttention" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+          <TriangleAlert class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <span class="font-semibold">Perlu perhatian:</span>
+          <template v-if="unsubmittedClasses.length">
+            <span>{{ unsubmittedClasses.length }} kelas belum presensi</span>
+            <span v-for="k in unsubmittedClasses.slice(0, 4)" :key="k" class="badge-warning !text-[11px]">{{ k }}</span>
+            <span v-if="unsubmittedClasses.length > 4" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 4 }}</span>
+          </template>
+          <template v-if="counts.Alfa > 0">
+            <span class="font-medium text-rose-700">· {{ counts.Alfa }} siswa Alfa</span>
+            <span class="min-w-0 truncate text-xs text-rose-600">{{ absentStudents.Alfa.slice(0, 3).map((st) => st.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}</span>
+          </template>
+          <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
+        </div>
+        <div v-else-if="submittedCount > 0" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
+          <PartyPopper class="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!
+        </div>
+      </template>
 
       <!-- 1. Attendance overview: KPI bar satu kartu (ringkas, semua info tetap ada) -->
       <section aria-label="Ringkasan kehadiran hari ini">
@@ -457,7 +478,7 @@ const hasAttention = computed(() =>
 
       <!-- 4 & 5. Trend + composition -->
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
-        <AppCard class="lg:col-span-2" title="Tren Kehadiran" :subtitle="trendTitle">
+        <AppCard :class="auth.isAdmin ? 'order-2 lg:order-1 lg:col-span-2' : 'lg:col-span-2'" title="Tren Kehadiran" :subtitle="trendTitle">
           <template #actions>
             <!-- Desktop: mode + filter bulan/tahun horizontal di header (posisi tetap) -->
             <div class="hidden flex-wrap items-center justify-end gap-1.5 lg:flex">
@@ -482,13 +503,13 @@ const hasAttention = computed(() =>
               </select>
             </div>
           </div>
-          <div class="h-[clamp(170px,26vh,240px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+          <div :class="auth.isAdmin ? 'h-[clamp(200px,30vh,300px)]' : 'h-[clamp(170px,26vh,240px)]'" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>
         </AppCard>
 
-        <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
-          <div class="relative h-[clamp(140px,22vh,170px)]">
+        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-2' : ''" title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
+          <div class="relative" :class="auth.isAdmin ? 'h-[clamp(170px,24vh,220px)]' : 'h-[clamp(140px,22vh,170px)]'">
             <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
               <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
@@ -497,7 +518,16 @@ const hasAttention = computed(() =>
             </div>
           </div>
 
-          <div v-if="!isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-3 border-t border-slate-100 pt-2.5">
+          <!-- Admin: ringkasan count per status (tanpa daftar nama siswa) -->
+          <div v-if="auth.isAdmin && !isHariLibur && !isBelumAbsen && totalSiswa > 0" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2.5">
+            <div v-for="r in [['Hadir', counts.Hadir, 'bg-emerald-700'], ['Izin', counts.Izin, 'bg-sky-700'], ['Sakit', counts.Sakit, 'bg-amber-600'], ['Alfa', counts.Alfa, 'bg-rose-700']]" :key="r[0]" class="flex items-center gap-1.5 text-[12.5px]">
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="r[2]" aria-hidden="true" />
+              <span class="text-slate-500">{{ r[0] }}</span>
+              <span class="ml-auto font-semibold text-slate-900 tnum">{{ r[1] }}</span>
+            </div>
+          </div>
+          <!-- Guru: daftar tidak hadir existing (tidak diubah) -->
+          <div v-else-if="!auth.isAdmin && !isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-3 border-t border-slate-100 pt-2.5">
             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>

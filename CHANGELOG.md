@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.14] - 2026-09-21
+
+### Diubah (Changed)
+- **Finalisasi Dashboard Admin (presentation-only):** strip monitoring "Perlu perhatian" ringkas — hanya jumlah ("N kelas belum presensi · M siswa Alfa", tanpa badge nama kelas / nama siswa) dengan CTA "Lihat" ke Rekap; strip selesai emerald "Semua kelas sudah presensi · Tidak ada Alfa". **Komposisi Hari Ini Admin kini summary saja:** donut + 4 baris count (Hadir/Izin/Sakit/Alfa, warna semantik exact) — daftar nama siswa dengan internal scroll dihapus untuk Admin. Chart memakai ruang desktop lebih optimal (tren clamp 200–300px, donut 170–220px; Admin saja). Urutan mobile Admin: Komposisi sebelum Tren. Dashboard Guru tidak berubah (banner, quick actions, KPI, komposisi nama, tinggi chart, urutan). Semua kalkulasi/query/behavior bisnis tidak disentuh.
+
 ## [0.2.13] - 2026-09-21
 
 ### Ditambahkan (Added)
