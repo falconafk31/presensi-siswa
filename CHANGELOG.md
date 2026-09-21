@@ -5,6 +5,16 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-09-21
+
+### Diubah (Changed)
+- **Dashboard muat satu layar penuh** di viewport 640 px (layar 1366×720 dengan browser normal), hasil perencanaan bersama:
+  - Stat cards → **KPI bar** satu kartu dengan divider (±46 px); quick actions → **baris pill** (±32 px); banner libur/belum-absen/"Perlu Perhatian" → **strip 1 baris** berisi chip kelas, nama siswa Alfa, dan tombol aksi inline.
+  - Subtitle *page header* menyatu dengan judul pada desktop (`inline`), chip filter kelas compact 28 px (13 kelas muat satu baris, tidak wrap), padding bawah konten desktop dipangkas.
+  - Tinggi grafik adaptif viewport (`clamp()`): tren presensi 140–220 px, donut 120–180 px dengan ringkasan "Tidak Hadir" per grup (badge + nama inline, scroll internal), tren perpustakaan 104–150 px; daftar "Peminjaman Terakhir" scroll internal.
+  - Seluruh section/menu dashboard dipertahankan tanpa mengurangi keterbacaan.
+- **Konsistensi warna ikon:** token `ICON_CHIP` (bg-50 + ring-200 + text-600 per tone) di `designSystem.js` untuk KPI bar, chip kunjungan, dan aksi cepat. Ikon tidak diubah (mengikuti keputusan review).
+
 ## [0.2.5] - 2026-09-21
 
 ### Diperbaiki (Fixed)

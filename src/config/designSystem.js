@@ -58,5 +58,16 @@ export const CHART_DEFAULTS = {
   color: COLORS.muted,
 }
 
+// Format kotak ikon yang seragam untuk seluruh dashboard (chip KPI, aksi cepat, ringkasan).
+export const ICON_CHIP = {
+  success: 'bg-emerald-50 text-emerald-600 ring-emerald-200',
+  info: 'bg-sky-50 text-sky-600 ring-sky-200',
+  warning: 'bg-amber-50 text-amber-600 ring-amber-200',
+  danger: 'bg-rose-50 text-rose-600 ring-rose-200',
+  neutral: 'bg-slate-50 text-slate-600 ring-slate-200',
+  primary: 'bg-primary-50 text-primary-700 ring-primary-200',
+  library: 'bg-blue-50 text-blue-600 ring-blue-200',
+}
+
 export const RADIUS = { sm: 8, md: 10, lg: 12, xl: 14, '2xl': 16 }
 export const TOUCH_TARGET = 44 // minimum px for mobile tap targets

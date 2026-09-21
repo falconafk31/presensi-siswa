@@ -240,8 +240,8 @@
   }
   .chip-tabs { @apply flex flex-wrap items-center gap-2; }
   .chip-tab {
-    @apply rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50;
-    min-height: 2.5rem;
+    @apply rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50;
+    min-height: 1.75rem;
   }
   .chip-tab[aria-pressed='true'] {
     @apply border-primary-700 bg-primary-700 text-white shadow-xs hover:bg-primary-800;

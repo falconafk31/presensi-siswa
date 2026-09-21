@@ -7,9 +7,9 @@ import { supabase } from '@/lib/supabase'
 import { namaBulan } from '@/lib/dates'
 import { CHART_COLORS } from '@/config/designSystem'
 import {
-  AppPageHeader, AppStatCard, AppCard, AppTabs, AppSkeleton,
-  AppBadge, AppButton, AppEmptyState,
+  AppPageHeader, AppCard, AppTabs, AppBadge, AppButton, AppEmptyState,
 } from '@/components/ui'
+import { ICON_CHIP } from '@/config/designSystem'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Title, Tooltip, Legend, Filler)
 ChartJS.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif'
@@ -253,6 +253,7 @@ onMounted(() => {
 <template>
   <div class="page-stack">
     <AppPageHeader
+      inline
       title="Beranda Perpustakaan"
       subtitle="Sirkulasi koleksi dan kunjungan pengunjung"
     >
@@ -264,42 +265,40 @@ onMounted(() => {
       </template>
     </AppPageHeader>
 
-    <AppSkeleton v-if="loading && !chartLabels.length" type="stat" />
-    <AppSkeleton v-if="loading && !chartLabels.length" type="line" />
+    <div v-if="loading && !chartLabels.length" aria-live="polite" aria-busy="true" class="flex flex-col gap-3">
+      <div class="h-12 animate-pulse rounded-xl bg-slate-200/70" />
+      <div class="h-40 animate-pulse rounded-xl bg-slate-200/50" />
+    </div>
 
     <template v-else>
-      <!-- Library overview -->
+      <!-- Library overview: KPI bar satu kartu -->
       <section aria-label="Ringkasan perpustakaan">
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-          <AppStatCard
-            v-for="s in overviewStats"
-            :key="s.label"
-            :label="s.label"
-            :value="s.value"
-            :icon="s.icon"
-            :tone="s.tone"
-            :sub="s.sub"
-          />
+        <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 sm:grid-cols-4">
+          <div v-for="st in overviewStats" :key="st.label" class="flex items-center gap-2.5 bg-white px-3 py-2">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP[st.tone]">
+              <component :is="st.icon" class="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div class="min-w-0">
+              <p class="truncate text-[11px] leading-tight text-slate-500">{{ st.label }}</p>
+              <p class="truncate text-lg font-bold leading-tight text-slate-900 tnum">{{ st.value }}</p>
+            </div>
+            <span class="ml-auto hidden shrink-0 text-[11px] text-slate-400 lg:block">{{ st.sub }}</span>
+          </div>
         </div>
       </section>
 
-      <!-- Quick actions -->
+      <!-- Quick actions: baris pill ramping -->
       <section aria-label="Aksi cepat perpustakaan">
-        <div class="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
+        <div class="flex flex-wrap gap-2">
           <RouterLink
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="card-flat card-interactive group flex items-center gap-2.5 p-2.5"
+            class="group inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-[12.5px] font-medium text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
           >
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
-              <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-[13.5px] font-semibold text-slate-800">{{ a.label }}</p>
-              <p class="truncate text-xs text-slate-400">{{ a.desc }}</p>
-            </div>
-            <ArrowRight class="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" aria-hidden="true" />
+            <component :is="a.icon" class="h-4 w-4 text-slate-400 transition-colors group-hover:text-blue-700" aria-hidden="true" />
+            <span class="whitespace-nowrap">{{ a.label }}</span>
+            <ArrowRight class="h-3.5 w-3.5 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" aria-hidden="true" />
           </RouterLink>
         </div>
       </section>
@@ -324,7 +323,7 @@ onMounted(() => {
             </select>
           </div>
         </template>
-        <div class="relative h-[clamp(130px,17vh,240px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
+        <div class="relative h-[clamp(104px,20vh,150px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
             <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />
           </div>
@@ -335,30 +334,29 @@ onMounted(() => {
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <!-- Visit stats -->
         <AppCard title="Kunjungan" subtitle="Akumulasi pengunjung">
-          <!-- Chip satu baris: ringkas tanpa mengurangi informasi -->
           <div class="flex flex-col gap-1.5">
             <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
-              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-700">
-                <Users class="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p class="min-w-0 truncate text-[13px] text-slate-500">
-                <span class="stat-number !text-base">{{ kunjunganHariIni }}</span> orang · Hari ini
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.library">
+                <Users class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganHariIni }}</span> orang · Hari ini
               </p>
             </div>
             <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
-              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/70 text-slate-600">
-                <CalendarDays class="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p class="min-w-0 truncate text-[13px] text-slate-500">
-                <span class="stat-number !text-base">{{ kunjunganBulanIni }}</span> orang · Bulan ini
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.neutral">
+                <CalendarDays class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganBulanIni }}</span> orang · Bulan ini
               </p>
             </div>
             <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
-              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/70 text-slate-600">
-                <BarChart2 class="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p class="min-w-0 truncate text-[13px] text-slate-500">
-                <span class="stat-number !text-base">{{ kunjunganTahunIni }}</span> orang · Tahun ini
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.neutral">
+                <BarChart2 class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganTahunIni }}</span> orang · Tahun ini
               </p>
             </div>
           </div>
@@ -375,7 +373,7 @@ onMounted(() => {
             description="Transaksi peminjaman akan muncul di sini."
             :icon="BookOpen"
           />
-          <ul v-else class="flex max-h-[clamp(108px,14vh,240px)] flex-col gap-1.5 overflow-y-auto pr-1">
+          <ul v-else class="flex max-h-[clamp(56px,9vh,90px)] flex-col gap-1.5 overflow-y-auto pr-1">
             <li
               v-for="l in recentLoans"
               :key="l.id"

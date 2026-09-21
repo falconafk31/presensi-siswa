@@ -13,9 +13,9 @@ import { useSettingsStore } from '@/stores/settings'
 import { todayISO, daysInMonth, dayNumber, namaBulan, isWeekend, formatTanggalPanjang } from '@/lib/dates'
 import { CHART_COLORS } from '@/config/designSystem'
 import {
-  AppPageHeader, AppStatCard, AppCard, AppTabs, AppAlert,
-  AppSkeleton, AppBadge, AppButton,
+  AppPageHeader, AppCard, AppTabs, AppBadge, AppButton,
 } from '@/components/ui'
+import { ICON_CHIP } from '@/config/designSystem'
 
 // Grafik di-lazy-load via chartSetup (code-splitting) — chart.js tidak lagi
 // berada di jalur kritis render pertama dashboard.
@@ -363,6 +363,7 @@ const hasAttention = computed(() =>
 <template>
   <div class="page-stack">
     <AppPageHeader
+      inline
       title="Dashboard Presensi"
       :subtitle="`${formatTanggalPanjang(today)}${auth.isAdmin ? (selectedTab ? ` · Kelas ${selectedTab}` : ' · Semua kelas') : ` · Kelas ${auth.kelas || '-'}`}`"
     >
@@ -387,101 +388,72 @@ const hasAttention = computed(() =>
     />
 
     <!-- Initial loading only; refresh keeps dashboard visible -->
-    <div v-if="initialLoading" aria-live="polite" aria-busy="true">
-      <AppSkeleton type="stat" />
-      <AppSkeleton type="line" />
+    <div v-if="initialLoading" aria-live="polite" aria-busy="true" class="flex flex-col gap-3">
+      <div class="h-12 animate-pulse rounded-xl bg-slate-200/70" />
+      <div class="h-40 animate-pulse rounded-xl bg-slate-200/50" />
     </div>
 
     <template v-else>
-      <!-- Holiday / not-submitted banner -->
-      <AppAlert v-if="isHariLibur" tone="neutral" title="Hari libur">
-        Hari ini tidak ada kegiatan presensi sesuai kalender akademik.
-      </AppAlert>
-      <AppAlert v-else-if="isBelumAbsen" tone="warning" title="Belum ada presensi hari ini">
-        {{ kelasFilter ? `Kelas ${kelasFilter} belum mengisi presensi hari ini.` : 'Belum ada kelas yang mengisi presensi hari ini.' }}
-        Segera isi agar rekap tetap akurat.
-        <template #action>
-          <AppButton size="sm" :to="{ name: 'presensi' }">Isi Sekarang</AppButton>
+      <!-- Status hari ini: strip ramping 1 baris (hemat tinggi, info tetap utuh) -->
+      <div v-if="isHariLibur" class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
+        <CalendarDays class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+        Hari libur — tidak ada kegiatan presensi sesuai kalender akademik.
+      </div>
+      <div v-else-if="isBelumAbsen" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+        <ClipboardCheck class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <span><strong>{{ kelasFilter ? `Kelas ${kelasFilter}` : 'Belum ada kelas' }}</strong> yang mengisi presensi hari ini — segera isi agar rekap tetap akurat.</span>
+        <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Sekarang</AppButton>
+      </div>
+      <div v-else-if="hasAttention" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+        <TriangleAlert class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <span class="font-semibold">Perlu perhatian:</span>
+        <template v-if="unsubmittedClasses.length">
+          <span>{{ unsubmittedClasses.length }} kelas belum presensi</span>
+          <span v-for="k in unsubmittedClasses.slice(0, 4)" :key="k" class="badge-warning !text-[11px]">{{ k }}</span>
+          <span v-if="unsubmittedClasses.length > 4" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 4 }}</span>
         </template>
-      </AppAlert>
+        <template v-if="counts.Alfa > 0">
+          <span class="font-medium text-rose-700">· {{ counts.Alfa }} siswa Alfa</span>
+          <span class="min-w-0 truncate text-xs text-rose-600">{{ absentStudents.Alfa.slice(0, 3).map((st) => st.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}</span>
+        </template>
+        <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
+      </div>
+      <div v-else-if="submittedCount > 0" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
+        <PartyPopper class="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+        Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!
+      </div>
 
-      <!-- 1. Attendance overview -->
+      <!-- 1. Attendance overview: KPI bar satu kartu (ringkas, semua info tetap ada) -->
       <section aria-label="Ringkasan kehadiran hari ini">
-        <div class="grid grid-cols-2 gap-2 sm:gap-2.5 xl:grid-cols-5">
-          <AppStatCard
-            v-for="s in overviewStats"
-            :key="s.label"
-            :label="s.label"
-            :value="s.value"
-            :icon="s.icon"
-            :tone="s.tone"
-            :sub="s.sub"
-          />
+        <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 sm:grid-cols-3 xl:grid-cols-5">
+          <div v-for="s in overviewStats" :key="s.label" class="flex items-center gap-2.5 bg-white px-3 py-2">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP[s.tone]">
+              <component :is="s.icon" class="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div class="min-w-0">
+              <p class="truncate text-[11px] leading-tight text-slate-500">{{ s.label }}</p>
+              <p class="truncate text-lg font-bold leading-tight text-slate-900 tnum">{{ s.value }}</p>
+            </div>
+            <span class="ml-auto hidden shrink-0 text-[11px] text-slate-400 lg:block">{{ s.sub }}</span>
+          </div>
         </div>
       </section>
 
-      <!-- 2. Quick actions -->
+      <!-- 2. Quick actions: baris pill ramping -->
       <section aria-label="Aksi cepat">
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+        <div class="flex flex-wrap gap-2">
           <RouterLink
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="card-flat card-interactive group flex items-center gap-2.5 p-2.5"
+            class="group inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-[12.5px] font-medium text-slate-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800"
           >
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-primary-700 group-hover:text-white">
-              <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-[13.5px] font-semibold text-slate-800">{{ a.label }}</p>
-              <p class="truncate text-xs text-slate-400">{{ a.desc }}</p>
-            </div>
-            <ArrowRight class="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-600" aria-hidden="true" />
+            <component :is="a.icon" class="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary-700" aria-hidden="true" />
+            <span class="whitespace-nowrap">{{ a.label }}</span>
+            <ArrowRight class="h-3.5 w-3.5 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-600" aria-hidden="true" />
           </RouterLink>
         </div>
       </section>
-
-      <!-- 3. Attention required -->
-      <AppCard
-        v-if="hasAttention"
-        title="Perlu Perhatian"
-        subtitle="Tindak lanjut agar data presensi hari ini lengkap"
-      >
-        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-if="unsubmittedClasses.length > 0" class="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
-            <div class="flex items-center gap-2">
-              <CircleAlert class="h-4 w-4 text-amber-600" aria-hidden="true" />
-              <p class="text-[13px] font-semibold text-amber-800">Belum presensi · {{ unsubmittedClasses.length }} kelas</p>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-1.5">
-              <span v-for="k in unsubmittedClasses.slice(0, 8)" :key="k" class="badge-warning !text-[11px]">{{ k }}</span>
-              <span v-if="unsubmittedClasses.length > 8" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 8 }} lagi</span>
-            </div>
-          </div>
-          <div v-if="counts.Alfa > 0" class="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5">
-            <div class="flex items-center gap-2">
-              <TriangleAlert class="h-4 w-4 text-rose-600" aria-hidden="true" />
-              <p class="text-[13px] font-semibold text-rose-800">Alfa hari ini · {{ counts.Alfa }} siswa</p>
-            </div>
-            <p class="mt-1.5 truncate text-xs text-rose-600">
-              {{ absentStudents.Alfa.slice(0, 3).map((s) => s.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}
-            </p>
-          </div>
-          <div v-if="isBelumAbsen && kelasFilter" class="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
-            <div class="flex items-center gap-2">
-              <ClipboardCheck class="h-4 w-4 text-amber-600" aria-hidden="true" />
-              <p class="text-[13px] font-semibold text-amber-800">Kelas {{ kelasFilter }} belum diabsen</p>
-            </div>
-            <AppButton size="sm" class="mt-1.5" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
-          </div>
-          <div v-if="!isBelumAbsen && submittedCount > 0 && unsubmittedClasses.length === 0 && counts.Alfa === 0" class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5 sm:col-span-2 lg:col-span-3">
-            <div class="flex items-center gap-2">
-              <PartyPopper class="h-4 w-4 text-emerald-600" aria-hidden="true" />
-              <p class="text-[13px] font-semibold text-emerald-800">Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!</p>
-            </div>
-          </div>
-        </div>
-      </AppCard>
 
       <!-- 4 & 5. Trend + composition -->
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
@@ -498,13 +470,13 @@ const hasAttention = computed(() =>
               </select>
             </div>
           </template>
-          <div class="h-[clamp(150px,23vh,208px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+          <div class="h-[clamp(140px,24vh,220px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>
         </AppCard>
 
         <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
-          <div class="relative h-[clamp(130px,20vh,176px)]">
+          <div class="relative h-[clamp(120px,20vh,180px)]">
             <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
               <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
@@ -517,19 +489,15 @@ const hasAttention = computed(() =>
             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>
-            <div class="max-h-32 space-y-2.5 overflow-y-auto pr-1">
-              <div v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
-                <template v-if="absentStudents[key].length > 0">
-                  <div class="mb-1 flex items-center gap-1.5">
-                    <AppBadge :label="`${key} (${absentStudents[key].length})`" :tone="key === 'Izin' ? 'info' : key === 'Sakit' ? 'warning' : 'danger'" dot />
-                  </div>
-                  <ul class="space-y-0.5">
-                    <li v-for="s in absentStudents[key]" :key="s.nama + s.kelas" class="truncate text-[13px] text-slate-600">
-                      {{ s.nama }} <span v-if="!kelasFilter" class="text-slate-400">· {{ s.kelas }}</span>
-                    </li>
-                  </ul>
-                </template>
-              </div>
+            <div class="flex max-h-14 flex-col gap-1 overflow-y-auto pr-1">
+              <template v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
+                <div v-if="absentStudents[key].length > 0" class="flex items-center gap-1.5 text-[12px] leading-snug">
+                  <AppBadge :label="`${key} ${absentStudents[key].length}`" :tone="key === 'Izin' ? 'info' : key === 'Sakit' ? 'warning' : 'danger'" dot />
+                  <span class="min-w-0 truncate text-slate-500">
+                    {{ absentStudents[key].map((st) => st.nama).join(', ') }}<span v-if="!kelasFilter"> · {{ absentStudents[key].map((st) => st.kelas).join(', ') }}</span>
+                  </span>
+                </div>
+              </template>
             </div>
           </div>
         </AppCard>
