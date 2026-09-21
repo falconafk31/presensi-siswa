@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
-import { Book, Plus, Edit, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp, Info, Search, X } from 'lucide-vue-next'
+import { Book, Plus, Edit, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, FileDown, FileUp, Info, Search, X, UserRound, CalendarPlus, CalendarClock, CalendarCheck2, Activity, BookOpen, CheckCircle2, AlarmClockOff, SearchX } from 'lucide-vue-next'
 import {
   AppPageHeader, AppFilterBar, AppInput, AppTable, AppBadge,
   AppModal, AppConfirmDialog, AppEmptyState, AppSkeleton,
@@ -509,29 +509,38 @@ onMounted(fetchBooks)
         :icon="Book"
       />
       <div v-else class="table-scroll rounded-xl border border-slate-100">
-        <table class="table whitespace-nowrap">
+        <!-- Compact: baris satu baris, padding rapat — muat tanpa scroll di desktop -->
+        <table class="table whitespace-nowrap history-compact">
           <thead>
             <tr>
-              <th class="!text-center">No</th>
-              <th>Peminjam</th>
-              <th class="!text-center">Tgl Pinjam</th>
-              <th class="!text-center">Tenggat</th>
-              <th class="!text-center">Tgl Kembali</th>
-              <th class="!text-center">Status</th>
+              <th>
+                <span class="th-ico"><UserRound class="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />Peminjam</span>
+              </th>
+              <th class="!text-center">
+                <span class="th-ico"><CalendarPlus class="h-3.5 w-3.5 text-sky-500" aria-hidden="true" />Tgl Pinjam</span>
+              </th>
+              <th class="!text-center">
+                <span class="th-ico"><CalendarClock class="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />Tenggat</span>
+              </th>
+              <th class="!text-center">
+                <span class="th-ico"><CalendarCheck2 class="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />Tgl Kembali</span>
+              </th>
+              <th class="!text-center">
+                <span class="th-ico"><Activity class="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />Status</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(h, idx) in paginatedBookHistory" :key="h.id">
-              <td class="!text-center text-slate-400">{{ (historyCurrentPage - 1) * historyItemsPerPage + idx + 1 }}</td>
+            <tr v-for="h in paginatedBookHistory" :key="h.id">
               <td>
-                <p class="cell-main">{{ h.students?.nama || h.student_nisn }}</p>
-                <p class="cell-sub">Kelas {{ h.students?.kelas || '–' }}</p>
+                <span class="text-[13px] font-medium text-slate-800">{{ h.students?.nama || h.student_nisn }}</span>
+                <span class="ml-1.5 text-xs text-slate-400">· Kelas {{ h.students?.kelas || '–' }}</span>
               </td>
-              <td class="!text-center">{{ formatDateID(h.tanggal_pinjam) }}</td>
-              <td class="!text-center">{{ formatDateID(h.tanggal_kembali_seharusnya) }}</td>
-              <td class="!text-center">{{ h.tanggal_kembali_aktual ? formatDateID(h.tanggal_kembali_aktual) : '–' }}</td>
+              <td class="!text-center !text-[13px]">{{ formatDateID(h.tanggal_pinjam) }}</td>
+              <td class="!text-center !text-[13px]">{{ formatDateID(h.tanggal_kembali_seharusnya) }}</td>
+              <td class="!text-center !text-[13px]">{{ h.tanggal_kembali_aktual ? formatDateID(h.tanggal_kembali_aktual) : '–' }}</td>
               <td class="!text-center">
-                <AppBadge :label="h.status" :tone="historyStatusTone[h.status] || 'neutral'" dot />
+                <AppBadge :label="historyMeta(h.status).label" :tone="historyMeta(h.status).tone" :icon="historyMeta(h.status).icon" />
               </td>
             </tr>
           </tbody>
@@ -546,3 +555,23 @@ onMounted(fetchBooks)
     </AppModal>
   </div>
 </template>
+
+<style scoped>
+/* Tabel riwayat compact — muat 10 baris tanpa scroll pada modal desktop */
+.th-ico {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.history-compact thead th {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.history-compact tbody td {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+.history-compact tbody tr:last-child td {
+  border-bottom: 0;
+}
+</style>

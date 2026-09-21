@@ -5,7 +5,7 @@ import { toast } from 'vue-sonner'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { useAuthStore } from '@/stores/auth'
-import { Plus, CheckCircle2, Search, Download, BookOpen, X } from 'lucide-vue-next'
+import { Plus, CheckCircle2, Search, Download, BookOpen, X, Undo2, AlarmClockOff, BookCheck } from 'lucide-vue-next'
 import { exportPdfSirkulasi } from '@/lib/pdfSirkulasi'
 import { useSettingsStore } from '@/stores/settings'
 import {
@@ -283,7 +283,8 @@ onMounted(() => {
       <div class="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-wrap items-center gap-2">
           <AppTabs v-model="filterStatus" :options="statusTabs" ariaLabel="Filter status sirkulasi" @update:model-value="fetchLoans" />
-          <AppBadge v-if="overdueCount > 0" :label="`${overdueCount} terlambat`" tone="danger" dot />
+          <AppBadge v-if="activeLoanCount > 0" :label="`${activeLoanCount} dipinjam`" tone="library" :icon="BookOpen" />
+          <AppBadge v-if="overdueCount > 0" :label="`${overdueCount} terlambat`" tone="danger" :icon="AlarmClockOff" />
         </div>
       </div>
 
@@ -311,31 +312,46 @@ onMounted(() => {
             <tr>
               <th>Peminjam</th>
               <th>Buku</th>
+              <th>Tgl Pinjam</th>
               <th>Batas Kembali</th>
+              <th class="!text-center">Status</th>
               <th class="!text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="l in paginatedLoans" :key="l.id" :class="l.status === 'dipinjam' && isTerlambat(l.tanggal_kembali_seharusnya) ? 'row-alert' : ''">
               <td>
-                <p class="cell-main">{{ l.students?.nama }}</p>
-                <p class="cell-sub">Kelas {{ l.students?.kelas }}</p>
+                <div class="flex items-center gap-2.5">
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700" aria-hidden="true">
+                    {{ (l.students?.nama || '?').charAt(0).toUpperCase() }}
+                  </span>
+                  <div class="min-w-0">
+                    <p class="cell-main">{{ l.students?.nama }}</p>
+                    <p class="cell-sub">Kelas {{ l.students?.kelas }}</p>
+                  </div>
+                </div>
               </td>
               <td class="max-w-[220px] truncate">{{ l.books?.judul }}</td>
+              <td class="!text-[13px] text-slate-500">{{ formatDateID(l.tanggal_pinjam) }}</td>
               <td>
-                <AppBadge
-                  v-if="l.status === 'dipinjam' && isTerlambat(l.tanggal_kembali_seharusnya)"
-                  :label="`Terlambat · ${l.tanggal_kembali_seharusnya}`"
-                  tone="danger"
-                />
-                <span v-else class="text-[13px] text-slate-600 tnum">{{ l.tanggal_kembali_seharusnya }}</span>
+                <span
+                  class="inline-flex items-center gap-1.5 text-[13px] tnum"
+                  :class="l.status === 'dipinjam' && isTerlambat(l.tanggal_kembali_seharusnya) ? 'font-semibold text-rose-600' : 'text-slate-600'"
+                >
+                  <AlarmClockOff v-if="l.status === 'dipinjam' && isTerlambat(l.tanggal_kembali_seharusnya)" class="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
+                  {{ formatDateID(l.tanggal_kembali_seharusnya) }}
+                </span>
+              </td>
+              <td class="!text-center">
+                <AppBadge :label="loanStatusMeta(l).label" :tone="loanStatusMeta(l).tone" :icon="loanStatusMeta(l).icon" />
               </td>
               <td class="!text-right">
-                <AppButton v-if="l.status === 'dipinjam'" size="sm" @click="confirmKembalikan(l)">
-                  <template #icon><CheckCircle2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
+                <!-- Aksi jelas untuk pengguna awam: panah "kembalikan" (Undo2) + biru khas modul perpustakaan -->
+                <AppButton v-if="l.status === 'dipinjam'" variant="library" size="sm" @click="confirmKembalikan(l)">
+                  <template #icon><Undo2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
                   Kembalikan
                 </AppButton>
-                <span v-else class="text-xs italic text-slate-400">Telah dikembalikan</span>
+                <span v-else class="text-sm text-slate-300" aria-hidden="true">—</span>
               </td>
             </tr>
           </tbody>
@@ -454,20 +470,59 @@ onMounted(() => {
 
     <!-- Konfirmasi pengembalian -->
     <AppModal v-model="showReturnModal" title="Konfirmasi Pengembalian" max-width="max-w-md">
-      <div v-if="selectedLoan" class="flex flex-col gap-3">
-        <div class="rounded-xl bg-sky-50 p-3.5 text-sm leading-relaxed text-sky-800">
-          Tandai buku <strong>“{{ selectedLoan.books?.judul }}”</strong> telah dikembalikan oleh
-          <strong>{{ selectedLoan.students?.nama }}</strong>?
+      <div v-if="selectedLoan" class="flex flex-col gap-4">
+        <div class="flex items-start gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100" aria-hidden="true">
+            <BookCheck class="h-5 w-5" />
+          </span>
+          <p class="pt-1 text-sm leading-relaxed text-slate-700">
+            Terima buku yang dikembalikan oleh peminjam berikut?
+          </p>
         </div>
+
+        <!-- Ringkasan transaksi -->
+        <dl class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 text-sm">
+          <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-2">
+            <dt class="shrink-0 text-slate-400">Buku</dt>
+            <dd class="text-right font-medium text-slate-800">{{ selectedLoan.books?.judul }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 border-b border-slate-100 py-2">
+            <dt class="shrink-0 text-slate-400">Peminjam</dt>
+            <dd class="text-right font-medium text-slate-800">
+              {{ selectedLoan.students?.nama }}
+              <span class="font-normal text-slate-400">· Kelas {{ selectedLoan.students?.kelas }}</span>
+            </dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 pt-2">
+            <dt class="shrink-0 text-slate-400">Batas kembali</dt>
+            <dd class="text-right">
+              <span
+                class="inline-flex items-center gap-1.5 tnum"
+                :class="isTerlambat(selectedLoan.tanggal_kembali_seharusnya) ? 'font-semibold text-rose-600' : 'text-slate-700'"
+              >
+                <AlarmClockOff v-if="isTerlambat(selectedLoan.tanggal_kembali_seharusnya)" class="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
+                {{ formatDateID(selectedLoan.tanggal_kembali_seharusnya) }}
+              </span>
+              <AppBadge
+                v-if="isTerlambat(selectedLoan.tanggal_kembali_seharusnya)"
+                class="ml-2"
+                :label="`Terlambat ${hariTerlambat(selectedLoan.tanggal_kembali_seharusnya)} hari`"
+                tone="danger"
+                :icon="AlarmClockOff"
+              />
+            </dd>
+          </div>
+        </dl>
+
         <p class="text-xs leading-relaxed text-slate-400">
-          Status berubah menjadi “dikembalikan” dan stok buku bertambah kembali.
+          Setelah dikonfirmasi, status menjadi <strong class="text-slate-500">dikembalikan</strong> dan stok buku bertambah otomatis.
         </p>
       </div>
       <template #footer>
         <AppButton variant="secondary" @click="showReturnModal = false">Batal</AppButton>
-        <AppButton :loading="saving" @click="doKembalikanBuku">
-          <template #icon><CheckCircle2 class="h-4 w-4" aria-hidden="true" /></template>
-          {{ saving ? 'Memproses…' : 'Ya, Kembalikan' }}
+        <AppButton variant="library" :loading="saving" @click="doKembalikanBuku">
+          <template #icon><Undo2 class="h-4 w-4" aria-hidden="true" /></template>
+          {{ saving ? 'Memproses…' : 'Ya, Terima Buku' }}
         </AppButton>
       </template>
     </AppModal>

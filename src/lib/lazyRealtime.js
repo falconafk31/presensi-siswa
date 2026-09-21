@@ -7,17 +7,20 @@
 //   - '@supabase/realtime-js'      -> shim ini (masuk chunk entry, ±1 kB)
 //   - '@supabase/realtime-js/real' -> paket asli (dynamic import, chunk terpisah)
 //
-// Cara kerja: instance stub dikembalikan sinkron tanpa memuat apa pun.
-// Chunk asli baru diunduh saat pertama kali benar-benar dibutuhkan (panggil
-// whenRealtimeReady() dari src/lib/supabase.js). Begitu chunk termuat,
-// prototipe instance diganti ke kelas asli dan constructor asli dijalankan
-// pada instance yang sama (pola prototype-swap), sehingga referensi
-// this.realtime yang sudah disimpan supabase-js tetap valid.
+// Cara kerja: stub dikembalikan sinkron tanpa memuat apa pun. Chunk asli baru
+// diunduh saat pertama kali benar-benar dibutuhkan (via whenRealtimeReady()
+// di src/lib/supabase.js). Begitu chunk termuat, sebuah RealtimeClient ASLI
+// dibuat dengan normal (semua field internal terinisialisasi sempurna),
+// panggilan setAuth yang tertahan diputar ulang, dan instance asli itu
+// menggantikan properti `supabase.realtime` (assignment dilakukan oleh
+// whenRealtimeReady) — sehingga semua method berikutnya (channel, dsb.)
+// berjalan di instance asli yang utuh.
 //
-// Method yang mungkin dipanggil supabase-js secara internal sebelum chunk
-// siap (setAuth saat event auth SIGNED_IN/TOKEN_REFRESHED) diantrekan dan
-// diputar ulang setelah kelas asli aktif — aman karena RealtimeClient juga
-// menerima callback accessToken dan mengambil token sendiri saat connect.
+// Catatan: pendekatan prototype-swap pada instance stub terbukti bermasalah
+// karena class field initializer kelas asli tidak pernah menyentuh instance
+// stub (field mendarat di object lain), membuat state internal seperti
+// `channels` tetap undefined. Karena itu instance asli dibuat lewat `new`
+// biasa — bukan di-patch.
 
 let _modPromise = null
 function loadRealtime() {
@@ -27,28 +30,22 @@ function loadRealtime() {
 
 export class RealtimeClient {
   constructor(url, options) {
-    const instance = this
     const queue = []
     let readyPromise = null
 
-    // Dipanggil supabase-js saat event auth yang bisa terjadi kapan pun.
-    instance.setAuth = (...args) => queue.push(['setAuth', args])
+    // Dipanggil supabase-js saat event auth yang bisa terjadi kapan pun
+    // sebelum chunk asli termuat; diantrekan lalu diputar ulang.
+    this.setAuth = (...args) => queue.push(['setAuth', args])
 
-    // Pemicu muat on-demand (dipanggil via whenRealtimeReady()).
-    instance.__ensureLoaded = () => {
+    // Pemicu muat on-demand: membangun RealtimeClient asli & mengembalikannya.
+    // whenRealtimeReady() yang menugaskan hasilnya ke supabase.realtime.
+    this.__ensureLoaded = () => {
       if (!readyPromise) {
         readyPromise = loadRealtime().then(({ RealtimeClient: RC }) => {
-          delete instance.setAuth
-          delete instance.__ensureLoaded
-          Object.setPrototypeOf(instance, RC.prototype)
-
-          // Jalankan constructor kelas asli dengan `this` milik stub ini.
-          const Bound = new Proxy(RC, { construct(Target, args) { return instance } })
-          new Bound(url, options)
-
-          for (const [name, args] of queue) instance[name](...args)
+          const client = new RC(url, options)
+          for (const [name, args] of queue) client[name](...args)
           queue.length = 0
-          return instance
+          return client
         })
       }
       return readyPromise

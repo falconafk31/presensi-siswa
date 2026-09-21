@@ -5,6 +5,18 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Error realtime di dashboard** (`Cannot read properties of undefined (reading 'find')`): shim lazy-load realtime versi awal memakai *prototype-swap* yang membuat *class field* kelas `RealtimeClient` asli tidak pernah terinisialisasi (`channels` = undefined) sehingga subscribe channel gagal. Kini shim membangun instance asli secara normal dan menggantikannya ke `supabase.realtime` — subscribe realtime kembali berfungsi.
+
+### Diubah (Changed)
+- **/buku — popup Riwayat Peminjam:** tampilan compact (baris satu baris, padding rapat) sehingga muat tanpa *scroll* di desktop; header kolom dilengkapi ikon berwarna (Peminjam, Tgl Pinjam, Tenggat, Tgl Kembali, Status) dan badge status ber-ikon (Dipinjam biru, Dikembalikan hijau, Terlambat merah, Hilang abu).
+- **/peminjaman — redesign tampilan sirkulasi:**
+  - Tombol aksi **Kembalikan** kini memakai ikon panah kembali (`Undo2`) berwarna biru khas modul perpustakaan — lebih jelas bagi pengguna awam daripada ikon centang hijau sebelumnya.
+  - Kolom baru **Tgl Pinjam** dan **Status** (badge ber-ikon: Dipinjam / Terlambat N hari / Dikembalikan), avatar inisial peminjam, tanggal batas kembali berwarna merah + ikon jam ketika terlambat.
+  - Modal konfirmasi pengembalian diringkas dengan ikon, ringkasan transaksi (buku, peminjam, batas kembali, keterlambatan), dan tombol konfirmasi "Ya, Terima Buku".
+
 ## [0.2.2] - 2026-09-21
 
 ### Diubah (Changed)
