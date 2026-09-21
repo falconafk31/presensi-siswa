@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Warna aktif segmented control dipastikan solid & per-status (anti-fallback hijau):** utilitas warna aktif kini `!important` (menang pasti atas rule komponen `[aria-pressed]` yang ber-background putih di semua browser), dan fallback tone option tanpa warna diubah dari `primary` (hijau) ke `neutral` — menutup satu-satunya jalur "semua status jadi hijau". Nilai terverifikasi di CSS produksi: rgb(4 120 87) / rgb(3 105 161) / rgb(217 119 6) / rgb(190 18 60).
+
 ## [0.2.10] - 2026-09-21
 
 ### Diubah (Changed)
