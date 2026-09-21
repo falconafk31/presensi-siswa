@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-09-21
+
+### Diubah (Changed)
+- **Segmented control status kehadiran:** tombol ACTIVE kini **solid warna status masing-masing + teks putih** (bukan tint, bukan satu warna global) — Hadir `#047857`, Izin `#0369a1`, Sakit `#d97706`, Alfa `#be123c` (exact Rekap/`ATTENDANCE_COLORS`); warna dipilih per option via `tone` dari `ATTENDANCE_STATUS`. Inactive: teks digelapkan (slate-700, semibold) di atas container netral.
+
 ## [0.2.9] - 2026-09-21
 
 ### Diperbaiki (Fixed)

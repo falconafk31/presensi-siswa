@@ -165,7 +165,7 @@
     @apply inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1;
   }
   .segmented button {
-    @apply rounded-md px-3 py-1.5 text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-800 disabled:opacity-40;
+    @apply rounded-md px-3 py-1.5 text-[13px] font-semibold text-slate-700 transition-colors hover:text-slate-900 disabled:opacity-40;
     min-height: 2rem;
   }
   .segmented button[aria-pressed='true'], .segmented button.active {

@@ -9,17 +9,18 @@ defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
-// Selected = tint lembut + border EXACT semantic token kehadiran (sama dengan tabel Rekap):
-// Hadir border #047857 · Izin #0369a1 · Sakit #d97706 · Alfa #be123c
-// Teks memakai shade yang sama (amber memakai amber-700 agar kontras teks tetap ≥4.5:1 di atas amber-50).
-// Pola konsisten dengan badge design system (bg-50 + ring + text).
+// ACTIVE = solid warna status per OPTION (bukan satu warna global), teks putih.
+// Warna EXACT = header tabel Rekap / token ATTENDANCE_COLORS (designSystem.js):
+//   Hadir  -> emerald-700 #047857 · Izin -> sky-700 #0369a1
+//   Sakit  -> amber-600  #d97706 · Alfa -> rose-700 #be123c
+// Warna dipilih per option via o.tone (success/info/warning/danger) dari ATTENDANCE_STATUS.
 const activeTone = {
-  success: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-700',
-  info: 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-700',
-  warning: 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600',
-  danger: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-700',
-  primary: 'bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-700',
-  neutral: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500',
+  success: 'bg-emerald-700 text-white ring-1 ring-inset ring-emerald-700',
+  info: 'bg-sky-700 text-white ring-1 ring-inset ring-sky-700',
+  warning: 'bg-amber-600 text-white ring-1 ring-inset ring-amber-600',
+  danger: 'bg-rose-700 text-white ring-1 ring-inset ring-rose-700',
+  primary: 'bg-primary-700 text-white ring-1 ring-inset ring-primary-700',
+  neutral: 'bg-slate-700 text-white ring-1 ring-inset ring-slate-700',
 }
 </script>
 <template>
