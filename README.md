@@ -59,8 +59,23 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
     * **Reset Database (Wipe):** Fungsi *reset* sekali klik khusus Admin untuk menghapus data absensi/log lama, memastikan database Supabase tier gratis tetap lega.
 4.  **Arsitektur Bersih (Pure SPA):** 
     * Penggunaan *Client-Side Pagination* (25 baris per halaman) pada data statistik mengefisienkan *rendering* tabel.
-    * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, membuat ukuran pemuatan awal halaman menjadi instan.
+    * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, `jspdf`, `chart.js`, dan `html5-qrcode`, membuat ukuran pemuatan awal halaman menjadi instan.
     * Sistem bersih dari ketergantungan PWA sehingga terhindar dari konflik *cache* ganda, menjadikan aplikasi jauh lebih stabil sebagai *Single Page Application* standar.
+
+## ⚡ Performa & Strategi Loading (Anti-Kedip)
+
+Urutan boot aplikasi dirancang agar **tidak ada layar putih atau kedipan (*flicker*)** saat pertama dibuka:
+
+1. **Boot Splash Instan (App Shell)** — `index.html` memuat splash bermerek (logo + spinner) yang digambar langsung oleh browser via HTML/CSS *inline*, **tanpa menunggu JavaScript**. Warna latar splash disamakan dengan latar aplikasi (`#f8fafc`) sehingga pergantian splash → halaman penuh berlangsung mulus dalam satu frame.
+2. **Mount Setelah Rute Siap** — `main.js` menunggu `router.isReady()` sebelum `app.mount()`, sehingga chunk halaman pertama sudah termuat saat splash hilang (tidak ada urutan "kosong → skeleton → konten").
+3. **Profil User dari Cache Lokal** — setelah login, profil (nama, role, kelas) disimpan di `localStorage`. Pada kunjungan berikutnya profil di-hidrasi sinkron sehingga boot **tidak menunggu round-trip jaringan ke Supabase**; refresh profil berjalan di *background*. Fallback batas waktu boot 5 detik memastikan splash tidak pernah menggantung walau jaringan lambat.
+4. **Font Non-Blocking** — Google Fonts (Inter) dimuat dengan pola `preload` + `media="print"` swap sehingga tidak menahan *paint* pertama.
+5. **Chart.js Lazy-Load** — Chart.js (±266 kB) tidak lagi berada di jalur kritis; ia hanya termuat saat dashboard yang memakai grafik dirender (via `src/lib/chartSetup.js`).
+
+> **Catatan audit bundle:** konfigurasi `manualChunks` object-form lama sempat membuat Rollup meng-hoist *runtime Vue* ke dalam chunk `vendor-chart`, sehingga Chart.js ikut termuat di **setiap halaman** (±178 kB gzip jalur kritis). Setelah chunking dikembalikan ke default Rollup, jalur kritis boot kini hanya **1 file JS ±110 kB gzip + CSS ±10 kB gzip** (±38% lebih ringan), dan seluruh chunk berat (chart.js, xlsx 429 kB, jspdf, html5-qrcode) ter-*lazy-load* sesuai kebutuhan halaman.
+
+**Hasil audit layout & kode (sudah dibereskan):** penghapusan 7 file komponen/view yang tidak terpakai (`BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, `ComingSoonView`), pembersihan artefak build dari repositori (`dev-dist/` PWA lama, `vite.config.js.timestamp-*.mjs`), serta verifikasi bahwa `AppLayout` sudah mengikuti praktik baik: *sticky header*, sidebar responsif + mode collapse, *bottom navigation* mobile dengan *safe-area*, atribut aksesibilitas (ARIA), dukungan `prefers-reduced-motion`, dan target sentuh ≥ 44px di perangkat layar sentuh.
+
 
 ## 🎨 Design System
 
@@ -95,7 +110,7 @@ Salin `.env.example` ke `.env` dan isi dengan URL serta Anon Key dari proyek Sup
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
 ```
-Pastikan Anda sudah menjalankan seluruh *script* SQL yang berada di dalam folder `scaffold/supabase/` secara berurutan di SQL Editor Supabase Anda untuk membentuk *schema*, *RLS*, dan *Storage*.
+Pastikan Anda sudah menjalankan seluruh *script* SQL yang berada di dalam folder `supabase/` secara berurutan di SQL Editor Supabase Anda untuk membentuk *schema*, *RLS*, dan *Storage*.
 
 ### 4. Jalankan Development Server
 ```bash

@@ -5,6 +5,20 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Loading Awal Kedip-Kedip (Flicker):** Boot aplikasi kini mulus tanpa layar putih/kedip ±2 detik:
+  - *Boot splash* bermerek digambar instan dari HTML/CSS inline `index.html` (tanpa menunggu JS), lalu diganti mulus saat aplikasi siap.
+  - `app.mount()` menunggu `router.isReady()` sehingga splash hanya hilang tepat saat halaman pertama sudah ter-render penuh.
+  - Profil user di-cache di `localStorage` dan di-hidrasi sinkron — kunjungan ulang tidak lagi menunggu round-trip jaringan ke Supabase sebelum aplikasi tampil; refresh profil berjalan di background. Disertai batas waktu boot 5 detik agar splash tidak pernah menggantung.
+  - Google Fonts tidak lagi render-blocking (pola preload + print-swap).
+- **Runtime Vue & Chart.js termuat di semua halaman:** `manualChunks` object-form lama meng-hoist runtime Vue ke chunk `vendor-chart` sehingga Chart.js (±264 kB) berada di jalur kritis setiap halaman. Chunking dikembalikan ke default Rollup; Chart.js kini lazy-load via `src/lib/chartSetup.js`. Jalur kritis boot turun ±38% (±178 kB → ±110 kB gzip).
+
+### Dihapus (Removed)
+- Kode mati yang tidak pernah di-import: `BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, dan `ComingSoonView`.
+- Artefak build dari repositori: `dev-dist/` (sisa PWA lama) dan `vite.config.js.timestamp-*.mjs`; kini didaftarkan di `.gitignore`.
+
 ## [0.2.0] - 2026-08-12
 
 ### Ditambahkan (Added)

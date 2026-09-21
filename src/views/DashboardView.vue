@@ -6,12 +6,7 @@ import {
   ClipboardCheck, CalendarDays, ArrowRight, CircleAlert, PartyPopper,
   Loader2,
 } from 'lucide-vue-next'
-import { Doughnut, Line } from 'vue-chartjs'
-import {
-  Chart as ChartJS,
-  ArcElement, Tooltip, Legend, CategoryScale, LinearScale,
-  PointElement, LineElement, Filler,
-} from 'chart.js'
+import { defineAsyncComponent } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -22,10 +17,10 @@ import {
   AppSkeleton, AppBadge, AppButton,
 } from '@/components/ui'
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
-ChartJS.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif'
-ChartJS.defaults.font.size = 11
-ChartJS.defaults.color = '#64748b'
+// Grafik di-lazy-load via chartSetup (code-splitting) — chart.js tidak lagi
+// berada di jalur kritis render pertama dashboard.
+const Doughnut = defineAsyncComponent(() => import('@/lib/chartSetup').then((m) => m.Doughnut))
+const Line = defineAsyncComponent(() => import('@/lib/chartSetup').then((m) => m.Line))
 
 const auth = useAuthStore()
 const initialLoading = ref(true)

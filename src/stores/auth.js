@@ -2,6 +2,26 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 
+const USER_CACHE_KEY = 'presensi.user'
+
+function readUserCache() {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeUserCache(data) {
+  try {
+    if (data) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data))
+    else localStorage.removeItem(USER_CACHE_KEY)
+  } catch {
+    /* abaikan: storage penuh / private mode */
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
 
@@ -17,26 +37,51 @@ export const useAuthStore = defineStore('auth', () => {
     const { data, error } = await supabase.from('users').select('*').eq('auth_id', auth_id).single()
     if (!error && data) {
       user.value = data
-    } else {
+      writeUserCache(data)
+    } else if (!user.value) {
       user.value = null
     }
   }
 
-  // Initialize session on load
+  // Initialize session on load.
+  // Urutan boot dirancang anti-kedip:
+  // 1) Hidrasi sinkron dari cache lokal → role/kelas langsung tersedia,
+  //    mount tidak perlu menunggu round-trip jaringan pada kunjungan ulang.
+  // 2) Listener auth didaftarkan sebelum await apa pun.
+  // 3) Profil di-refresh di background bila cache sudah cocok dengan sesi;
+  //    fetch pemblokiran hanya terjadi pada kunjungan pertama (perangkat baru).
   async function initialize() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      await fetchProfile(session.user.id)
-    }
-    
-    // Listen for auth changes
+    const cached = readUserCache()
+    if (cached?.auth_id) user.value = cached
+
+    // Listen for auth changes (daftarkan SEBELUM await agar tidak ada event yang terlewat)
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        await fetchProfile(session.user.id)
+        // Lewati bila profil user yang sama sudah termuat (cegah fetch ganda
+        // pada event INITIAL_SESSION / TOKEN_REFRESHED)
+        if (user.value?.auth_id !== session.user.id) {
+          await fetchProfile(session.user.id)
+        }
       } else {
         user.value = null
+        writeUserCache(null)
       }
     })
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      user.value = null
+      writeUserCache(null)
+      return
+    }
+
+    if (user.value?.auth_id === session.user.id) {
+      // Cache cocok → refresh di background (tidak memblokir boot)
+      fetchProfile(session.user.id)
+    } else {
+      // Cache kosong/beda user → profil wajib menunggu (dibutuhkan guard rute)
+      await fetchProfile(session.user.id)
+    }
   }
 
   async function login(username, password) {
@@ -62,6 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw new Error(error.message)
     user.value = null
+    writeUserCache(null)
   }
 
   return { user, isAuthenticated, isAdmin, isPustakawan, canManagePerpus, isGuru, canManagePresensi, kelas, login, logout, initialize }
