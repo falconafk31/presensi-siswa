@@ -93,7 +93,7 @@ export async function exportPdfSirkulasi(loans, settings, title = 'Laporan Sirku
   // ---------- JUDUL LAPORAN ----------
   doc.setFont('times', 'bold')
   doc.setFontSize(14)
-  const namaPerpus = settings?.nama_perpustakaan || 'MIN Blora'
+  const namaPerpus = settings?.nama_perpustakaan || 'Perpustakaan Madrasah'
   doc.text(`${title.toUpperCase()} PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageW / 2, lineY + 8.5, { align: 'center' })
   
   doc.setFontSize(10)

@@ -9,7 +9,7 @@ import {
 } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
-ChartJS.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif'
+ChartJS.defaults.font.family = 'Inter Variable, Inter, ui-sans-serif, system-ui, sans-serif'
 ChartJS.defaults.font.size = 11
 ChartJS.defaults.color = '#64748b'
 

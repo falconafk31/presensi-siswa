@@ -183,7 +183,7 @@ router.afterEach((to) => {
       'panduan': 'Panduan Penggunaan',
     }
     const pageTitle = titleMap[to.name] || 'App'
-    document.title = `${pageTitle} | Sistem Presensi MIN Blora`
+    document.title = `${pageTitle} | Sistem Presensi & Perpustakaan`
   }
 })
 

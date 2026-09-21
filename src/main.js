@@ -2,6 +2,9 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+// Font Inter self-host (variable font: 1 file untuk semua bobot 100–900,
+// font-display: swap, unicode-range latin). Tanpa CDN Google Fonts.
+import '@fontsource-variable/inter'
 import './style.css'
 
 import { useAuthStore } from './stores/auth'

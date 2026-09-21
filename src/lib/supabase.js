@@ -15,3 +15,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
   },
 })
+
+// realtime-js di-lazy-load via src/lib/lazyRealtime.js (alias Vite).
+// Panggil ini sebelum membuat channel realtime — sekaligus memicu unduhan
+// chunk-nya saat pertama kali dipanggil (on-demand). Bila realtime tidak
+// lazy (mis. shim dilepas di masa depan), promise langsung resolve.
+export function whenRealtimeReady() {
+  const realtime = supabase.realtime
+  if (realtime?.__ensureLoaded) return realtime.__ensureLoaded()
+  return Promise.resolve()
+}

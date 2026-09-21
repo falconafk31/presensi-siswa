@@ -5,34 +5,17 @@
     <meta name="theme-color" content="#047857" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Sistem Presensi & Perpustakaan Madrasah — presensi harian, rekap akademik, dan sirkulasi perpustakaan dalam satu portal." />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23047857'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='white' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E" />
-    <!-- Font: dimuat non-blocking (tidak menahan paint pertama). Fallback stack sudah solid. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      />
-    </noscript>
-    <title>Sistem Presensi MIN Blora</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23047857'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='white' text-anchor='middle'%3E%F0%9F%8F%AB%3C/text%3E%3C/svg%3E" />
+    <!-- Font Inter di-self-host (bundle @fontsource-variable/inter), tanpa CDN
+         eksternal → tanpa DNS/round-trip Google Fonts, tidak render-blocking. -->
+    <title>Sistem Presensi &amp; Perpustakaan</title>
     <style>
       /* ============================================================
          BOOT SPLASH — App Shell instan (murni HTML/CSS, tanpa JS).
          Mencegah layar putih / kedip saat bundle & sesi dimuat.
-         Warna disamakan dengan design system (base #f8fafc, primary
-         #047857) agar pergantian splash → aplikasi mulus tanpa lompat.
+         Netral (tanpa nama/logo sekolah bawaan); logo madrasah dari
+         menu Pengaturan > Identitas Madrasah di-inject dari cache
+         localStorage oleh script inline di bawah (kunjungan berikutnya).
          ============================================================ */
       html, body {
         margin: 0;
@@ -46,7 +29,7 @@
         gap: 14px;
         min-height: 100vh;
         min-height: 100dvh;
-        font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
         -webkit-font-smoothing: antialiased;
         text-align: center;
         animation: boot-fade-in 0.25s ease-out;
@@ -58,13 +41,10 @@
         width: 56px;
         height: 56px;
         border-radius: 16px;
-        background: #047857;
-        color: #fff;
-        font-size: 15px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        box-shadow: 0 8px 20px -6px rgb(4 120 87 / 0.45);
+        overflow: hidden;
+        box-shadow: 0 8px 20px -6px rgb(15 23 42 / 0.15);
       }
+      .boot-logo[hidden] { display: none; }
       .boot-title {
         margin: 0;
         font-size: 14px;
@@ -97,11 +77,28 @@
       <!-- Splash digambar langsung oleh browser, lalu otomatis diganti
            isi #app saat Vue mount (setelah rute pertama benar-benar siap). -->
       <div class="boot-splash" aria-hidden="true">
-        <div class="boot-logo">MIN</div>
-        <p class="boot-title">Sistem Presensi MIN Blora</p>
+        <div class="boot-logo" id="boot-logo" hidden></div>
+        <p class="boot-title">Sistem Presensi &amp; Perpustakaan</p>
         <p class="boot-sub">Memuat aplikasi&hellip;</p>
         <div class="boot-spinner"></div>
       </div>
+      <script>
+        /* Ambil logo madrasah dari cache (disimpan oleh stores/settings.js
+           setelah fetch Pengaturan > Identitas Madrasah > Unggah Logo).
+           Kunjungan pertama: splash tampil netral tanpa logo. */
+        try {
+          var logo = localStorage.getItem('app.logo_url')
+          var el = document.getElementById('boot-logo')
+          if (logo && el) {
+            el.hidden = false
+            var img = document.createElement('img')
+            img.src = logo
+            img.alt = ''
+            img.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;box-sizing:border-box'
+            el.appendChild(img)
+          }
+        } catch (e) { /* abaikan */ }
+      </script>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

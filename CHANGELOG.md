@@ -5,6 +5,17 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-09-21
+
+### Diubah (Changed)
+- **Font self-hosted:** Inter kini dibundel via `@fontsource-variable/inter` (variable font, `font-display: swap`) — tanpa CDN Google Fonts, tanpa *render-blocking stylesheet* eksternal.
+- **Boot splash netral & multi-sekolah:** splash tidak lagi menampilkan teks/nama sekolah atau placeholder logo "MIN". Judul generik "Sistem Presensi & Perpustakaan"; logo madrasah dari **Pengaturan → Identitas Madrasah → Unggah Logo** di-cache ke `localStorage` dan otomatis tampil di splash pada kunjungan berikutnya.
+- **Branding netral:** seluruh *hardcode* "MIN Blora" dihapus dari UI & fallback laporan (sidebar, judul halaman, kartu, PDF) agar aplikasi layak untuk banyak madrasah.
+- **`vercel.json`:** header `Cache-Control: immutable` untuk aset ber-*hash* di `/assets/*`.
+
+### Ditambahkan (Added)
+- **Lazy-load `@supabase/realtime-js`:** shim `src/lib/lazyRealtime.js` + alias Vite memisahkan realtime-js (±57 kB) menjadi chunk on-demand yang hanya diunduh saat fitur realtime dipakai (dashboard presensi); jalur kritis boot kini ±96 kB gzip (1 file JS).
+
 ## [0.2.1] - 2026-09-21
 
 ### Diperbaiki (Fixed)

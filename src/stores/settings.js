@@ -28,7 +28,16 @@ export const useSettingsStore = defineStore('settings', () => {
         hari_libur_mingguan: defaultData.hari_libur_mingguan || [0, 6],
         favicon_url: defaultData.favicon_url || ''
       }
-      
+
+      // Simpan logo ke cache lokal agar boot splash instan (index.html,
+      // digambar sebelum JS) dapat menampilkan logo madrasah dari menu
+      // Pengaturan > Identitas Madrasah pada kunjungan berikutnya.
+      try {
+        const logo = settings.value.logo_url || ''
+        if (logo) localStorage.setItem('app.logo_url', logo)
+        else localStorage.removeItem('app.logo_url')
+      } catch { /* abaikan: storage penuh / private mode */ }
+
     } catch (err) {
       console.error(err)
     } finally {

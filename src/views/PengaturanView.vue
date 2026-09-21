@@ -15,7 +15,7 @@ const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
 
 const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', nama_perpustakaan: 'MIN Blora', hari_libur_mingguan: [0, 6] })
+const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', nama_perpustakaan: '', hari_libur_mingguan: [0, 6] })
 const savingSettings = ref(false)
 const uploading = ref(false)
 const fileInput = ref(null)

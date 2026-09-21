@@ -137,7 +137,7 @@ const isActive = (name) => route.name === name
         </div>
         <div v-if="!isCollapsed" class="min-w-0 flex-1">
           <p class="truncate text-[13px] font-semibold leading-tight text-slate-900">
-            {{ settingsStore.settings?.nama_sekolah || 'MIN Blora' }}
+            {{ settingsStore.settings?.nama_sekolah || 'Madrasah' }}
           </p>
           <p class="text-[11px] leading-tight text-slate-400">Sistem Presensi</p>
         </div>

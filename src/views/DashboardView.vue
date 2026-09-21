@@ -7,7 +7,7 @@ import {
   Loader2,
 } from 'lucide-vue-next'
 import { defineAsyncComponent } from 'vue'
-import { supabase } from '@/lib/supabase'
+import { supabase, whenRealtimeReady } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { todayISO, daysInMonth, dayNumber, namaBulan, isWeekend, formatTanggalPanjang } from '@/lib/dates'
@@ -274,6 +274,8 @@ onMounted(async () => {
     fetchToday()
     fetchTrend()
   }, 1000)
+  // Pastikan chunk realtime-js (lazy-load) sudah siap sebelum subscribe.
+  await whenRealtimeReady()
   const channelName = `dashboard-attendance-${Date.now()}`
   channel = supabase
     .channel(channelName)

@@ -23,9 +23,10 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 * **Excel Generation:** `xlsx` (Cetak Rekap Bulanan & Semester ke Excel)
 * **Charts:** `chart.js` & `vue-chartjs`
 * **Icons:** `lucide-vue-next` (tree-shakeable, ringan)
+* **Font:** `Inter Variable` self-host via [@fontsource-variable/inter](https://fontsource.org/fonts/inter) — tanpa CDN eksternal
 * **Notifikasi:** `vue-sonner` (toast ringan, mudah diselaraskan dengan Tailwind)
 * **Utilities:** `@vueuse/core` (composables siap pakai)
-* **UI Primitives:** `radix-vue` / `@headlessui/vue` (modal, dropdown, segmented control yang accessible)
+* **UI Primitives:** Komponen UI kustom berbasis Tailwind CSS (modal, dropdown, segmented control) — tanpa library UI berat
 * **Deployment:** [Vercel](https://vercel.com/)
 
 ## ✨ Fitur Utama
@@ -66,15 +67,28 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 
 Urutan boot aplikasi dirancang agar **tidak ada layar putih atau kedipan (*flicker*)** saat pertama dibuka:
 
-1. **Boot Splash Instan (App Shell)** — `index.html` memuat splash bermerek (logo + spinner) yang digambar langsung oleh browser via HTML/CSS *inline*, **tanpa menunggu JavaScript**. Warna latar splash disamakan dengan latar aplikasi (`#f8fafc`) sehingga pergantian splash → halaman penuh berlangsung mulus dalam satu frame.
+1. **Boot Splash Instan (App Shell, Netral & Multi-Sekolah)** — `index.html` memuat splash (spinner + judul generik "Sistem Presensi & Perpustakaan") yang digambar langsung oleh browser via HTML/CSS *inline*, **tanpa menunggu JavaScript** — tanpa nama/logo sekolah bawaan karena aplikasi bersifat global. Logo madrasah yang diunggah melalui menu **Pengaturan → Identitas Madrasah → Unggah Logo** di-cache ke `localStorage` dan di-*inject* ke splash oleh *script inline* — sehingga pada kunjungan berikutnya **splash menampilkan logo madrasah Anda sendiri** sejak frame pertama. Warna latar splash disamakan dengan latar aplikasi (`#f8fafc`) agar pergantian splash → halaman penuh mulus dalam satu frame.
 2. **Mount Setelah Rute Siap** — `main.js` menunggu `router.isReady()` sebelum `app.mount()`, sehingga chunk halaman pertama sudah termuat saat splash hilang (tidak ada urutan "kosong → skeleton → konten").
 3. **Profil User dari Cache Lokal** — setelah login, profil (nama, role, kelas) disimpan di `localStorage`. Pada kunjungan berikutnya profil di-hidrasi sinkron sehingga boot **tidak menunggu round-trip jaringan ke Supabase**; refresh profil berjalan di *background*. Fallback batas waktu boot 5 detik memastikan splash tidak pernah menggantung walau jaringan lambat.
-4. **Font Non-Blocking** — Google Fonts (Inter) dimuat dengan pola `preload` + `media="print"` swap sehingga tidak menahan *paint* pertama.
-5. **Chart.js Lazy-Load** — Chart.js (±266 kB) tidak lagi berada di jalur kritis; ia hanya termuat saat dashboard yang memakai grafik dirender (via `src/lib/chartSetup.js`).
+4. **Font Self-Hosted (Inter Variable)** — tidak ada lagi CDN Google Fonts (tanpa DNS lookup + *render-blocking stylesheet* eksternal). Inter dimuat dari bundle via `@fontsource-variable/inter`: satu file *variable font* untuk semua bobot, `font-display: swap`, dan `unicode-range` (browser hanya mengunduh subset latin ±48 kB).
+5. **Chart.js Lazy-Load** — Chart.js (±266 kB) hanya termuat saat dashboard yang memakai grafik dirender (via `src/lib/chartSetup.js`).
+6. **Supabase Realtime Lazy-Load** — `@supabase/supabase-js` selalu meng-instansiasi `RealtimeClient` di constructornya; melalui *alias* + *shim* `src/lib/lazyRealtime.js`, paket `@supabase/realtime-js` (±57 kB) dipisah menjadi chunk on-demand yang **hanya diunduh saat fitur realtime dipakai** (dashboard presensi). Halaman login dan user Pustakawan murni tidak mengunduhnya sama sekali.
+7. **Cache Aset Immutabel** — `vercel.json` mengirim header `Cache-Control: public, max-age=31536000, immutable` untuk semua file di `/assets/*` (nama file ber-*hash* konten), sehingga kunjungan berikutnya memuat aplikasi nyaris instan dari cache browser.
 
-> **Catatan audit bundle:** konfigurasi `manualChunks` object-form lama sempat membuat Rollup meng-hoist *runtime Vue* ke dalam chunk `vendor-chart`, sehingga Chart.js ikut termuat di **setiap halaman** (±178 kB gzip jalur kritis). Setelah chunking dikembalikan ke default Rollup, jalur kritis boot kini hanya **1 file JS ±110 kB gzip + CSS ±10 kB gzip** (±38% lebih ringan), dan seluruh chunk berat (chart.js, xlsx 429 kB, jspdf, html5-qrcode) ter-*lazy-load* sesuai kebutuhan halaman.
+> **Catatan audit bundle:** konfigurasi `manualChunks` object-form lama sempat membuat Rollup meng-hoist *runtime Vue* ke dalam chunk `vendor-chart`, sehingga Chart.js ikut termuat di **setiap halaman** (±178 kB gzip jalur kritis). Setelah perbaikan (chunking default Rollup + font self-host + realtime lazy), jalur kritis boot kini hanya **1 file JS ±96 kB gzip + CSS ±10 kB gzip + 1 file font ±48 kB**, dan seluruh chunk berat (chart.js 186 kB, xlsx 429 kB, jspdf, html5-qrcode, realtime-js) ter-*lazy-load* sesuai kebutuhan halaman.
 
-**Hasil audit layout & kode (sudah dibereskan):** penghapusan 7 file komponen/view yang tidak terpakai (`BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, `ComingSoonView`), pembersihan artefak build dari repositori (`dev-dist/` PWA lama, `vite.config.js.timestamp-*.mjs`), serta verifikasi bahwa `AppLayout` sudah mengikuti praktik baik: *sticky header*, sidebar responsif + mode collapse, *bottom navigation* mobile dengan *safe-area*, atribut aksesibilitas (ARIA), dukungan `prefers-reduced-motion`, dan target sentuh ≥ 44px di perangkat layar sentuh.
+**Hasil audit layout & kode (sudah dibereskan):** penghapusan 7 file komponen/view yang tidak terpakai (`BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, `ComingSoonView`), pembersihan artefak build dari repositori (`dev-dist/` PWA lama, `vite.config.js.timestamp-*.mjs`), penghapusan seluruh *hardcode* nama sekolah ("MIN Blora") dari UI/laporan agar tetap netral untuk multi-madrasah, serta verifikasi bahwa `AppLayout` sudah mengikuti praktik baik: *sticky header*, sidebar responsif + mode collapse, *bottom navigation* mobile dengan *safe-area*, atribut aksesibilitas (ARIA), dukungan `prefers-reduced-motion`, dan target sentuh ≥ 44px di perangkat layar sentuh.
+
+## 🧭 Backlog Optimasi Lanjutan (Opsional)
+
+Item berikut **tidak mendesak** — aplikasi saat ini sudah ringan dan stabil. Catatan untuk pengembangan selanjutnya:
+
+1. **`html5-qrcode` (±384 kB, hanya di halaman Scan QR)** — sudah *lazy-load* per rute, tetapi jika ingin lebih ringan lagi, pertimbangkan migrasi ke *native* [`BarcodeDetector` API](https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector) dengan fallback `html5-qrcode` untuk browser lama.
+2. **Kompresi logo saat unggah** — kompres/resize gambar logo di sisi klien (mis. maks. 256×256 px, WebP) sebelum masuk Storage, agar splash & sidebar semakin ringan.
+3. **Upgrade `@supabase/supabase-js`** — jika versi baru menyediakan *lazy realtime* bawaan, shim `src/lib/lazyRealtime.js` bisa dilepas.
+4. **Monitoring error runtime** (mis. Sentry/GlitchTip) untuk menangkap error di perangkat sekolah yang tidak terlihat saat development.
+5. **CI + test otomatis** (Vitest + Vue Test Utils) untuk alur kritis: auth, guard rute, dan kalkulasi rekap.
+6. **Virtualisasi tabel** (mis. `@tanstack/vue-virtual`) hanya jika jumlah siswa tumbuh sangat besar — saat ini *client-side pagination* 25 baris per halaman masih sangat efisien.
 
 
 ## 🎨 Design System

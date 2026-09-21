@@ -13,7 +13,7 @@ import { IdCard } from 'lucide-vue-next'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
-const namaSekolah = computed(() => settingsStore.settings?.nama_sekolah || 'MIN Blora')
+const namaSekolah = computed(() => settingsStore.settings?.nama_sekolah || 'Madrasah')
 
 const selectedKelas = ref('')
 const students = ref([])
