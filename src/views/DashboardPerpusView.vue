@@ -290,9 +290,9 @@ onMounted(() => {
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="card-flat card-interactive group flex items-center gap-3 p-3"
+            class="card-flat card-interactive group flex items-center gap-2.5 p-2.5"
           >
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
               <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1">
@@ -324,7 +324,7 @@ onMounted(() => {
             </select>
           </div>
         </template>
-        <div class="relative h-56 sm:h-64" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
+        <div class="relative h-[clamp(130px,17vh,240px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
             <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />
           </div>
@@ -335,33 +335,31 @@ onMounted(() => {
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <!-- Visit stats -->
         <AppCard title="Kunjungan" subtitle="Akumulasi pengunjung">
-          <div class="flex flex-col gap-2.5">
-            <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
-                <Users class="h-5 w-5" aria-hidden="true" />
+          <!-- Chip satu baris: ringkas tanpa mengurangi informasi -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                <Users class="h-4 w-4" aria-hidden="true" />
               </div>
-              <div class="min-w-0">
-                <p class="text-[13px] text-slate-500">Hari ini</p>
-                <p class="stat-number !text-xl">{{ kunjunganHariIni }} <span class="text-xs font-normal text-slate-400">orang</span></p>
-              </div>
+              <p class="min-w-0 truncate text-[13px] text-slate-500">
+                <span class="stat-number !text-base">{{ kunjunganHariIni }}</span> orang · Hari ini
+              </p>
             </div>
-            <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
-                <CalendarDays class="h-5 w-5" aria-hidden="true" />
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/70 text-slate-600">
+                <CalendarDays class="h-4 w-4" aria-hidden="true" />
               </div>
-              <div class="min-w-0">
-                <p class="text-[13px] text-slate-500">Bulan ini</p>
-                <p class="stat-number !text-xl">{{ kunjunganBulanIni }} <span class="text-xs font-normal text-slate-400">orang</span></p>
-              </div>
+              <p class="min-w-0 truncate text-[13px] text-slate-500">
+                <span class="stat-number !text-base">{{ kunjunganBulanIni }}</span> orang · Bulan ini
+              </p>
             </div>
-            <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
-                <BarChart2 class="h-5 w-5" aria-hidden="true" />
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/70 text-slate-600">
+                <BarChart2 class="h-4 w-4" aria-hidden="true" />
               </div>
-              <div class="min-w-0">
-                <p class="text-[13px] text-slate-500">Tahun ini</p>
-                <p class="stat-number !text-xl">{{ kunjunganTahunIni }} <span class="text-xs font-normal text-slate-400">orang</span></p>
-              </div>
+              <p class="min-w-0 truncate text-[13px] text-slate-500">
+                <span class="stat-number !text-base">{{ kunjunganTahunIni }}</span> orang · Tahun ini
+              </p>
             </div>
           </div>
         </AppCard>
@@ -377,11 +375,11 @@ onMounted(() => {
             description="Transaksi peminjaman akan muncul di sini."
             :icon="BookOpen"
           />
-          <ul v-else class="flex max-h-[268px] flex-col gap-2 overflow-y-auto pr-1">
+          <ul v-else class="flex max-h-[clamp(108px,14vh,240px)] flex-col gap-1.5 overflow-y-auto pr-1">
             <li
               v-for="l in recentLoans"
               :key="l.id"
-              class="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-slate-100 p-2.5 transition-colors hover:bg-slate-50/70"
+              class="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-slate-100 p-2 transition-colors hover:bg-slate-50/70"
             >
               <div class="flex min-w-0 items-center gap-3">
                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">

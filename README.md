@@ -84,7 +84,10 @@ Urutan boot aplikasi dirancang agar **tidak ada layar putih atau kedipan (*flick
 Dashboard & sidebar dirancang agar informasi utama muat **tanpa scroll vertikal pada state normal**:
 
 - **Footer sidebar = identity block compact** — hanya avatar inisial + nama + role (±54 px). Aksi **Refresh** dan **Keluar** sengaja **tidak diduplikasi** di sidebar; keduanya cukup dijangkau lewat menu profil di pojok kanan atas. Pada mode *collapsed*, footer menampilkan **avatar saja** (dengan *tooltip* nama) — tanpa tombol apa pun. Drawer mobile juga hanya menampilkan identitas, tanpa logout duplikat. Footer bersifat *shrink-0 bottom-aligned* sehingga tidak mendorong menu navigasi dan tidak menambah *scrollbar* baru.
-- **Densitas dashboard dirapatkan tanpa mengurangi keterbacaan:** jarak antar-seksi (`page-stack`) 16/20 px → 12/16 px, margin ganda pada *page header* dihapus, *stat card* & *quick action* sedikit dirapatkan (padding −2 px, ikon −4 px), dan **filter bulan/tahun digabung ke header kartu tren** (menghilangkan satu baris kontrol duplikat). Grafik disesuaikan (tren 224 px, donut 192 px, tren perpustakaan 256 px) serta daftar panjang memakai *scroll internal kartu* — seluruh informasi utama tetap tersedia.
+- **Densitas dashboard dirapatkan tanpa mengurangi keterbacaan:** jarak antar-seksi (`page-stack`) 12/16 px, padding kartu (`card-pad`) 12/14 px, margin ganda *page header* dihapus, tab filter 36 px, *stat card* & *quick action* ramping (ikon 32 px), dan **filter bulan/tahun digabung ke header kartu tren** (baris kontrol duplikat dihilangkan).
+- **Grafik adaptif tinggi layar** — tinggi chart memakai CSS `clamp()` berbasis `vh` (tren presensi 150–208 px, donut 130–176 px, tren perpustakaan 130–240 px) sehingga menyusut otomatis di layar pendek (1366×768) dan membesar di layar tinggi.
+- **Kartu "Kunjungan" perpustakaan** dipadatkan menjadi 3 *chip* satu baris (ikon + angka + label) dan daftar "Peminjaman Terakhir" memakai *scroll internal kartu* — seluruh informasi utama tetap tersedia, menu/section tidak ada yang diubah.
+- **Guard regresi binding template** — `scripts/check-template-bindings.mjs` meng-compile seluruh SFC dan gagal-build bila ada binding template yang tidak terdefinisi (mencegah error runtime seperti "x is not a function"); terpasang otomatis di `npm run build`.
 
 ## 🧭 Backlog Optimasi Lanjutan (Opsional)
 

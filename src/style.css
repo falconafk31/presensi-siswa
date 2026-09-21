@@ -81,7 +81,7 @@
   .card-flat {
     @apply rounded-xl border border-slate-200/80 bg-white;
   }
-  .card-pad { @apply p-4 sm:p-5; }
+  .card-pad { @apply p-3 sm:p-3.5; }
   .card-interactive {
     @apply transition-colors duration-150 hover:border-primary-200 hover:bg-primary-50/40;
   }
@@ -228,8 +228,8 @@
     @apply flex items-center gap-1 overflow-x-auto border-b border-slate-200;
   }
   .tab-btn {
-    @apply relative whitespace-nowrap px-3.5 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800;
-    min-height: 2.75rem;
+    @apply relative whitespace-nowrap px-3.5 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800;
+    min-height: 2.25rem;
   }
   .tab-btn[aria-selected='true'] {
     @apply text-primary-700;

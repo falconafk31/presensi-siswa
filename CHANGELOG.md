@@ -5,6 +5,15 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Error "historyMeta is not a function" (/buku) & "formatDateID is not a function" (/peminjaman):** sebagian edit *script* pada sesi sebelumnya tidak tertulis ke file (service flaky) sementara edit *template*-nya selamat, sehingga template memanggil fungsi yang tidak pernah dideklarasikan. Semua helper telah dikembalikan: `historyMeta` (BukuView), serta `formatDateID`, `loanStatusMeta`, `hariTerlambat`, `activeLoanCount` (PeminjamanView).
+- **Guard regresi:** `scripts/check-template-bindings.mjs` meng-compile seluruh SFC dan mendeteksi binding template yang tidak terdefinisi; terpasang di `npm run build` sehingga kelas error ini tidak bisa masuk lagi.
+
+### Diubah (Changed)
+- **Densitas dashboard lebih agresif (tanpa mengurangi keterbacaan):** padding kartu 12/14 px, tab filter 36 px, stat card & quick actions ramping (ikon 32 px), padding konten desktop dirapatkan; **tinggi grafik adaptif tinggi layar** via CSS `clamp()` (tren presensi 150–208 px, donut 130–176 px, tren perpustakaan 130–240 px); kartu "Kunjungan" perpustakaan menjadi 3 chip satu baris; daftar panjang scroll internal kartu. Seluruh section/menu dashboard dipertahankan.
+
 ## [0.2.4] - 2026-09-21
 
 ### Diubah (Changed)

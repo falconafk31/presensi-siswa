@@ -427,9 +427,9 @@ const hasAttention = computed(() =>
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="card-flat card-interactive group flex items-center gap-3 p-3.5"
+            class="card-flat card-interactive group flex items-center gap-2.5 p-2.5"
           >
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-primary-700 group-hover:text-white">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-primary-700 group-hover:text-white">
               <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1">
@@ -448,7 +448,7 @@ const hasAttention = computed(() =>
         subtitle="Tindak lanjut agar data presensi hari ini lengkap"
       >
         <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-if="unsubmittedClasses.length > 0" class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+          <div v-if="unsubmittedClasses.length > 0" class="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
             <div class="flex items-center gap-2">
               <CircleAlert class="h-4 w-4 text-amber-600" aria-hidden="true" />
               <p class="text-[13px] font-semibold text-amber-800">Belum presensi · {{ unsubmittedClasses.length }} kelas</p>
@@ -458,7 +458,7 @@ const hasAttention = computed(() =>
               <span v-if="unsubmittedClasses.length > 8" class="text-xs text-amber-700">+{{ unsubmittedClasses.length - 8 }} lagi</span>
             </div>
           </div>
-          <div v-if="counts.Alfa > 0" class="rounded-lg border border-rose-200 bg-rose-50/60 p-3">
+          <div v-if="counts.Alfa > 0" class="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5">
             <div class="flex items-center gap-2">
               <TriangleAlert class="h-4 w-4 text-rose-600" aria-hidden="true" />
               <p class="text-[13px] font-semibold text-rose-800">Alfa hari ini · {{ counts.Alfa }} siswa</p>
@@ -467,14 +467,14 @@ const hasAttention = computed(() =>
               {{ absentStudents.Alfa.slice(0, 3).map((s) => s.nama).join(', ') }}{{ absentStudents.Alfa.length > 3 ? ` +${absentStudents.Alfa.length - 3} lagi` : '' }}
             </p>
           </div>
-          <div v-if="isBelumAbsen && kelasFilter" class="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+          <div v-if="isBelumAbsen && kelasFilter" class="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
             <div class="flex items-center gap-2">
               <ClipboardCheck class="h-4 w-4 text-amber-600" aria-hidden="true" />
               <p class="text-[13px] font-semibold text-amber-800">Kelas {{ kelasFilter }} belum diabsen</p>
             </div>
-            <AppButton size="sm" class="mt-2" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
+            <AppButton size="sm" class="mt-1.5" :to="{ name: 'presensi' }">Isi Presensi</AppButton>
           </div>
-          <div v-if="!isBelumAbsen && submittedCount > 0 && unsubmittedClasses.length === 0 && counts.Alfa === 0" class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 sm:col-span-2 lg:col-span-3">
+          <div v-if="!isBelumAbsen && submittedCount > 0 && unsubmittedClasses.length === 0 && counts.Alfa === 0" class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5 sm:col-span-2 lg:col-span-3">
             <div class="flex items-center gap-2">
               <PartyPopper class="h-4 w-4 text-emerald-600" aria-hidden="true" />
               <p class="text-[13px] font-semibold text-emerald-800">Semua kelas sudah presensi dan tidak ada alfa. Kerja bagus!</p>
@@ -498,13 +498,13 @@ const hasAttention = computed(() =>
               </select>
             </div>
           </template>
-          <div class="h-48 sm:h-56" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+          <div class="h-[clamp(150px,23vh,208px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>
         </AppCard>
 
         <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
-          <div class="relative h-48">
+          <div class="relative h-[clamp(130px,20vh,176px)]">
             <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
               <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
@@ -517,7 +517,7 @@ const hasAttention = computed(() =>
             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>
-            <div class="max-h-40 space-y-2.5 overflow-y-auto pr-1">
+            <div class="max-h-32 space-y-2.5 overflow-y-auto pr-1">
               <div v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
                 <template v-if="absentStudents[key].length > 0">
                   <div class="mb-1 flex items-center gap-1.5">

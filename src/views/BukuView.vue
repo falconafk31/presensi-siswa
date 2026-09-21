@@ -293,7 +293,16 @@ async function openHistoryModal(book) {
   }
 }
 
-const historyStatusTone = { dipinjam: 'info', dikembalikan: 'success', terlambat: 'danger', hilang: 'neutral' }
+// Meta status riwayat: ikon + warna + label yang ramah pengguna awam.
+const historyStatusMeta = {
+  dipinjam: { icon: BookOpen, tone: 'info', label: 'Dipinjam' },
+  dikembalikan: { icon: CheckCircle2, tone: 'success', label: 'Dikembalikan' },
+  terlambat: { icon: AlarmClockOff, tone: 'danger', label: 'Terlambat' },
+  hilang: { icon: SearchX, tone: 'neutral', label: 'Hilang' },
+}
+function historyMeta(status) {
+  return historyStatusMeta[status] || { icon: Activity, tone: 'neutral', label: status }
+}
 function formatDateID(iso) {
   if (!iso) return '–'
   return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })

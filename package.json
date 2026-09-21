@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vite",
-    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vite build",
+    "build": "node scripts/check-template-bindings.mjs && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vite build",
     "preview": "vite preview"
   },
   "dependencies": {

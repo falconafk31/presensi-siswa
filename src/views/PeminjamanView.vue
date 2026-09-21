@@ -259,6 +259,30 @@ function isTerlambat(tgl) {
   return kembali < hariIni
 }
 
+function hariTerlambat(tgl) {
+  const kembali = new Date(tgl)
+  const hariIni = new Date()
+  hariIni.setHours(0, 0, 0, 0)
+  return Math.max(0, Math.floor((hariIni - kembali) / 86400000))
+}
+
+// Meta status pinjam: ikon + warna + label yang jelas bagi pengguna awam.
+function loanStatusMeta(l) {
+  if (l.status === 'dikembalikan') return { icon: CheckCircle2, tone: 'success', label: 'Dikembalikan' }
+  if (isTerlambat(l.tanggal_kembali_seharusnya)) {
+    const d = hariTerlambat(l.tanggal_kembali_seharusnya)
+    return { icon: AlarmClockOff, tone: 'danger', label: d > 0 ? `Terlambat ${d} hari` : 'Terlambat' }
+  }
+  return { icon: BookOpen, tone: 'library', label: 'Dipinjam' }
+}
+
+function formatDateID(iso) {
+  if (!iso) return '–'
+  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const activeLoanCount = computed(() => filteredLoans.value.filter((l) => l.status === 'dipinjam').length)
+
 onMounted(() => {
   fetchLoans()
 })

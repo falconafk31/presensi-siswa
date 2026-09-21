@@ -283,7 +283,7 @@ const isActive = (name) => route.name === name
       </header>
 
       <!-- Page content -->
-      <main class="p-4 pb-24 sm:p-6 lg:p-6 lg:pb-10">
+      <main class="p-4 pb-24 sm:p-5 lg:p-5 lg:pb-6">
         <div class="page">
           <RouterView />
         </div>
