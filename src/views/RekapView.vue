@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { FileDown, RefreshCw, Table2, CalendarDays } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +16,13 @@ import {
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
+const route = useRoute()
+
+// Konteks deep-link dari Dashboard Admin (?status=belum-presensi&date=&kelas=1,2):
+// opsi kelas dibatasi hanya kelas yang belum submit hari itu; reset saat user ubah filter.
+const belumContext = ref(false)
+const kelasOpsiBelum = ref(null)
+const kelasOptions = computed(() => kelasOpsiBelum.value || daftarKelas.value)
 
 const now = new Date()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
@@ -190,9 +198,37 @@ async function exportExcel() {
   }
 }
 
+function applyBelumPresensiContext() {
+  if (!auth.isAdmin || route.query.status !== 'belum-presensi') return
+  const list = String(route.query.kelas || '').split(',').map((k) => k.trim()).filter(Boolean)
+  if (list.length === 0) return
+  belumContext.value = true
+  kelasOpsiBelum.value = list
+  if (list.length === 1 || !list.includes(kelas.value)) kelas.value = list[0]
+  const dt = new Date(`${route.query.date}T00:00:00`)
+  if (!Number.isNaN(dt.getTime())) {
+    month.value = dt.getMonth() + 1
+    year.value = dt.getFullYear()
+  }
+}
+
+function clearBelumContext() {
+  if (belumContext.value) {
+    belumContext.value = false
+    kelasOpsiBelum.value = null
+  }
+}
+
+// Perubahan filter manual keluar dari konteks deep-link.
+function ubahFilter() {
+  clearBelumContext()
+  loadRekap()
+}
+
 onMounted(() => {
   if (!settingsStore.settings) settingsStore.fetchSettings()
   if (!periodStore.activePeriod) periodStore.fetchActivePeriod()
+  applyBelumPresensiContext()
   loadRekap()
 })
 </script>
@@ -216,13 +252,13 @@ onMounted(() => {
     </AppPageHeader>
 
     <AppFilterBar columns="sm:grid-cols-2 lg:grid-cols-4">
-      <AppSelect v-model="kelas" label="Kelas" :disabled="!auth.isAdmin" @change="loadRekap">
-        <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
+      <AppSelect v-model="kelas" label="Kelas" :disabled="!auth.isAdmin" @change="ubahFilter">
+        <option v-for="k in kelasOptions" :key="k" :value="k">Kelas {{ k }}</option>
       </AppSelect>
-      <AppSelect v-model.number="month" label="Bulan" @change="loadRekap">
+      <AppSelect v-model.number="month" label="Bulan" @change="ubahFilter">
         <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
       </AppSelect>
-      <AppSelect v-model.number="year" label="Tahun" @change="loadRekap">
+      <AppSelect v-model.number="year" label="Tahun" @change="ubahFilter">
         <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
       </AppSelect>
       <div class="flex items-end">
@@ -232,6 +268,11 @@ onMounted(() => {
         </AppButton>
       </div>
     </AppFilterBar>
+
+    <div v-if="belumContext" class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800" role="status">
+      <CalendarDays class="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+      <span><strong>Belum presensi hari ini</strong> — hanya kelas yang belum mengisi presensi yang tersedia dipilih.</span>
+    </div>
 
     <div v-if="loading" class="card-flat p-4">
       <AppSkeleton type="table" :rows="6" />

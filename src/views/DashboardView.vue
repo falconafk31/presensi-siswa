@@ -37,6 +37,10 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + 
 const counts = ref({ Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 })
 const totalSiswa = ref(0)
 const monthly = ref([])
+// Populasi siswa aktif per kelas (dari query fetchTotalSiswa yang sama) untuk
+// denominator tren per tanggal; agregat komposisi periode untuk kartu Komposisi Admin.
+const siswaPerKelas = ref({})
+const periodCounts = ref({ Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 })
 const absentStudents = ref({ Izin: [], Sakit: [], Alfa: [] })
 const unsubmittedClasses = ref([])
 const submittedCount = ref(0)
@@ -87,11 +91,14 @@ const quickActions = computed(() => {
 
 // ---- Data fetching (business logic preserved) ----
 async function fetchTotalSiswa() {
-  let q = supabase.from('students').select('id', { count: 'exact', head: true }).eq('active', true)
+  let q = supabase.from('students').select('kelas', { count: 'exact' }).eq('active', true)
   if (kelasFilter.value) q = q.eq('kelas', kelasFilter.value)
   else if (auth.isAdmin && daftarKelas.value.length > 0) q = q.in('kelas', daftarKelas.value)
-  const { count } = await q
+  const { count, data } = await q
   totalSiswa.value = count || 0
+  const perKelas = {}
+  for (const r of data || []) perKelas[r.kelas] = (perKelas[r.kelas] || 0) + 1
+  siswaPerKelas.value = perKelas
 }
 
 async function fetchToday() {
@@ -213,13 +220,37 @@ async function fetchTrend() {
   // Abaikan respons basi: hanya panggilan terbaru yang boleh menulis hasil.
   if (run !== trendRun) return
 
+  // Kelas aktif sesuai filter (Admin "Semua Kelas" = seluruh daftar kelas aktif).
+  const activeSet = kelasFilter.value
+    ? [kelasFilter.value]
+    : (auth.isAdmin && daftarKelas.value.length > 0 ? daftarKelas.value : [])
+
   const exceptionsPerDay = {}
+  // Agregat komposisi periode (kartu Komposisi Admin) — dari dataset yang sama,
+  // tanpa query baru; tanggal libur diabaikan.
+  const comp = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
   for (const row of data || []) {
+    if (activeSet.length > 0 && !activeSet.includes(row.kelas)) continue
     if (!submittedMap[row.date]) submittedMap[row.date] = new Set()
     submittedMap[row.date].add(row.kelas)
-    if (row.status !== 'Hadir') exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
+    if (row.status !== 'Hadir') {
+      exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
+      if (!liburSet.has(row.date)) comp[row.status] = (comp[row.status] || 0) + 1
+    }
   }
 
+  // Denominator per tanggal: populasi = siswa aktif PADA KELAS YANG BENAR-BENAR
+  // SUBMIT tanggal tersebut (bukan totalSiswa global). Tanpa submission -> null.
+  const populasiHadir = (d) => {
+    let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
+    if (activeSet.length > 0) kSub = kSub.filter((c) => activeSet.includes(c))
+    if (kSub.length === 0) return null
+    let pop = 0
+    for (const c of kSub) pop += siswaPerKelas.value[c] || 0
+    return pop - (exceptionsPerDay[d] || 0)
+  }
+
+  let hadirSum = 0
   if (mode === 'yearly') {
     monthly.value = dateList.map((m) => {
       const mStr = String(m).padStart(2, '0')
@@ -229,14 +260,12 @@ async function fetchTrend() {
       for (let i = 1; i <= 31; i++) {
         const d = `${prefix}-${String(i).padStart(2, '0')}`
         if (d > today) continue
-        let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
-        if (kelasFilter.value) kSub = kSub.filter((c) => c === kelasFilter.value)
-        else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter((c) => daftarKelas.value.includes(c))
-        if (kSub.length > 0) {
-          daysWithSubmissions++
-          totalHadirMonth += totalSiswa.value - (exceptionsPerDay[d] || 0)
-        }
+        const h = populasiHadir(d)
+        if (h === null) continue
+        daysWithSubmissions++
+        totalHadirMonth += h
       }
+      hadirSum += totalHadirMonth
       const avgHadir = daysWithSubmissions > 0 ? Math.round(totalHadirMonth / daysWithSubmissions) : null
       return { day: namaBulan(m).substring(0, 3), hadir: avgHadir }
     })
@@ -245,13 +274,14 @@ async function fetchTrend() {
       const displayDay = mode === 'daily' ? `${d.substring(8, 10)}/${d.substring(5, 7)}` : dayNumber(d)
       if (d > today) return { day: displayDay, hadir: null }
       if (liburSet.has(d)) return { day: displayDay, hadir: 0 }
-      let kSub = submittedMap[d] ? Array.from(submittedMap[d]) : []
-      if (kelasFilter.value) kSub = kSub.filter((c) => c === kelasFilter.value)
-      else if (auth.isAdmin && daftarKelas.value.length > 0) kSub = kSub.filter((c) => daftarKelas.value.includes(c))
-      if (kSub.length === 0) return { day: displayDay, hadir: null }
-      return { day: displayDay, hadir: totalSiswa.value - (exceptionsPerDay[d] || 0) }
+      const h = populasiHadir(d)
+      if (h === null) return { day: displayDay, hadir: null }
+      hadirSum += h
+      return { day: displayDay, hadir: h }
     })
   }
+
+  periodCounts.value = { Hadir: hadirSum, Izin: comp.Izin, Sakit: comp.Sakit, Alfa: comp.Alfa }
 }
 
 async function loadAll({ initial = false } = {}) {
@@ -291,10 +321,40 @@ onUnmounted(() => {
 watch(selectedTab, () => loadAll())
 
 // ---- Charts ----
+// Komposisi: Admin mengikuti periode trend; Guru tetap hari ini.
+const donutCounts = computed(() => (auth.isAdmin ? periodCounts.value : counts.value))
+const compTotal = computed(() => donutCounts.value.Hadir + donutCounts.value.Izin + donutCounts.value.Sakit + donutCounts.value.Alfa)
+const compLibur = computed(() => auth.isAdmin && isHariLibur.value && trendMode.value === 'daily')
+const showDonut = computed(() =>
+  auth.isAdmin
+    ? !compLibur.value && compTotal.value > 0
+    : !isHariLibur.value && !isBelumAbsen.value && totalSiswa.value > 0
+)
+const compTitle = computed(() => {
+  if (!auth.isAdmin) return 'Komposisi Hari Ini'
+  if (trendMode.value === 'daily') return 'Komposisi 7 Hari Terakhir'
+  if (trendMode.value === 'monthly') return `Komposisi ${namaBulan(month.value)} ${year.value}`
+  return `Komposisi Tahun ${year.value}`
+})
+const compSubtitle = computed(() => {
+  if (!auth.isAdmin) return isHariLibur.value ? 'Libur' : isBelumAbsen.value ? 'Belum diabsen' : `${counts.value.Hadir + totalTidakHadir.value} siswa tercatat`
+  if (compLibur.value) return 'Libur'
+  if (compTotal.value === 0) return 'Belum ada data'
+  return `${totalSiswa.value} siswa · ${kelasFilter.value ? `Kelas ${kelasFilter.value}` : 'Semua Kelas'}`
+})
+// Deep-link konteks "kelas belum presensi hari ini" ke Rekap (Admin).
+const attentionQuery = computed(() => {
+  const list = unsubmittedClasses.value.length
+    ? unsubmittedClasses.value
+    : (isBelumAbsen.value && kelasFilter.value ? [kelasFilter.value] : [])
+  const q = { status: 'belum-presensi', date: today }
+  if (list.length > 0) q.kelas = list.join(',')
+  return q
+})
 const doughnutData = computed(() => ({
   labels: ['Hadir', 'Izin', 'Sakit', 'Alfa'],
   datasets: [{
-    data: [counts.value.Hadir, counts.value.Izin, counts.value.Sakit, counts.value.Alfa],
+    data: [donutCounts.value.Hadir, donutCounts.value.Izin, donutCounts.value.Sakit, donutCounts.value.Alfa],
     backgroundColor: [CHART_COLORS.hadir, CHART_COLORS.izin, CHART_COLORS.sakit, CHART_COLORS.alfa],
     borderWidth: 2,
     borderColor: '#ffffff',
@@ -410,7 +470,7 @@ const hasAttention = computed(() =>
             <span v-else-if="isBelumAbsen">Kelas {{ kelasFilter }} belum presensi</span>
             <template v-if="counts.Alfa > 0"><span v-if="unsubmittedClasses.length || isBelumAbsen"> · </span><span class="font-medium text-rose-700">{{ counts.Alfa }} siswa Alfa</span></template>
           </span>
-          <AppButton size="sm" class="ml-auto !py-1" :to="{ name: 'rekap' }">Lihat</AppButton>
+          <AppButton v-if="unsubmittedClasses.length || isBelumAbsen" size="sm" class="ml-auto !py-1" :to="{ name: 'rekap', query: attentionQuery }">Lihat</AppButton>
         </div>
         <div v-else-if="submittedCount > 0" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
           <CheckCircle2 class="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
@@ -508,19 +568,19 @@ const hasAttention = computed(() =>
           </div>
         </AppCard>
 
-        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-2' : ''" title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
+        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-2' : ''" :title="compTitle" :subtitle="compSubtitle">
           <div class="relative" :class="auth.isAdmin ? 'h-[clamp(170px,24vh,220px)]' : 'h-[clamp(140px,22vh,170px)]'">
-            <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
+            <Doughnut v-if="showDonut" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
-              <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
+              <CalendarDays v-if="auth.isAdmin ? compLibur : isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
               <ClipboardCheck v-else class="h-8 w-8 text-slate-200" aria-hidden="true" />
-              <p class="text-sm text-slate-400">{{ isHariLibur ? 'Hari ini libur' : isBelumAbsen ? 'Belum ada data presensi' : 'Belum ada data siswa' }}</p>
+              <p class="text-sm text-slate-400">{{ auth.isAdmin ? (compLibur ? 'Hari ini libur' : 'Belum ada data presensi') : (isHariLibur ? 'Hari ini libur' : isBelumAbsen ? 'Belum ada data presensi' : 'Belum ada data siswa') }}</p>
             </div>
           </div>
 
           <!-- Admin: ringkasan count per status (tanpa daftar nama siswa) -->
-          <div v-if="auth.isAdmin && !isHariLibur && !isBelumAbsen && totalSiswa > 0" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2.5">
-            <div v-for="r in [['Hadir', counts.Hadir, 'bg-emerald-700'], ['Izin', counts.Izin, 'bg-sky-700'], ['Sakit', counts.Sakit, 'bg-amber-600'], ['Alfa', counts.Alfa, 'bg-rose-700']]" :key="r[0]" class="flex items-center gap-1.5 text-[12.5px]">
+          <div v-if="auth.isAdmin && showDonut" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2.5">
+            <div v-for="r in [['Hadir', donutCounts.Hadir, 'bg-emerald-700'], ['Izin', donutCounts.Izin, 'bg-sky-700'], ['Sakit', donutCounts.Sakit, 'bg-amber-600'], ['Alfa', donutCounts.Alfa, 'bg-rose-700']]" :key="r[0]" class="flex items-center gap-1.5 text-[12.5px]">
               <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="r[2]" aria-hidden="true" />
               <span class="text-slate-500">{{ r[0] }}</span>
               <span class="ml-auto font-semibold text-slate-900 tnum">{{ r[1] }}</span>

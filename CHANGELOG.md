@@ -5,6 +5,15 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.15] - 2026-09-22
+
+### Diperbaiki (Fixed)
+- **Denominator tren Admin (Semua Kelas):** per tanggal, "Hadir" kini dihitung terhadap populasi siswa aktif **pada kelas yang benar-benar submit** tanggal tersebut (via peta populasi per kelas dari query siswa yang sama — tanpa query baru), bukan total seluruh siswa. Tanggal tanpa submission tetap `null`.
+
+### Diubah (Changed)
+- **Komposisi periodik (Admin):** kartu Komposisi kini mengikuti periode trend — "Komposisi 7 Hari Terakhir" / "Komposisi <Bulan Tahun>" / "Komposisi Tahun <Tahun>" — dengan agregat Hadir/Izin/Sakit/Alfa periode terpilih (menghormati filter kelas, kalender akademik, tanpa tanggal masa depan; diagregasi dari dataset tren yang sama, tanpa query baru). Subtitle menampilkan populasi & konteks kelas. Guru tetap "Komposisi Hari Ini" + daftar nama.
+- **Deep-link "Lihat" (Admin):** CTA kelas-belum-presensi kini membuka `/rekap?status=belum-presensi&date=…&kelas=…` — Rekap membatasi pilihan kelas hanya kelas yang belum presensi (langsung terpilih jika satu), menampilkan indikator "Belum presensi hari ini", dan keluar dari konteks otomatis saat filter diubah manual. Tanpa query duplikat; Guru tidak terpengaruh.
+
 ## [0.2.14] - 2026-09-21
 
 ### Diubah (Changed)
