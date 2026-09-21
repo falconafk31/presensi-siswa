@@ -5,6 +5,12 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-09-21
+
+### Diubah (Changed)
+- **Footer sidebar — identity block compact:** tombol **Refresh** dan **Keluar** dihapus dari sidebar (expanded & collapsed) karena sudah tersedia di menu profil kanan atas — tidak ada lagi duplikasi aksi. Footer kini hanya menampilkan blok identitas ramping (avatar inisial + nama + role); pada mode *collapsed* tampil avatar saja dengan *tooltip*. Drawer mobile juga tanpa tombol duplikat. Footer *bottom-aligned*, tidak mendorong navigasi, tanpa *overflow* baru.
+- **Vertical density dashboard (presensi & perpustakaan):** jarak antar-seksi dirapatkan (16/20→12/16 px), margin ganda *page header* dihapus, *stat card* & *quick action* dirapatkan, **filter bulan/tahun tren digabung ke header kartu** (baris kontrol duplikat dihilangkan), tinggi grafik disesuaikan (tren 224/256 px, donut 192 px), dan daftar panjang memakai *scroll internal kartu*. Target: informasi utama muat tanpa *scroll* vertikal pada desktop 1366×768 / 1440×900 state normal — tanpa mengurangi keterbacaan.
+
 ## [0.2.3] - 2026-09-21
 
 ### Diperbaiki (Fixed)

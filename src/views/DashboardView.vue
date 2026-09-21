@@ -407,7 +407,7 @@ const hasAttention = computed(() =>
 
       <!-- 1. Attendance overview -->
       <section aria-label="Ringkasan kehadiran hari ini">
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-5">
+        <div class="grid grid-cols-2 gap-2 sm:gap-2.5 xl:grid-cols-5">
           <AppStatCard
             v-for="s in overviewStats"
             :key="s.label"
@@ -484,28 +484,27 @@ const hasAttention = computed(() =>
       </AppCard>
 
       <!-- 4 & 5. Trend + composition -->
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <AppCard class="lg:col-span-2" title="Tren Kehadiran" :subtitle="trendTitle">
           <template #actions>
-            <div class="flex flex-wrap items-center gap-1.5">
+            <!-- Mode + filter bulan/tahun digabung di header kartu (hemat satu baris) -->
+            <div class="flex flex-wrap items-center justify-end gap-1.5">
               <AppTabs v-model="trendMode" :options="trendModes" ariaLabel="Mode tren" @update:model-value="fetchTrend" />
+              <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan" @change="fetchTrend">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select v-if="trendMode !== 'daily'" v-model.number="year" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun" @change="fetchTrend">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
             </div>
           </template>
-          <div class="mb-2 flex flex-wrap items-center gap-1.5">
-            <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan" @change="fetchTrend">
-              <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
-            </select>
-            <select v-if="trendMode !== 'daily'" v-model.number="year" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun" @change="fetchTrend">
-              <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-            </select>
-          </div>
-          <div class="h-60 sm:h-64" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
+          <div class="h-48 sm:h-56" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>
         </AppCard>
 
         <AppCard title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
-          <div class="relative h-52">
+          <div class="relative h-48">
             <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
               <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
@@ -514,11 +513,11 @@ const hasAttention = computed(() =>
             </div>
           </div>
 
-          <div v-if="!isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-4 border-t border-slate-100 pt-3">
-            <p class="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div v-if="!isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-3 border-t border-slate-100 pt-2.5">
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>
-            <div class="max-h-56 space-y-3 overflow-y-auto pr-1">
+            <div class="max-h-40 space-y-2.5 overflow-y-auto pr-1">
               <div v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
                 <template v-if="absentStudents[key].length > 0">
                   <div class="mb-1 flex items-center gap-1.5">

@@ -21,8 +21,8 @@ const toneIcon = computed(() => ({
 }[props.tone] || 'bg-slate-100 text-slate-600'))
 </script>
 <template>
-  <component :is="to ? 'RouterLink' : 'div'" :to="to" class="card-flat flex items-center gap-3.5 p-4" :class="to ? 'card-interactive' : ''">
-    <div v-if="icon" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" :class="toneIcon">
+  <component :is="to ? 'RouterLink' : 'div'" :to="to" class="card-flat flex items-center gap-3 p-3.5" :class="to ? 'card-interactive' : ''">
+    <div v-if="icon" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="toneIcon">
       <component :is="icon" class="h-5 w-5" aria-hidden="true" />
     </div>
     <div class="min-w-0 flex-1">

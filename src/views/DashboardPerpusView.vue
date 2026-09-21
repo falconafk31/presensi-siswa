@@ -285,14 +285,14 @@ onMounted(() => {
 
       <!-- Quick actions -->
       <section aria-label="Aksi cepat perpustakaan">
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
           <RouterLink
             v-for="a in quickActions"
             :key="a.label"
             :to="a.to"
-            class="card-flat card-interactive group flex items-center gap-3 p-3.5"
+            class="card-flat card-interactive group flex items-center gap-3 p-3"
           >
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
               <component :is="a.icon" class="h-5 w-5" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1">
@@ -307,23 +307,24 @@ onMounted(() => {
       <!-- Trend -->
       <AppCard title="Tren Kunjungan & Peminjaman" subtitle="Perbandingan antusiasme kunjungan dengan sirkulasi buku">
         <template #actions>
-          <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
-        </template>
-        <div class="mb-2 flex flex-wrap items-center gap-1.5">
-          <input v-if="filterMode === 'daily'" id="library-trend-date" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
-          <template v-if="filterMode === 'monthly'">
-            <select id="library-trend-month" v-model.number="selectedMonth" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan">
-              <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
-            </select>
-            <select id="library-trend-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+          <!-- Mode + filter tanggal/bulan/tahun digabung di header kartu (hemat satu baris) -->
+          <div class="flex flex-wrap items-center justify-end gap-1.5">
+            <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
+            <input v-if="filterMode === 'daily'" id="library-trend-date" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
+            <template v-if="filterMode === 'monthly'">
+              <select id="library-trend-month" v-model.number="selectedMonth" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select id="library-trend-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </template>
+            <select v-if="filterMode === 'yearly'" id="library-trend-annual-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
               <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
             </select>
-          </template>
-          <select v-if="filterMode === 'yearly'" id="library-trend-annual-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
-            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
-        <div class="relative h-72 sm:h-80" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
+          </div>
+        </template>
+        <div class="relative h-56 sm:h-64" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
             <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />
           </div>
@@ -331,12 +332,12 @@ onMounted(() => {
         </div>
       </AppCard>
 
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <!-- Visit stats -->
         <AppCard title="Kunjungan" subtitle="Akumulasi pengunjung">
           <div class="flex flex-col gap-2.5">
             <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
                 <Users class="h-5 w-5" aria-hidden="true" />
               </div>
               <div class="min-w-0">
@@ -345,7 +346,7 @@ onMounted(() => {
               </div>
             </div>
             <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
                 <CalendarDays class="h-5 w-5" aria-hidden="true" />
               </div>
               <div class="min-w-0">
@@ -354,7 +355,7 @@ onMounted(() => {
               </div>
             </div>
             <div class="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200/70 text-slate-600">
                 <BarChart2 class="h-5 w-5" aria-hidden="true" />
               </div>
               <div class="min-w-0">
@@ -376,15 +377,15 @@ onMounted(() => {
             description="Transaksi peminjaman akan muncul di sini."
             :icon="BookOpen"
           />
-          <ul v-else class="flex flex-col gap-2">
+          <ul v-else class="flex max-h-[268px] flex-col gap-2 overflow-y-auto pr-1">
             <li
               v-for="l in recentLoans"
               :key="l.id"
-              class="flex items-center justify-between gap-3 rounded-lg border border-slate-100 p-3 transition-colors hover:bg-slate-50/70"
+              class="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-slate-100 p-2.5 transition-colors hover:bg-slate-50/70"
             >
               <div class="flex min-w-0 items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                  <BookOpen class="h-5 w-5" aria-hidden="true" />
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                  <BookOpen class="h-[18px] w-[18px]" aria-hidden="true" />
                 </div>
                 <div class="min-w-0">
                   <p class="truncate text-sm font-semibold text-slate-800">

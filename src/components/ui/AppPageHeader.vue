@@ -6,7 +6,7 @@ defineProps({
 })
 </script>
 <template>
-  <div class="mb-4 flex flex-wrap items-start justify-between gap-3 sm:mb-5">
+  <div class="mb-1 flex flex-wrap items-start justify-between gap-3 sm:mb-0">
     <div class="min-w-0">
       <div class="flex items-center gap-2">
         <RouterLink v-if="backTo" :to="backTo" class="btn-icon -ml-2 !h-8 !w-8" aria-label="Kembali">

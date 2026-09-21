@@ -198,35 +198,33 @@ const isActive = (name) => route.name === name
         </template>
       </nav>
 
-      <!-- Sidebar footer: user -->
-      <div class="shrink-0 border-t border-slate-100 p-2.5">
-        <div v-if="!isCollapsed" class="rounded-lg bg-slate-50 px-3 py-2.5">
-          <p class="truncate text-[13px] font-semibold text-slate-800">{{ auth.user?.nama }}</p>
-          <p class="text-[11px] text-slate-400">
-            {{ auth.user?.role }}<span v-if="auth.kelas"> · Kelas {{ auth.kelas }}</span>
-          </p>
-          <div class="mt-2 flex items-center gap-1">
-            <button class="btn-ghost btn-sm !px-2 flex-1" @click="clearCacheAndReload">
-              <RefreshCw class="h-3.5 w-3.5" aria-hidden="true" /> Refresh
-            </button>
-            <button class="btn-ghost btn-sm !px-2 flex-1 !text-rose-600 hover:!bg-rose-50" @click="handleLogout">
-              <LogOut class="h-3.5 w-3.5" aria-hidden="true" /> Keluar
-            </button>
-          </div>
-        </div>
-        <div v-else class="hidden flex-col items-center gap-1 lg:flex">
-          <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white" :title="auth.user?.nama">
+      <!-- Sidebar footer: identitas user (compact).
+           Aksi Refresh & Keluar SENGAJA tidak diduplikasi di sini —
+           keduanya tersedia di menu profil kanan atas. -->
+      <div class="shrink-0 border-t border-slate-100 p-2">
+        <div
+          v-if="!isCollapsed"
+          class="flex items-center gap-2.5 rounded-lg bg-slate-50 px-2.5 py-2"
+          :title="`${auth.user?.nama}${auth.kelas ? ` · Kelas ${auth.kelas}` : ''}`"
+        >
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white" aria-hidden="true">
             {{ userInitial }}
           </div>
-          <button class="btn-icon" title="Refresh App" aria-label="Refresh aplikasi" @click="clearCacheAndReload">
-            <RefreshCw class="h-4 w-4" />
-          </button>
-          <button class="btn-icon hover:!bg-rose-50 hover:!text-rose-600" title="Keluar" aria-label="Keluar" @click="handleLogout">
-            <LogOut class="h-4 w-4" />
-          </button>
+          <div class="min-w-0">
+            <p class="truncate text-[12.5px] font-semibold leading-tight text-slate-800">{{ auth.user?.nama }}</p>
+            <p class="truncate text-[11px] leading-tight text-slate-400">
+              {{ auth.user?.role }}<span v-if="auth.kelas"> · {{ auth.kelas }}</span>
+            </p>
+          </div>
         </div>
-        <!-- Mobile drawer footer uses expanded layout -->
-        <div v-if="!isDesktop" class="lg:hidden" />
+        <div v-else class="flex justify-center py-0.5">
+          <div
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white"
+            :title="`${auth.user?.nama}${auth.user?.role ? ` · ${auth.user.role}` : ''}`"
+          >
+            {{ userInitial }}
+          </div>
+        </div>
       </div>
     </aside>
 

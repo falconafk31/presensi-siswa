@@ -17,7 +17,7 @@ const toneClass = {
 </script>
 <template>
   <section class="card-flat" :class="[padded ? 'card-pad' : '', interactive ? 'card-interactive cursor-pointer' : '', toneClass]">
-    <div v-if="title || $slots.header" class="mb-3 flex items-start justify-between gap-3">
+    <div v-if="title || $slots.header" class="mb-2.5 flex items-start justify-between gap-3">
       <div v-if="title">
         <h3 class="card-title">{{ title }}</h3>
         <p v-if="subtitle" class="secondary mt-0.5">{{ subtitle }}</p>
@@ -28,7 +28,7 @@ const toneClass = {
       </div>
     </div>
     <slot />
-    <div v-if="$slots.footer" class="mt-4 border-t border-slate-100 pt-3">
+    <div v-if="$slots.footer" class="mt-3 border-t border-slate-100 pt-2.5">
       <slot name="footer" />
     </div>
   </section>

@@ -79,6 +79,13 @@ Urutan boot aplikasi dirancang agar **tidak ada layar putih atau kedipan (*flick
 
 **Hasil audit layout & kode (sudah dibereskan):** penghapusan 7 file komponen/view yang tidak terpakai (`BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, `ComingSoonView`), pembersihan artefak build dari repositori (`dev-dist/` PWA lama, `vite.config.js.timestamp-*.mjs`), penghapusan seluruh *hardcode* nama sekolah ("MIN Blora") dari UI/laporan agar tetap netral untuk multi-madrasah, serta verifikasi bahwa `AppLayout` sudah mengikuti praktik baik: *sticky header*, sidebar responsif + mode collapse, *bottom navigation* mobile dengan *safe-area*, atribut aksesibilitas (ARIA), dukungan `prefers-reduced-motion`, dan target sentuh ≥ 44px di perangkat layar sentuh.
 
+### 📐 Vertical Density (Desktop 1366×768 / 1440×900)
+
+Dashboard & sidebar dirancang agar informasi utama muat **tanpa scroll vertikal pada state normal**:
+
+- **Footer sidebar = identity block compact** — hanya avatar inisial + nama + role (±54 px). Aksi **Refresh** dan **Keluar** sengaja **tidak diduplikasi** di sidebar; keduanya cukup dijangkau lewat menu profil di pojok kanan atas. Pada mode *collapsed*, footer menampilkan **avatar saja** (dengan *tooltip* nama) — tanpa tombol apa pun. Drawer mobile juga hanya menampilkan identitas, tanpa logout duplikat. Footer bersifat *shrink-0 bottom-aligned* sehingga tidak mendorong menu navigasi dan tidak menambah *scrollbar* baru.
+- **Densitas dashboard dirapatkan tanpa mengurangi keterbacaan:** jarak antar-seksi (`page-stack`) 16/20 px → 12/16 px, margin ganda pada *page header* dihapus, *stat card* & *quick action* sedikit dirapatkan (padding −2 px, ikon −4 px), dan **filter bulan/tahun digabung ke header kartu tren** (menghilangkan satu baris kontrol duplikat). Grafik disesuaikan (tren 224 px, donut 192 px, tren perpustakaan 256 px) serta daftar panjang memakai *scroll internal kartu* — seluruh informasi utama tetap tersedia.
+
 ## 🧭 Backlog Optimasi Lanjutan (Opsional)
 
 Item berikut **tidak mendesak** — aplikasi saat ini sudah ringan dan stabil. Catatan untuk pengembangan selanjutnya:
