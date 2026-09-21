@@ -20,16 +20,26 @@ export const COLORS = {
 }
 
 export const CHART_COLORS = {
-  hadir: '#059669',
-  izin: '#0ea5e9',
-  sakit: '#f59e0b',
-  alfa: '#f43f5e',
+  // Sama dengan ATTENDANCE_COLORS — konsisten dengan tabel Rekap (source of truth).
+  hadir: '#047857',
+  izin: '#0369a1',
+  sakit: '#d97706',
+  alfa: '#be123c',
   grid: '#e2e8f0',
   tick: '#64748b',
   line: '#047857',
   lineFill: 'rgba(4, 120, 87, 0.10)',
   libraryLine: '#1d4ed8',
   libraryFill: 'rgba(29, 78, 216, 0.10)',
+}
+
+// Warna status kehadiran — source of truth: header kolom tabel Rekap.
+// WAJIB dipakai persis: Hadir #047857, Izin #0369a1, Sakit #d97706, Alfa #be123c.
+export const ATTENDANCE_COLORS = {
+  Hadir: '#047857', // emerald-700
+  Izin: '#0369a1',  // sky-700
+  Sakit: '#d97706', // amber-600
+  Alfa: '#be123c',  // rose-700
 }
 
 // Attendance status metadata — single source for segmented controls, badges, legends.

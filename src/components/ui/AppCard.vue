@@ -23,7 +23,7 @@ const toneClass = {
         <p v-if="subtitle" class="secondary mt-0.5">{{ subtitle }}</p>
       </div>
       <slot name="header" />
-      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
+      <div v-if="$slots.actions" class="flex min-w-0 flex-wrap items-center justify-end gap-2">
         <slot name="actions" />
       </div>
     </div>

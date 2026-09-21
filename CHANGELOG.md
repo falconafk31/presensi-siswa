@@ -5,6 +5,14 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-09-21
+
+### Diperbaiki (Fixed)
+- **Filter tren dashboard terdorong keluar viewport (mobile):** wrapper actions `AppCard` bersifat `shrink-0` sehingga grup kontrol tren (3 chip + 2 select ≈ 380px) memaksa lebar max-content → tahun terdorong keluar & halaman bisa di-swipe horizontal. Perbaikan global: wrapper kini `min-w-0 flex-wrap`; kedua dashboard menambahkan tata letak mobile khusus — mode tabs di bawah judul, tanggal/bulan/tahun sebagai grid 2 kolom full-width (desktop tidak berubah: kontrol tetap horizontal di header).
+
+### Diubah (Changed)
+- **Warna status kehadiran konsisten & exact** (source of truth: tabel Rekap): token `ATTENDANCE_COLORS` baru di `designSystem.js` — Hadir `#047857`, Izin `#0369a1`, Sakit `#d97706`, Alfa `#be123c`; `CHART_COLORS` (donut/line) disejajarkan; segmented control Input Presensi memakai fill exact; ringkasan H/I/S/A diperbaiki (amber-700→amber-600, rose-600→rose-700); kartu siswa Input Presensi mendapat tint subtle + border sesuai status terpilih (tetap putih/netral, label & `aria-pressed` dipertahankan — tidak color-only).
+
 ## [0.2.8] - 2026-09-21
 
 ### Diperbaiki (Fixed)

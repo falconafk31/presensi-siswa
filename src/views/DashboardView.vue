@@ -459,8 +459,8 @@ const hasAttention = computed(() =>
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <AppCard class="lg:col-span-2" title="Tren Kehadiran" :subtitle="trendTitle">
           <template #actions>
-            <!-- Mode + filter bulan/tahun digabung di header kartu (hemat satu baris) -->
-            <div class="flex flex-wrap items-center justify-end gap-1.5">
+            <!-- Desktop: mode + filter bulan/tahun horizontal di header (posisi tetap) -->
+            <div class="hidden flex-wrap items-center justify-end gap-1.5 lg:flex">
               <AppTabs v-model="trendMode" :options="trendModes" ariaLabel="Mode tren" @update:model-value="fetchTrend" />
               <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan" @change="fetchTrend">
                 <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
@@ -470,6 +470,18 @@ const hasAttention = computed(() =>
               </select>
             </div>
           </template>
+          <!-- Mobile: mode di atas, bulan & tahun grid 2 kolom (tanpa horizontal scroll) -->
+          <div class="mb-2 flex flex-col gap-2 lg:hidden">
+            <AppTabs v-model="trendMode" :options="trendModes" ariaLabel="Mode tren" @update:model-value="fetchTrend" />
+            <div class="grid grid-cols-2 gap-2">
+              <select v-if="trendMode === 'monthly'" v-model.number="month" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih bulan" @change="fetchTrend">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select v-if="trendMode !== 'daily'" v-model.number="year" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih tahun" @change="fetchTrend">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </div>
+          </div>
           <div class="h-[clamp(170px,26vh,240px)]" role="img" :aria-label="`Grafik tren kehadiran ${trendTitle}`">
             <Line :data="lineData" :options="lineOptions" />
           </div>

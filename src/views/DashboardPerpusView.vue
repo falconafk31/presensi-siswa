@@ -309,8 +309,8 @@ onMounted(() => {
       <!-- Trend -->
       <AppCard class="lg:col-span-2" title="Tren Kunjungan & Peminjaman" subtitle="Perbandingan antusiasme kunjungan dengan sirkulasi buku">
         <template #actions>
-          <!-- Mode + filter tanggal/bulan/tahun digabung di header kartu (hemat satu baris) -->
-          <div class="flex flex-wrap items-center justify-end gap-1.5">
+          <!-- Desktop: mode + filter horizontal di header (posisi tetap) -->
+          <div class="hidden flex-wrap items-center justify-end gap-1.5 lg:flex">
             <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
             <input v-if="filterMode === 'daily'" id="library-trend-date" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
             <template v-if="filterMode === 'monthly'">
@@ -326,6 +326,24 @@ onMounted(() => {
             </select>
           </div>
         </template>
+        <!-- Mobile: mode di atas, tanggal/bulan/tahun grid 2 kolom (tanpa horizontal scroll) -->
+        <div class="mb-2 flex flex-col gap-2 lg:hidden">
+          <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
+          <div class="grid grid-cols-2 gap-2">
+            <input v-if="filterMode === 'daily'" id="library-trend-date-m" v-model="selectedDate" type="date" class="input-field col-span-2 w-full !py-1.5 !text-xs" aria-label="Pilih tanggal" />
+            <template v-if="filterMode === 'monthly'">
+              <select id="library-trend-month-m" v-model.number="selectedMonth" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih bulan">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select id="library-trend-year-m" v-model.number="selectedYear" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih tahun">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </template>
+            <select v-if="filterMode === 'yearly'" id="library-trend-annual-year-m" v-model.number="selectedYear" class="input-field col-span-2 w-full !py-1.5 !text-xs" aria-label="Pilih tahun">
+              <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
         <div class="relative h-[clamp(150px,26vh,240px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
           <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
             <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />

@@ -9,11 +9,13 @@ defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
+// Warna aktif = semantic token kehadiran (sama dengan tabel Rekap):
+// Hadir #047857 (emerald-700) · Izin #0369a1 (sky-700) · Sakit #d97706 (amber-600) · Alfa #be123c (rose-700)
 const activeTone = {
-  success: 'bg-emerald-600 text-white shadow-xs',
-  info: 'bg-sky-600 text-white shadow-xs',
-  warning: 'bg-amber-500 text-white shadow-xs',
-  danger: 'bg-rose-500 text-white shadow-xs',
+  success: 'bg-emerald-700 text-white shadow-xs',
+  info: 'bg-sky-700 text-white shadow-xs',
+  warning: 'bg-amber-600 text-white shadow-xs',
+  danger: 'bg-rose-700 text-white shadow-xs',
   primary: 'bg-primary-700 text-white shadow-xs',
   neutral: 'bg-slate-800 text-white shadow-xs',
 }

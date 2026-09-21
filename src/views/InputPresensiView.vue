@@ -46,6 +46,15 @@ const statusOptions = computed(() => ATTENDANCE_STATUS.map((s) => ({
   value: s.code, label: s.code, short: s.code, tone: s.tone,
 })))
 
+// Tint kartu siswa mengikuti status terpilih — warna EXACT dari tabel Rekap:
+// Hadir #047857 (emerald-700) · Izin #0369a1 (sky-700) · Sakit #d97706 (amber-600) · Alfa #be123c (rose-700)
+const statusCardTone = {
+  Hadir: '!border-emerald-700/40 !bg-emerald-50/60',
+  Izin: '!border-sky-700/40 !bg-sky-50/60',
+  Sakit: '!border-amber-600/40 !bg-amber-50/60',
+  Alfa: '!border-rose-700/40 !bg-rose-50/60',
+}
+
 const ringkasan = computed(() => {
   const r = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
   for (const s of students.value) {
@@ -256,8 +265,8 @@ onBeforeUnmount(() => {
           <p class="text-[13px] font-medium text-slate-600 tnum">
             H <span class="font-bold text-emerald-700">{{ ringkasan.Hadir }}</span>
             · I <span class="font-bold text-sky-700">{{ ringkasan.Izin }}</span>
-            · S <span class="font-bold text-amber-700">{{ ringkasan.Sakit }}</span>
-            · A <span class="font-bold text-rose-600">{{ ringkasan.Alfa }}</span>
+            · S <span class="font-bold text-amber-600">{{ ringkasan.Sakit }}</span>
+            · A <span class="font-bold text-rose-700">{{ ringkasan.Alfa }}</span>
           </p>
         </div>
       </div>
@@ -295,7 +304,10 @@ onBeforeUnmount(() => {
           v-for="(s, i) in filteredStudents"
           :key="s.nisn"
           class="card-flat flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-3.5"
-          :class="(presensi[s.nisn] || 'Hadir') !== (presensiBaseline[s.nisn] || 'Hadir') ? 'ring-1 ring-amber-300' : ''"
+          :class="[
+            (presensi[s.nisn] || 'Hadir') !== (presensiBaseline[s.nisn] || 'Hadir') ? 'ring-1 ring-amber-300' : '',
+            statusCardTone[presensi[s.nisn] || 'Hadir'] || '',
+          ]"
         >
           <div class="flex min-w-0 items-center gap-3">
             <span class="hidden w-6 shrink-0 text-right text-xs text-slate-300 tnum sm:inline" aria-hidden="true">{{ i + 1 }}</span>
