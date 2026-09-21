@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.16] - 2026-09-22
+
+### Diubah (Changed)
+- **Prioritas exception harian (Dashboard Admin):** grid analytics dibalik khusus Admin — **Komposisi di kiri (1/3), Tren Kehadiran di kanan (2/3)**; di mobile Komposisi tetap tampil lebih dulu. Di bawah donut ditambah highlight operasional **"Tidak hadir hari ini · X siswa"** (data hari ini dari `absentStudents`, bukan agregat periode): nama dikelompokkan per kelas dengan ringkasan `Izin N · Sakit N · Alfa N` (warna semantik exact) dan baris nama compact — tanpa scroll container; ketika tidak ada ketidakhadiran tampil state ringkas "Semua siswa hadir hari ini". Judul & donut Komposisi tetap mengikuti periode trend. Tidak ada perubahan business logic/query; layout Guru tidak tersentuh.
+
 ## [0.2.15] - 2026-09-22
 
 ### Diperbaiki (Fixed)

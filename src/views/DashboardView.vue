@@ -342,6 +342,22 @@ const compSubtitle = computed(() => {
   if (compTotal.value === 0) return 'Belum ada data'
   return `${totalSiswa.value} siswa · ${kelasFilter.value ? `Kelas ${kelasFilter.value}` : 'Semua Kelas'}`
 })
+// Highlight operasional: ketidakhadiran HARI INI dikelompokkan per kelas (Admin).
+const todayAbsenGroups = computed(() => {
+  const groups = new Map()
+  for (const key of ['Izin', 'Sakit', 'Alfa']) {
+    for (const st of absentStudents.value[key]) {
+      const k = st.kelas || '–'
+      if (!groups.has(k)) groups.set(k, { kelas: k, counts: { Izin: 0, Sakit: 0, Alfa: 0 }, nama: [] })
+      const g = groups.get(k)
+      g.counts[key]++
+      g.nama.push(st.nama)
+    }
+  }
+  const out = Array.from(groups.values())
+  for (const g of out) g.nama.sort((a, b) => (a || '').localeCompare(b || '', 'id'))
+  return out.sort((a, b) => String(a.kelas).localeCompare(String(b.kelas), 'id', { numeric: true }))
+})
 // Deep-link konteks "kelas belum presensi hari ini" ke Rekap (Admin).
 const attentionQuery = computed(() => {
   const list = unsubmittedClasses.value.length
@@ -538,7 +554,7 @@ const hasAttention = computed(() =>
 
       <!-- 4 & 5. Trend + composition -->
       <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
-        <AppCard :class="auth.isAdmin ? 'order-2 lg:order-1 lg:col-span-2' : 'lg:col-span-2'" title="Tren Kehadiran" :subtitle="trendTitle">
+        <AppCard :class="auth.isAdmin ? 'order-2 lg:order-2 lg:col-span-2' : 'lg:col-span-2'" title="Tren Kehadiran" :subtitle="trendTitle">
           <template #actions>
             <!-- Desktop: mode + filter bulan/tahun horizontal di header (posisi tetap) -->
             <div class="hidden flex-wrap items-center justify-end gap-1.5 lg:flex">
@@ -568,7 +584,7 @@ const hasAttention = computed(() =>
           </div>
         </AppCard>
 
-        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-2' : ''" :title="compTitle" :subtitle="compSubtitle">
+        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-1' : ''" :title="compTitle" :subtitle="compSubtitle">
           <div class="relative" :class="auth.isAdmin ? 'h-[clamp(170px,24vh,220px)]' : 'h-[clamp(140px,22vh,170px)]'">
             <Doughnut v-if="showDonut" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
@@ -586,8 +602,30 @@ const hasAttention = computed(() =>
               <span class="ml-auto font-semibold text-slate-900 tnum">{{ r[1] }}</span>
             </div>
           </div>
+          <!-- Admin: highlight operasional hari ini (bukan periodCounts), grouped per kelas, tanpa scroll -->
+          <div v-if="auth.isAdmin && !isHariLibur" class="mt-3 border-t border-slate-100 pt-2.5">
+            <p class="flex items-baseline justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <span>Tidak hadir hari ini</span>
+              <span class="tnum text-[13px] font-bold normal-case tracking-normal text-rose-700">{{ totalAbsenNames }} siswa</span>
+            </p>
+            <p v-if="todayAbsenGroups.length === 0" class="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-slate-500">
+              <CheckCircle2 class="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+              {{ isBelumAbsen ? 'Belum ada data presensi hari ini' : 'Semua siswa hadir hari ini' }}
+            </p>
+            <div v-else class="mt-2 flex flex-col gap-2.5">
+              <div v-for="g in todayAbsenGroups" :key="g.kelas">
+                <p class="text-[12px] font-semibold text-slate-800">Kelas {{ g.kelas }}</p>
+                <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px]">
+                  <template v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
+                    <span v-if="g.counts[key] > 0" class="font-medium" :class="key === 'Izin' ? 'text-sky-700' : key === 'Sakit' ? 'text-amber-700' : 'text-rose-700'">{{ key }} {{ g.counts[key] }}</span>
+                  </template>
+                </p>
+                <p class="mt-0.5 text-[12.5px] leading-snug text-slate-600">{{ g.nama.join(', ') }}</p>
+              </div>
+            </div>
+          </div>
           <!-- Guru: daftar tidak hadir existing (tidak diubah) -->
-          <div v-else-if="!auth.isAdmin && !isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-3 border-t border-slate-100 pt-2.5">
+          <div v-if="!auth.isAdmin && !isHariLibur && !isBelumAbsen && totalAbsenNames > 0" class="mt-3 border-t border-slate-100 pt-2.5">
             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Tidak hadir ({{ totalAbsenNames }})
             </p>
