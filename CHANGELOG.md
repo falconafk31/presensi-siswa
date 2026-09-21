@@ -5,6 +5,12 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-09-21
+
+### Ditambahkan (Added)
+- **`docs/layout-budget.md`** — verifikasi aritmetika "dashboard muat 1 layar" (viewport ≥ 610 px): tabel tinggi per-section dari nilai CSS terkompilasi, skenario worst-case presensi (±596 px) & perpustakaan (±568 px), panduan verifikasi manual, dan pedoman menjaga budget untuk kontributor.
+- **CI otomatis** (`.github/workflows/ci.yml`) — menjalankan guard binding template + build produksi pada setiap push/PR.
+
 ## [0.2.6] - 2026-09-21
 
 ### Diubah (Changed)
