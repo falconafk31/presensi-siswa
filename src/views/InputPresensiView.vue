@@ -42,6 +42,10 @@ const loading = ref(false)
 const saving = ref(false)
 const showConfirmModal = ref(false)
 
+// Konfirmasi tinggalkan halaman (dirty route guard) — terpisah dari showConfirmModal.
+const showLeaveConfirm = ref(false)
+let pendingLeaveResolve = null
+
 const statusOptions = computed(() => ATTENDANCE_STATUS.map((s) => ({
   value: s.code, label: s.code, short: s.code, tone: s.tone,
 })))
@@ -94,11 +98,45 @@ function onBeforeUnload(e) {
     e.returnValue = ''
   }
 }
+// SPA route guard: dirty -> tampilkan AppConfirmDialog dan TUNGGU keputusan user
+// via Promise (kompatibel dengan async guard Vue Router 4).
 onBeforeRouteLeave(() => {
-  if (isDirty.value && !saving.value) {
-    return window.confirm('Ada perubahan presensi yang belum disimpan. Tetap tinggalkan halaman?')
+  if (!isDirty.value || saving.value) return true
+
+  // Jika masih ada keputusan menggantung (user klik menu lain saat dialog terbuka),
+  // batalkan navigasi sebelumnya dulu agar tidak ada promise yang menggantung.
+  if (pendingLeaveResolve) {
+    pendingLeaveResolve(false)
+    pendingLeaveResolve = null
   }
-  return true
+  showLeaveConfirm.value = true
+  return new Promise((resolve) => { pendingLeaveResolve = resolve })
+})
+
+function resolveLeave(allowed) {
+  const resolve = pendingLeaveResolve
+  pendingLeaveResolve = null
+  showLeaveConfirm.value = false
+  resolve?.(allowed)
+}
+
+// "Tinggalkan": HANYA mengizinkan navigasi — tidak pernah memanggil simpan()/logActivity.
+function confirmLeave() { resolveLeave(true) }
+
+// ESC / klik overlay / tombol "Tetap di Halaman" menutup dialog via v-model:
+// watcher ini menjamin promise SELALU di-resolve(false) (tidak ada promise menggantung).
+watch(showLeaveConfirm, (open) => {
+  if (!open && pendingLeaveResolve) {
+    pendingLeaveResolve(false)
+    pendingLeaveResolve = null
+  }
+})
+
+onBeforeUnmount(() => {
+  if (pendingLeaveResolve) {
+    pendingLeaveResolve(false)
+    pendingLeaveResolve = null
+  }
 })
 
 async function cekKalender() {
@@ -368,6 +406,18 @@ onBeforeUnmount(() => {
     >
       Data presensi kelas <strong>{{ kelas }}</strong> pada tanggal ini sudah disubmit sebelumnya.
       Pembaruan akan menimpa data lama.
+    </AppConfirmDialog>
+
+    <!-- Konfirmasi tinggalkan halaman saat ada perubahan belum disimpan -->
+    <AppConfirmDialog
+      v-model="showLeaveConfirm"
+      title="Tinggalkan halaman?"
+      tone="warning"
+      confirm-label="Tinggalkan"
+      cancel-label="Tetap di Halaman"
+      @confirm="confirmLeave"
+    >
+      Ada perubahan presensi yang belum disimpan. Jika Anda meninggalkan halaman, perubahan tersebut akan hilang.
     </AppConfirmDialog>
   </div>
 </template>

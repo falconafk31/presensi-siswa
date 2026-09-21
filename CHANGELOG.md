@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] - 2026-09-21
+
+### Diubah (Changed)
+- **Konfirmasi tinggalkan halaman (Input Presensi):** `window.confirm` native diganti **AppConfirmDialog** ("Tinggalkan halaman?" / tone warning / tombol **Tetap di Halaman** & **Tinggalkan**) via async guard `onBeforeRouteLeave` berbasis Promise. ESC & klik-overlay setara "Tetap di Halaman"; navigasi ganda saat dialog terbuka tidak meninggalkan promise menggantung (dibatalkan otomatis). "Tinggalkan" **tidak pernah** menyimpan data. Dialog existing "Perbarui Data Presensi?" dan `beforeunload` browser (refresh/close tab) dipertahankan; dirty tracking (`isDirty`, `presensiBaseline`) tidak berubah.
+
 ## [0.2.11] - 2026-09-21
 
 ### Diperbaiki (Fixed)
