@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.17] - 2026-09-22
+
+### Diperbaiki (Fixed)
+- **Kartu Komposisi konsisten data hari ini:** donut, judul ("Komposisi Hari Ini"), subtitle, dan ringkasan count tidak lagi mengikuti periode trend (sebelumnya "Komposisi 7 Hari Terakhir" dsb. dari agregat periode) — kini selalu data **hari ini**, selaras dengan section "Tidak hadir hari ini · X siswa" dalam kartu yang sama. Kode agregat periode (`periodCounts` & computed terkait) dihapus. Perbaikan denominator tren per kelas-submit, highlight per-kelas, urutan Komposisi–Tren, dan deep-link Rekap tetap dipertahankan.
+
 ## [0.2.16] - 2026-09-22
 
 ### Diubah (Changed)

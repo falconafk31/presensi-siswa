@@ -38,9 +38,8 @@ const counts = ref({ Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 })
 const totalSiswa = ref(0)
 const monthly = ref([])
 // Populasi siswa aktif per kelas (dari query fetchTotalSiswa yang sama) untuk
-// denominator tren per tanggal; agregat komposisi periode untuk kartu Komposisi Admin.
+// denominator tren per tanggal (kelas yang benar-benar submit).
 const siswaPerKelas = ref({})
-const periodCounts = ref({ Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 })
 const absentStudents = ref({ Izin: [], Sakit: [], Alfa: [] })
 const unsubmittedClasses = ref([])
 const submittedCount = ref(0)
@@ -226,17 +225,11 @@ async function fetchTrend() {
     : (auth.isAdmin && daftarKelas.value.length > 0 ? daftarKelas.value : [])
 
   const exceptionsPerDay = {}
-  // Agregat komposisi periode (kartu Komposisi Admin) — dari dataset yang sama,
-  // tanpa query baru; tanggal libur diabaikan.
-  const comp = { Hadir: 0, Izin: 0, Sakit: 0, Alfa: 0 }
   for (const row of data || []) {
     if (activeSet.length > 0 && !activeSet.includes(row.kelas)) continue
     if (!submittedMap[row.date]) submittedMap[row.date] = new Set()
     submittedMap[row.date].add(row.kelas)
-    if (row.status !== 'Hadir') {
-      exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
-      if (!liburSet.has(row.date)) comp[row.status] = (comp[row.status] || 0) + 1
-    }
+    if (row.status !== 'Hadir') exceptionsPerDay[row.date] = (exceptionsPerDay[row.date] || 0) + 1
   }
 
   // Denominator per tanggal: populasi = siswa aktif PADA KELAS YANG BENAR-BENAR
@@ -250,7 +243,6 @@ async function fetchTrend() {
     return pop - (exceptionsPerDay[d] || 0)
   }
 
-  let hadirSum = 0
   if (mode === 'yearly') {
     monthly.value = dateList.map((m) => {
       const mStr = String(m).padStart(2, '0')
@@ -265,7 +257,6 @@ async function fetchTrend() {
         daysWithSubmissions++
         totalHadirMonth += h
       }
-      hadirSum += totalHadirMonth
       const avgHadir = daysWithSubmissions > 0 ? Math.round(totalHadirMonth / daysWithSubmissions) : null
       return { day: namaBulan(m).substring(0, 3), hadir: avgHadir }
     })
@@ -276,12 +267,9 @@ async function fetchTrend() {
       if (liburSet.has(d)) return { day: displayDay, hadir: 0 }
       const h = populasiHadir(d)
       if (h === null) return { day: displayDay, hadir: null }
-      hadirSum += h
       return { day: displayDay, hadir: h }
     })
   }
-
-  periodCounts.value = { Hadir: hadirSum, Izin: comp.Izin, Sakit: comp.Sakit, Alfa: comp.Alfa }
 }
 
 async function loadAll({ initial = false } = {}) {
@@ -321,27 +309,6 @@ onUnmounted(() => {
 watch(selectedTab, () => loadAll())
 
 // ---- Charts ----
-// Komposisi: Admin mengikuti periode trend; Guru tetap hari ini.
-const donutCounts = computed(() => (auth.isAdmin ? periodCounts.value : counts.value))
-const compTotal = computed(() => donutCounts.value.Hadir + donutCounts.value.Izin + donutCounts.value.Sakit + donutCounts.value.Alfa)
-const compLibur = computed(() => auth.isAdmin && isHariLibur.value && trendMode.value === 'daily')
-const showDonut = computed(() =>
-  auth.isAdmin
-    ? !compLibur.value && compTotal.value > 0
-    : !isHariLibur.value && !isBelumAbsen.value && totalSiswa.value > 0
-)
-const compTitle = computed(() => {
-  if (!auth.isAdmin) return 'Komposisi Hari Ini'
-  if (trendMode.value === 'daily') return 'Komposisi 7 Hari Terakhir'
-  if (trendMode.value === 'monthly') return `Komposisi ${namaBulan(month.value)} ${year.value}`
-  return `Komposisi Tahun ${year.value}`
-})
-const compSubtitle = computed(() => {
-  if (!auth.isAdmin) return isHariLibur.value ? 'Libur' : isBelumAbsen.value ? 'Belum diabsen' : `${counts.value.Hadir + totalTidakHadir.value} siswa tercatat`
-  if (compLibur.value) return 'Libur'
-  if (compTotal.value === 0) return 'Belum ada data'
-  return `${totalSiswa.value} siswa · ${kelasFilter.value ? `Kelas ${kelasFilter.value}` : 'Semua Kelas'}`
-})
 // Highlight operasional: ketidakhadiran HARI INI dikelompokkan per kelas (Admin).
 const todayAbsenGroups = computed(() => {
   const groups = new Map()
@@ -370,7 +337,7 @@ const attentionQuery = computed(() => {
 const doughnutData = computed(() => ({
   labels: ['Hadir', 'Izin', 'Sakit', 'Alfa'],
   datasets: [{
-    data: [donutCounts.value.Hadir, donutCounts.value.Izin, donutCounts.value.Sakit, donutCounts.value.Alfa],
+    data: [counts.value.Hadir, counts.value.Izin, counts.value.Sakit, counts.value.Alfa],
     backgroundColor: [CHART_COLORS.hadir, CHART_COLORS.izin, CHART_COLORS.sakit, CHART_COLORS.alfa],
     borderWidth: 2,
     borderColor: '#ffffff',
@@ -584,25 +551,25 @@ const hasAttention = computed(() =>
           </div>
         </AppCard>
 
-        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-1' : ''" :title="compTitle" :subtitle="compSubtitle">
+        <AppCard :class="auth.isAdmin ? 'order-1 lg:order-1' : ''" title="Komposisi Hari Ini" :subtitle="isHariLibur ? 'Libur' : isBelumAbsen ? 'Belum diabsen' : `${counts.Hadir + totalTidakHadir} siswa tercatat`">
           <div class="relative" :class="auth.isAdmin ? 'h-[clamp(170px,24vh,220px)]' : 'h-[clamp(140px,22vh,170px)]'">
-            <Doughnut v-if="showDonut" :data="doughnutData" :options="doughnutOptions" />
+            <Doughnut v-if="!isHariLibur && !isBelumAbsen && totalSiswa > 0" :data="doughnutData" :options="doughnutOptions" />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-center">
-              <CalendarDays v-if="auth.isAdmin ? compLibur : isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
+              <CalendarDays v-if="isHariLibur" class="h-8 w-8 text-slate-200" aria-hidden="true" />
               <ClipboardCheck v-else class="h-8 w-8 text-slate-200" aria-hidden="true" />
-              <p class="text-sm text-slate-400">{{ auth.isAdmin ? (compLibur ? 'Hari ini libur' : 'Belum ada data presensi') : (isHariLibur ? 'Hari ini libur' : isBelumAbsen ? 'Belum ada data presensi' : 'Belum ada data siswa') }}</p>
+              <p class="text-sm text-slate-400">{{ isHariLibur ? 'Hari ini libur' : isBelumAbsen ? 'Belum ada data presensi' : 'Belum ada data siswa' }}</p>
             </div>
           </div>
 
           <!-- Admin: ringkasan count per status (tanpa daftar nama siswa) -->
-          <div v-if="auth.isAdmin && showDonut" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2.5">
-            <div v-for="r in [['Hadir', donutCounts.Hadir, 'bg-emerald-700'], ['Izin', donutCounts.Izin, 'bg-sky-700'], ['Sakit', donutCounts.Sakit, 'bg-amber-600'], ['Alfa', donutCounts.Alfa, 'bg-rose-700']]" :key="r[0]" class="flex items-center gap-1.5 text-[12.5px]">
+          <div v-if="auth.isAdmin && !isHariLibur && !isBelumAbsen && totalSiswa > 0" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2.5">
+            <div v-for="r in [['Hadir', counts.Hadir, 'bg-emerald-700'], ['Izin', counts.Izin, 'bg-sky-700'], ['Sakit', counts.Sakit, 'bg-amber-600'], ['Alfa', counts.Alfa, 'bg-rose-700']]" :key="r[0]" class="flex items-center gap-1.5 text-[12.5px]">
               <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="r[2]" aria-hidden="true" />
               <span class="text-slate-500">{{ r[0] }}</span>
               <span class="ml-auto font-semibold text-slate-900 tnum">{{ r[1] }}</span>
             </div>
           </div>
-          <!-- Admin: highlight operasional hari ini (bukan periodCounts), grouped per kelas, tanpa scroll -->
+          <!-- Admin: highlight operasional hari ini, grouped per kelas, tanpa scroll -->
           <div v-if="auth.isAdmin && !isHariLibur" class="mt-3 border-t border-slate-100 pt-2.5">
             <p class="flex items-baseline justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Tidak hadir hari ini</span>
