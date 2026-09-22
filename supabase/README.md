@@ -25,5 +25,5 @@ Aplikasi ini sudah **sepenuhnya bermigrasi menggunakan Supabase Auth (Go-Live Re
 - Digunakan secara eksklusif untuk menyimpan gambar *Logo Sekolah* yang diunggah via menu Pengaturan Admin.
 
 ## 4. Row Level Security (RLS)
-Sistem menggunakan Opsi Keamanan berbasis *Permissive Authenticated* pada aplikasi ini. Semua *queries* diatur secara ketat melalui frontend (Vue) berdasarkan deteksi *role* Pinia Store. 
-*(Catatan: Anda dapat menerapkan kebijakan RLS yang lebih ketat berdasarkan `auth.uid()` jika diperlukan ekspansi keamanan skala besar).*
+Sistem menggunakan RLS mode strict (`02_rls.sql`): aktif di semua tabel, baca tabel master untuk semua user login, tulis per domain (Guru → absensi, Pustakawan → perpustakaan, Admin → semua) berdasarkan `users.role` via fungsi `get_my_role()`.
+Ringkasan lengkap + catatan policy historis: [`docs/database.md`](../docs/database.md#row-level-security).
