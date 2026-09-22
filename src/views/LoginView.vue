@@ -123,19 +123,19 @@ async function handleRecoverSession() {
       await Promise.all(registrations.map((r) => withTimeout(r.unregister(), RECOVERY_STEP_TIMEOUT_MS)))
     }
   } finally {
-    // 4) Jaminan anti-race: signOut hanya menghapus sesi lokal SETELAH panggilan
-    //    jaringan, dan login yang tadi pending bisa sempat menulis storage sesaat
-    //    sebelum reload. Maka jejak sesi yang sama (storageKey, -user,
-    //    -code-verifier — persis jejak _removeSession() auth-js) dibersihkan
-    //    sinkron TEPAT sebelum reload, tanpa await di antaranya.
+    // 4) Fallback lokal terarah + jaminan anti-race (public API tetap langkah #2):
+    //    signOut hanya menghapus sesi lokal SETELAH panggilan jaringan /logout —
+    //    saat jaringan macet (kondisi yang dipulihkan) ia bisa menggantung atau
+    //    gagal TANPA sempat menghapus sesi, dan login yang masih pending bisa
+    //    menulis ulang storage sesaat sebelum reload. Blob sesi dari konfigurasi
+    //    resmi `auth.storageKey` (satu key — bukan localStorage.clear) dibersihkan
+    //    sinkron TEPAT sebelum reload, tanpa await di antaranya. Key turunan
+    //    (-user / -code-verifier) sengaja tidak disentuh: inert pada app ini
+    //    (userStorage tidak dikonfigurasi; login password tanpa PKCE).
     try {
       localStorage.removeItem(USER_CACHE_KEY)
       const key = supabase.auth.storageKey
-      if (key) {
-        localStorage.removeItem(key)
-        localStorage.removeItem(`${key}-user`)
-        localStorage.removeItem(`${key}-code-verifier`)
-      }
+      if (key) localStorage.removeItem(key)
     } catch {
       /* abaikan */
     }
