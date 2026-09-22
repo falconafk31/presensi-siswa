@@ -315,14 +315,14 @@ const todayAbsenGroups = computed(() => {
   for (const key of ['Izin', 'Sakit', 'Alfa']) {
     for (const st of absentStudents.value[key]) {
       const k = st.kelas || '–'
-      if (!groups.has(k)) groups.set(k, { kelas: k, counts: { Izin: 0, Sakit: 0, Alfa: 0 }, nama: [] })
-      const g = groups.get(k)
-      g.counts[key]++
-      g.nama.push(st.nama)
+      if (!groups.has(k)) groups.set(k, { kelas: k, names: { Izin: [], Sakit: [], Alfa: [] } })
+      groups.get(k).names[key].push(st.nama)
     }
   }
   const out = Array.from(groups.values())
-  for (const g of out) g.nama.sort((a, b) => (a || '').localeCompare(b || '', 'id'))
+  for (const g of out) {
+    for (const key of ['Izin', 'Sakit', 'Alfa']) g.names[key].sort((a, b) => (a || '').localeCompare(b || '', 'id'))
+  }
   return out.sort((a, b) => String(a.kelas).localeCompare(String(b.kelas), 'id', { numeric: true }))
 })
 // Deep-link konteks "kelas belum presensi hari ini" ke Rekap (Admin).
@@ -582,12 +582,14 @@ const hasAttention = computed(() =>
             <div v-else class="mt-2 flex flex-col gap-2.5">
               <div v-for="g in todayAbsenGroups" :key="g.kelas">
                 <p class="text-[12px] font-semibold text-slate-800">Kelas {{ g.kelas }}</p>
-                <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px]">
+                <div class="mt-0.5 flex flex-col gap-0.5">
                   <template v-for="key in ['Izin', 'Sakit', 'Alfa']" :key="key">
-                    <span v-if="g.counts[key] > 0" class="font-medium" :class="key === 'Izin' ? 'text-sky-700' : key === 'Sakit' ? 'text-amber-700' : 'text-rose-700'">{{ key }} {{ g.counts[key] }}</span>
+                    <p v-if="g.names[key].length > 0" class="text-[12.5px] leading-snug">
+                      <span class="font-semibold" :class="key === 'Izin' ? 'text-sky-700' : key === 'Sakit' ? 'text-amber-700' : 'text-rose-700'">{{ key }} {{ g.names[key].length }}:</span>
+                      <span class="text-slate-600"> {{ g.names[key].join(', ') }}</span>
+                    </p>
                   </template>
-                </p>
-                <p class="mt-0.5 text-[12.5px] leading-snug text-slate-600">{{ g.nama.join(', ') }}</p>
+                </div>
               </div>
             </div>
           </div>

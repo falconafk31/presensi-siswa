@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.18] - 2026-09-22
+
+### Diperbaiki (Fixed)
+- **Keterbacaan "Tidak hadir hari ini":** nama siswa kini terikat pada statusnya per kelas — setiap status menjadi baris sendiri dengan format `Izin 1: Nama, Nama` / `Sakit 2: …` / `Alfa 3: …` (label berwarna semantik + nama setelah titik dua), menggantikan format lama yang menggabungkan seluruh nama kelas dalam satu baris setelah koma sehingga status per siswa tidak terbaca.
+
 ## [0.2.17] - 2026-09-22
 
 ### Diperbaiki (Fixed)
