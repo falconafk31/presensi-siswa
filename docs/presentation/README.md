@@ -249,3 +249,31 @@ cards≤6, flow≤10 — lampaui itu, **split slide**, jangan mengecilkan teks.
 - **Intentional animation** — transisi slide ringan (fade320ms), tanpa
   dekorasi neon/glow/gradient berlebih; mengikuti arah desain institusional
   aplikasi (emerald primary, gold aksen terbatas).
+
+## 12. Video narasi per modul
+
+Tujuh file video (1920×1080, H.264 + narasi AAC) di `docs/presentation/video/` —
+satu per bagian, agar ukuran masing-masing ringan dan bisa dibagikan terpisah:
+
+| File | Slide | Durasi |
+|---|---|---|
+| `01-pendahuluan.mp4` |5 | ±23 dtk |
+| `02-admin.mp4` |13 | ±35 dtk |
+| `03-guru.mp4` |10 | ±35 dtk |
+| `04-perpustakaan.mp4` |9 | ±29 dtk |
+| `05-keamanan.mp4` |6 | ±23 dtk |
+| `06-alur-end-to-end.mp4` |3 | ±18 dtk |
+| `07-penutup.mp4` |4 | ±21 dtk |
+
+**Narasi:** suara perempuan Indonesia (`voice-01`, hasil audisi TTS session) —
+naskahBahasa Indonesia per bagian, tanpa data produksi.
+
+**Sinkronisasi:** dwell tiap slide = `durasi narasi / jumlah slide` (min2 detik),
+dihasilkan dari durasi audio hasil TTS sehingga tempo mengikuti teks.
+
+**Regenerasi (ringkas):**
+1. Generate naskah per bagian → TTS (`generate_speech`, `voice_id`).
+2. Rekam per section via Playwright `recordVideo` (viewport1920×1080,
+   `?slide=<slide-pertama-section>`, ArrowRight antar slide, dwell dari durasi audio).
+3. Mux: `ffmpeg -i modul.webm -i narasi.mp3 -c:v libx264 -pix_fmt yuv420p -crf20
+   -c:a aac -af apad -shortest -movflags +faststart modul.mp4`.
