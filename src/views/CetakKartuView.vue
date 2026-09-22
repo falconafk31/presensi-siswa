@@ -1,16 +1,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Printer, ChevronDown, School, Download } from 'lucide-vue-next'
+import { School, Download } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'vue-sonner'
 import { useSettingsStore } from '@/stores/settings'
-import PageHeader from '@/components/PageHeader.vue'
-import SkeletonLoader from '@/components/SkeletonLoader.vue'
 import QRCodeVue from 'qrcode.vue'
+import {
+  AppPageHeader, AppFilterBar, AppSelect, AppEmptyState,
+  AppSkeleton, AppButton,
+} from '@/components/ui'
+import { IdCard } from 'lucide-vue-next'
 
 const settingsStore = useSettingsStore()
 const daftarKelas = computed(() => settingsStore.settings?.daftar_kelas || [])
-const namaSekolah = computed(() => settingsStore.settings?.nama_sekolah || 'MIN Blora')
+const namaSekolah = computed(() => settingsStore.settings?.nama_sekolah || 'Madrasah')
 
 const selectedKelas = ref('')
 const students = ref([])
@@ -297,39 +300,40 @@ function getTTL(tempat, tanggal) {
 <template>
   <div>
     <!-- Tampilan Aplikasi (Tidak tercetak saat diprint) -->
-    <div class="print:hidden">
-      <PageHeader title="Kartu Anggota" subtitle="Cetak kartu keanggotaan berbasis QR Code (Generate PDF)">
+    <div class="page-stack print:hidden">
+      <AppPageHeader title="Kartu Anggota" subtitle="Cetak kartu perpustakaan berbasis QR Code (PDF)">
         <template #actions>
-          <button v-if="students.length > 0" class="btn-primary" @click="handleDownloadPDF" :disabled="generating">
-            <Download v-if="!generating" class="h-4 w-4" />
-            <span v-if="generating" class="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full"></span>
-            {{ generating ? 'Membuat PDF...' : 'Download PDF' }}
-          </button>
+          <AppButton v-if="students.length > 0" variant="library" :loading="generating" @click="handleDownloadPDF">
+            <template #icon><Download class="h-4 w-4" aria-hidden="true" /></template>
+            {{ generating ? 'Membuat PDF…' : 'Download PDF' }}
+          </AppButton>
         </template>
-      </PageHeader>
+      </AppPageHeader>
 
-      <div class="card mb-6 p-4 flex flex-col sm:flex-row gap-4 items-center">
-        <div class="flex-1 w-full relative">
-          <select v-model="selectedKelas" class="input-field appearance-none w-full" @change="loadStudents">
-            <option value="">-- Pilih Kelas --</option>
-            <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
-          </select>
-          <ChevronDown class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-        <p class="text-sm text-gray-500 w-full sm:w-auto">
-          Menampilkan: <strong>{{ students.length }}</strong> siswa
+      <AppFilterBar columns="sm:grid-cols-2">
+        <AppSelect v-model="selectedKelas" aria-label="Pilih kelas" @change="loadStudents">
+          <option value="">— Pilih Kelas —</option>
+          <option v-for="k in daftarKelas" :key="k" :value="k">Kelas {{ k }}</option>
+        </AppSelect>
+        <p class="self-center text-sm text-slate-500">
+          Menampilkan <strong class="text-slate-800 tnum">{{ students.length }}</strong> siswa
         </p>
-      </div>
+      </AppFilterBar>
 
-      <SkeletonLoader v-if="loading" type="card" :rows="3" />
-      
-      <div v-else-if="!selectedKelas" class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-        <p class="text-gray-500">Pilih kelas terlebih dahulu untuk melihat preview kartu.</p>
-      </div>
-      
-      <div v-else-if="students.length === 0" class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-        <p class="text-gray-500">Tidak ada siswa aktif di kelas ini.</p>
-      </div>
+      <AppSkeleton v-if="loading" type="card" :rows="3" />
+
+      <AppEmptyState
+        v-else-if="!selectedKelas"
+        title="Pilih kelas terlebih dahulu"
+        description="Pilih kelas untuk melihat pratinjau kartu anggota perpustakaan."
+        :icon="IdCard"
+      />
+      <AppEmptyState
+        v-else-if="students.length === 0"
+        title="Tidak ada siswa aktif"
+        description="Tidak ada siswa aktif di kelas ini."
+        :icon="IdCard"
+      />
     </div>
 
     <!-- Tampilan Kertas Print (Disembunyikan di layar, muncul saat print) -->

@@ -2,17 +2,20 @@
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { Search, History } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
 import { supabase } from '@/lib/supabase'
+import {
+  AppPageHeader, AppCard, AppInput, AppTable,
+  AppBadge, AppEmptyState, AppSkeleton, AppButton,
+} from '@/components/ui'
 
 const search = ref('')
 const results = ref([])
 const selected = ref(null)
 const history = ref([])
 const loading = ref(false)
+const loadingHistory = ref(false)
 
-const statusColor = { naik: 'green', lulus: 'sky', aktif: 'green', pindah: 'amber', keluar: 'rose' }
+const statusTone = { naik: 'success', lulus: 'info', aktif: 'success', pindah: 'warning', keluar: 'danger' }
 
 async function cariSiswa() {
   const q = search.value.trim()
@@ -39,7 +42,7 @@ async function pilihSiswa(s) {
   selected.value = s
   results.value = []
   search.value = s.nama
-  loading.value = true
+  loadingHistory.value = true
   try {
     const { data, error } = await supabase
       .from('class_history')
@@ -51,65 +54,81 @@ async function pilihSiswa(s) {
   } catch (e) {
     toast.error('Gagal memuat riwayat: ' + e.message)
   } finally {
-    loading.value = false
+    loadingHistory.value = false
   }
 }
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Riwayat Kelas Siswa" subtitle="Histori kelas & wali kelas per tahun ajaran (untuk rapor/tracking)" />
+  <div class="page-stack">
+    <AppPageHeader
+      title="Riwayat Kelas Siswa"
+      subtitle="Histori kelas dan wali kelas per tahun ajaran"
+    />
 
-    <div class="card mb-4">
-      <div class="flex gap-2">
-        <div class="relative flex-1">
-          <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input v-model="search" class="input-field pl-9" placeholder="Cari nama / NISN siswa" @keyup.enter="cariSiswa" />
-        </div>
-        <button class="btn-primary" :disabled="loading" @click="cariSiswa">Cari</button>
+    <AppCard>
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <AppInput
+          v-model="search"
+          placeholder="Cari nama / NISN siswa…"
+          aria-label="Cari siswa"
+          class="flex-1"
+          @keyup.enter="cariSiswa"
+        >
+          <template #leading><Search class="h-4 w-4" aria-hidden="true" /></template>
+        </AppInput>
+        <AppButton :loading="loading" class="sm:w-auto" @click="cariSiswa">Cari</AppButton>
       </div>
 
-      <div v-if="results.length" class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-100">
+      <div v-if="results.length" class="mt-2.5 divide-y divide-slate-100 rounded-xl border border-slate-200" role="listbox" aria-label="Hasil pencarian siswa">
         <button
           v-for="s in results"
           :key="s.nisn"
-          class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
+          role="option"
+          class="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-slate-50"
           @click="pilihSiswa(s)"
         >
-          <span class="font-medium text-gray-800">{{ s.nama }}</span>
-          <span class="text-xs text-gray-400">{{ s.nisn }} · Kelas {{ s.kelas || '-' }}</span>
+          <span class="truncate font-medium text-slate-800">{{ s.nama }}</span>
+          <span class="shrink-0 text-xs text-slate-400 tnum">{{ s.nisn }} · Kelas {{ s.kelas || '–' }}</span>
         </button>
       </div>
-    </div>
+    </AppCard>
 
-    <div v-if="selected" class="card">
-      <div class="mb-4 flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-accent text-primary"><History class="h-5 w-5" /></div>
-        <div>
-          <p class="font-semibold text-gray-800">{{ selected.nama }}</p>
-          <p class="text-xs text-gray-400">{{ selected.nisn }}</p>
+    <AppCard v-if="selected" :title="selected.nama" :subtitle="selected.nisn">
+      <template #actions>
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+          <History class="h-5 w-5" aria-hidden="true" />
         </div>
+      </template>
+      <div v-if="loadingHistory">
+        <AppSkeleton type="table" :rows="3" />
       </div>
-
-      <table class="min-w-full text-sm">
-        <thead>
-          <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
-            <th class="px-3 py-2">Tahun Ajaran</th>
-            <th class="px-3 py-2">Kelas</th>
-            <th class="px-3 py-2">Wali Kelas</th>
-            <th class="px-3 py-2">Status</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-          <tr v-if="!history.length"><td colspan="4" class="py-6 text-center text-gray-400">Belum ada riwayat kelas.</td></tr>
-          <tr v-for="h in history" :key="h.id">
-            <td class="px-3 py-2 font-medium text-gray-700">{{ h.tahun_ajaran }}</td>
-            <td class="px-3 py-2">Kelas {{ h.kelas || '-' }}</td>
-            <td class="px-3 py-2 text-gray-600">{{ h.wali_kelas || '-' }}</td>
-            <td class="px-3 py-2"><StatusBadge :label="h.status || '-'" :color="statusColor[h.status] || 'gray'" /></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <AppEmptyState
+        v-else-if="!history.length"
+        title="Belum ada riwayat kelas"
+        description="Siswa ini belum memiliki catatan riwayat kelas per tahun ajaran."
+        :icon="History"
+      />
+      <div v-else class="table-scroll -mx-4 border-y border-slate-100 sm:mx-0 sm:rounded-xl sm:border">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Tahun Ajaran</th>
+              <th>Kelas</th>
+              <th>Wali Kelas</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="h in history" :key="h.id">
+              <td class="font-medium text-slate-800">{{ h.tahun_ajaran }}</td>
+              <td>Kelas {{ h.kelas || '–' }}</td>
+              <td class="text-slate-500">{{ h.wali_kelas || '–' }}</td>
+              <td><AppBadge :label="h.status || '–'" :tone="statusTone[h.status] || 'neutral'" dot /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppCard>
   </div>
 </template>

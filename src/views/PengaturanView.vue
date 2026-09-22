@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { Save, Upload, Plus, CheckCircle2, Circle, GraduationCap, Loader2, Trash2, AlertTriangle, Building2, CalendarDays, ArrowUpCircle, ShieldAlert, Database, FileDown } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
-import BaseModal from '@/components/BaseModal.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
+import { Save, Upload, Plus, X, CheckCircle2, Circle, GraduationCap, Trash2, AlertTriangle, Building2, CalendarDays, ArrowUpCircle, ShieldAlert, Database, FileDown } from 'lucide-vue-next'
+import {
+  AppPageHeader, AppCard, AppTabs, AppInput, AppSelect,
+  AppModal, AppButton, AppAlert,
+} from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import { useSettingsStore } from '@/stores/settings'
@@ -14,7 +15,7 @@ const settingsStore = useSettingsStore()
 const periodStore = usePeriodStore()
 
 const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', nama_perpustakaan: 'MIN Blora', hari_libur_mingguan: [0, 6] })
+const form = ref({ nama_sekolah: '', alamat: '', kepala_sekolah: '', nip_kepala_sekolah: '', logo_url: '', daftar_kelas: [], kop_baris2: '', kop_baris3: '', kop_baris4: '', kop_baris5: '', nama_perpustakaan: '', hari_libur_mingguan: [0, 6] })
 const savingSettings = ref(false)
 const uploading = ref(false)
 const fileInput = ref(null)
@@ -47,10 +48,10 @@ const newKelas = ref('')
 
 const activeSettingsTab = ref('identitas')
 const settingsTabs = [
-  { id: 'identitas', label: 'Identitas', icon: Building2 },
-  { id: 'akademik', label: 'Akademik', icon: CalendarDays },
-  { id: 'kenaikan', label: 'Kenaikan Kelas', icon: ArrowUpCircle },
-  { id: 'pemeliharaan', label: 'Pemeliharaan', icon: ShieldAlert },
+  { value: 'identitas', label: 'Identitas', icon: Building2 },
+  { value: 'akademik', label: 'Akademik', icon: CalendarDays },
+  { value: 'kenaikan', label: 'Kenaikan Kelas', icon: ArrowUpCircle },
+  { value: 'pemeliharaan', label: 'Pemeliharaan', icon: ShieldAlert },
 ]
 
 function addKelas() {
@@ -414,411 +415,323 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Pengaturan" subtitle="Identitas madrasah, tahun ajaran, dan kenaikan kelas" />
+  <div class="page-stack">
+    <AppPageHeader title="Pengaturan" subtitle="Identitas madrasah, tahun ajaran, dan kenaikan kelas" />
 
-    <!-- Tab Navigation -->
-    <div class="card mb-4 p-0 overflow-hidden">
-      <div class="border-b border-gray-200 bg-gray-50/50">
-        <nav class="-mb-px flex overflow-x-auto" aria-label="Tabs">
-          <button
-            v-for="tab in settingsTabs"
-            :key="tab.id"
-            @click="activeSettingsTab = tab.id"
-            :class="[
-              activeSettingsTab === tab.id
-                ? 'border-emerald-500 text-emerald-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-              'group inline-flex items-center border-b-2 py-3 px-4 sm:px-6 text-sm font-medium transition-colors whitespace-nowrap'
-            ]"
-          >
-            <component
-              :is="tab.icon"
-              :class="[
-                activeSettingsTab === tab.id ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500',
-                '-ml-0.5 mr-2 h-4 w-4'
-              ]"
-              aria-hidden="true"
-            />
-            <span>{{ tab.label }}</span>
-          </button>
-        </nav>
-      </div>
-    </div>
+    <AppTabs v-model="activeSettingsTab" :options="settingsTabs" variant="chip" ariaLabel="Bagian pengaturan" />
 
     <!-- Tab: Identitas -->
-    <div v-if="activeSettingsTab === 'identitas'" class="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-in fade-in duration-300">
+    <div v-if="activeSettingsTab === 'identitas'" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <!-- Identitas Madrasah -->
-      <div class="card">
-        <h3 class="mb-4 text-sm font-semibold text-gray-700">Identitas Madrasah</h3>
+      <AppCard title="Identitas Madrasah">
         <div class="mb-4 flex items-center gap-4">
-          <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-primary-accent">
-            <img v-if="form.logo_url" :src="form.logo_url" class="h-full w-full object-contain" alt="Logo" />
-            <span v-else class="text-xs text-gray-400">No Logo</span>
+          <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-50 ring-1 ring-primary-100">
+            <img v-if="form.logo_url" :src="form.logo_url" class="h-full w-full object-contain" alt="Logo madrasah" />
+            <span v-else class="text-xs text-slate-400">No Logo</span>
           </div>
           <div>
             <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onLogoSelected" />
-            <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50" :disabled="uploading" @click="fileInput.click()">
-              <Loader2 v-if="uploading" class="h-4 w-4 animate-spin" />
-              <Upload v-else class="h-4 w-4" />
-              {{ uploading ? 'Mengunggah...' : 'Unggah Logo' }}
-            </button>
-            <p class="mt-1 text-xs text-gray-400">PNG/JPG, rasio 1:1 disarankan.</p>
+            <AppButton variant="secondary" size="sm" :loading="uploading" @click="fileInput.click()">
+              <template #icon><Upload class="h-4 w-4" aria-hidden="true" /></template>
+              {{ uploading ? 'Mengunggah…' : 'Unggah Logo' }}
+            </AppButton>
+            <p class="mt-1.5 text-xs text-slate-400">PNG/JPG, rasio 1:1 disarankan.</p>
           </div>
         </div>
-        
 
         <div class="space-y-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Nama Madrasah</label>
-            <input v-model="form.nama_sekolah" class="input-field" />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600">Alamat</label>
-            <input v-model="form.alamat" class="input-field" />
-          </div>
+          <AppInput v-model="form.nama_sekolah" label="Nama Madrasah" />
+          <AppInput v-model="form.alamat" label="Alamat" />
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Kepala Madrasah</label>
-              <input v-model="form.kepala_sekolah" class="input-field" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">NIP Kepala</label>
-              <input v-model="form.nip_kepala_sekolah" class="input-field" />
-            </div>
-            <div class="sm:col-span-2">
-              <label class="mb-1 block text-xs font-medium text-gray-600">Nama Perpustakaan (Kustom)</label>
-              <input v-model="form.nama_perpustakaan" class="input-field border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500/20" placeholder="Contoh: BAITUL HIKMAH" />
-            </div>
+            <AppInput v-model="form.kepala_sekolah" label="Kepala Madrasah" />
+            <AppInput v-model="form.nip_kepala_sekolah" label="NIP Kepala" />
+            <AppInput
+              v-model="form.nama_perpustakaan"
+              label="Nama Perpustakaan (Kustom)"
+              placeholder="Contoh: BAITUL HIKMAH"
+              class="sm:col-span-2"
+            />
           </div>
         </div>
-      </div>
+      </AppCard>
 
-      <!-- Kop Surat PDF & Daftar Kelas -->
-      <div class="space-y-4">
-        <div class="card">
-          <h3 class="mb-3 text-sm font-semibold text-gray-700">Teks Kop Surat (PDF)</h3>
-          <div class="space-y-3">
-            <div>
-              <label class="mb-1 block text-[11px] font-medium text-gray-500">Baris 1 (Otomatis)</label>
-              <input class="input-field bg-gray-50 text-gray-400" value="KEMENTERIAN AGAMA REPUBLIK INDONESIA" disabled />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 2</label>
-              <input v-model="form.kop_baris2" class="input-field" placeholder="KANTOR KEMENTERIAN AGAMA KABUPATEN BLORA" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 3</label>
-              <input v-model="form.kop_baris3" class="input-field" placeholder="MADRASAH IBTIDAIYAH NEGERI BLORA" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 4</label>
-              <input v-model="form.kop_baris4" class="input-field" placeholder="Alamat: Jl. Pendidikan No. 1, Blora. Telp: (0296) 123456" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Baris 5 (Opsional / Website)</label>
-              <input v-model="form.kop_baris5" class="input-field" placeholder="Website: www.minblora.sch.id | Email: minblora@kemenag.go.id" />
-            </div>
-          </div>
+      <!-- Kop Surat PDF -->
+      <AppCard title="Teks Kop Surat (PDF)" subtitle="Digunakan pada kop dokumen PDF">
+        <div class="space-y-3">
+          <AppInput label="Baris 1 (Otomatis)" value="KEMENTERIAN AGAMA REPUBLIK INDONESIA" disabled />
+          <AppInput v-model="form.kop_baris2" label="Baris 2" placeholder="KANTOR KEMENTERIAN AGAMA KABUPATEN BLORA" />
+          <AppInput v-model="form.kop_baris3" label="Baris 3" placeholder="MADRASAH IBTIDAIYAH NEGERI BLORA" />
+          <AppInput v-model="form.kop_baris4" label="Baris 4" placeholder="Alamat: Jl. Pendidikan No. 1, Blora. Telp: (0296) 123456" />
+          <AppInput v-model="form.kop_baris5" label="Baris 5 (Opsional / Website)" placeholder="Website: www.minblora.sch.id | Email: minblora@kemenag.go.id" />
         </div>
-      </div>
+      </AppCard>
 
-      <!-- Tombol Simpan Identitas -->
-      <div class="col-span-1 lg:col-span-2 flex justify-end pt-2 pb-10 lg:pb-4">
-        <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
-          <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Identitas & Kop' }}
-        </button>
+      <div class="flex justify-end pb-14 lg:col-span-2 lg:pb-2">
+        <AppButton class="w-full sm:w-auto" :loading="savingSettings" @click="saveSettings">
+          <template #icon><Save class="h-4 w-4" aria-hidden="true" /></template>
+          {{ savingSettings ? 'Menyimpan…' : 'Simpan Identitas & Kop' }}
+        </AppButton>
       </div>
     </div>
 
     <!-- Tab: Akademik -->
-    <div v-else-if="activeSettingsTab === 'akademik'" class="space-y-4 animate-in fade-in duration-300">
+    <div v-else-if="activeSettingsTab === 'akademik'" class="flex flex-col gap-4">
 
-      <!-- Daftar Kelas -->
-      <div class="card">
-        <h3 class="mb-3 text-sm font-semibold text-gray-700">Daftar Kelas</h3>
+      <AppCard title="Daftar Kelas">
         <div class="mb-3 flex gap-2">
-          <input v-model="newKelas" @keyup.enter="addKelas" class="input-field" placeholder="Misal: 1A, 1B" />
-          <button class="btn-primary shrink-0" @click="addKelas"><Plus class="h-4 w-4" /> Tambah</button>
+          <AppInput v-model="newKelas" placeholder="Misal: 1A, 1B" aria-label="Nama kelas baru" class="flex-1" @keyup.enter="addKelas" />
+          <AppButton class="shrink-0" @click="addKelas">
+            <template #icon><Plus class="h-4 w-4" aria-hidden="true" /></template>
+            Tambah
+          </AppButton>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <span v-for="k in form.daftar_kelas" :key="k" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 border border-emerald-200">
-            {{ k }}
-            <button class="text-emerald-400 hover:text-emerald-600" @click="removeKelas(k)">&times;</button>
-          </span>
-          <span v-if="!form.daftar_kelas?.length" class="text-xs text-gray-400">Belum ada kelas.</span>
-        </div>
-      </div>
+        <ul class="flex flex-wrap gap-2" aria-label="Daftar kelas">
+          <li v-for="k in form.daftar_kelas" :key="k">
+            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 py-1 pl-3 pr-1.5 text-sm font-medium text-emerald-700">
+              {{ k }}
+              <button
+                class="rounded-full p-1 text-emerald-400 transition-colors hover:bg-emerald-100 hover:text-emerald-700"
+                :aria-label="`Hapus kelas ${k}`"
+                @click="removeKelas(k)"
+              >
+                <X class="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </span>
+          </li>
+          <li v-if="!form.daftar_kelas?.length" class="text-xs text-slate-400">Belum ada kelas.</li>
+        </ul>
+      </AppCard>
 
-      <!-- Tahun Ajaran -->
-      <div class="card">
-        <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-gray-700">Tahun Ajaran & Semester</h3>
-          <button class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs hover:bg-gray-50" @click="showPeriodForm = true">
-            <Plus class="h-3.5 w-3.5" /> Tambah
-          </button>
-        </div>
-        <div class="space-y-2">
-          <div v-for="p in periods" :key="p.id" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2">
-            <div>
-              <p class="text-sm font-medium text-gray-800">{{ p.tahun_ajaran }} <span class="text-gray-400">·</span> {{ p.semester }}</p>
-            </div>
+      <AppCard title="Tahun Ajaran & Semester">
+        <template #actions>
+          <AppButton size="sm" variant="secondary" @click="showPeriodForm = true">
+            <template #icon><Plus class="h-4 w-4" aria-hidden="true" /></template>
+            Tambah
+          </AppButton>
+        </template>
+        <ul class="flex flex-col gap-2">
+          <li v-for="p in periods" :key="p.id" class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3.5 py-2.5">
+            <p class="text-sm font-medium text-slate-800">{{ p.tahun_ajaran }} <span class="text-slate-300">·</span> Semester {{ p.semester }}</p>
             <button
-              class="inline-flex items-center gap-1.5 text-sm"
-              :class="p.is_active ? 'font-semibold text-primary' : 'text-gray-400 hover:text-gray-600'"
+              class="inline-flex shrink-0 items-center gap-1.5 text-sm"
+              :class="p.is_active ? 'font-semibold text-primary-700' : 'text-slate-400 hover:text-slate-600'"
+              :aria-pressed="p.is_active ? 'true' : 'false'"
               @click="!p.is_active && setActive(p)"
             >
-              <CheckCircle2 v-if="p.is_active" class="h-4 w-4" />
-              <Circle v-else class="h-4 w-4" />
+              <CheckCircle2 v-if="p.is_active" class="h-4 w-4" aria-hidden="true" />
+              <Circle v-else class="h-4 w-4" aria-hidden="true" />
               {{ p.is_active ? 'Aktif' : 'Jadikan aktif' }}
             </button>
+          </li>
+          <li v-if="!periods.length" class="text-sm text-slate-400">Belum ada periode.</li>
+        </ul>
+      </AppCard>
+
+      <AppCard title="Hari Libur Mingguan" subtitle="Ditandai merah di kalender dan rekapitulasi">
+        <fieldset>
+          <legend class="sr-only">Pilih hari libur mingguan</legend>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label
+              v-for="(hari, idx) in NAMA_HARI"
+              :key="idx"
+              class="flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-colors"
+              :class="(form.hari_libur_mingguan || []).includes(idx)
+                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                : 'border-slate-200 text-slate-700 hover:bg-slate-50'"
+            >
+              <input
+                type="checkbox"
+                :checked="(form.hari_libur_mingguan || []).includes(idx)"
+                class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                @change="toggleHariLibur(idx)"
+              />
+              <span class="font-medium">{{ hari }}</span>
+            </label>
           </div>
-          <p v-if="!periods.length" class="text-sm text-gray-400">Belum ada periode.</p>
-        </div>
-      </div>
+        </fieldset>
+      </AppCard>
 
-      <!-- Hari Libur Mingguan -->
-      <div class="card">
-        <h3 class="mb-3 text-sm font-semibold text-gray-700">Hari Libur Mingguan</h3>
-        <p class="mb-3 text-xs text-gray-500">Pilih hari apa saja yang merupakan hari libur rutin mingguan (akan ditandai merah di kalender dan rekapitulasi).</p>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <label v-for="(hari, idx) in NAMA_HARI" :key="idx" class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors">
-            <input
-              type="checkbox"
-              :checked="(form.hari_libur_mingguan || []).includes(idx)"
-              @change="toggleHariLibur(idx)"
-              class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <span class="text-gray-700">{{ hari }}</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Tombol Simpan Akademik -->
-      <div class="flex justify-end pt-2 pb-12 lg:pb-2">
-        <button class="btn-primary w-full sm:w-auto px-8 py-3 text-sm" :disabled="savingSettings" @click="saveSettings">
-          <Save class="h-4 w-4" /> {{ savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Akademik' }}
-        </button>
+      <div class="flex justify-end pb-14 lg:pb-2">
+        <AppButton class="w-full sm:w-auto" :loading="savingSettings" @click="saveSettings">
+          <template #icon><Save class="h-4 w-4" aria-hidden="true" /></template>
+          {{ savingSettings ? 'Menyimpan…' : 'Simpan Pengaturan Akademik' }}
+        </AppButton>
       </div>
     </div>
 
     <!-- Tab: Kenaikan Kelas -->
-    <div v-else-if="activeSettingsTab === 'kenaikan'" class="space-y-4 animate-in fade-in duration-300">
-      <div class="card border border-amber-200 bg-amber-50/40">
-        <div class="flex items-start gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-amber-700">
-            <GraduationCap class="h-5 w-5" />
+    <div v-else-if="activeSettingsTab === 'kenaikan'" class="flex flex-col gap-4">
+      <AppCard tone="warning">
+        <div class="flex items-start gap-3.5">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-light text-amber-700">
+            <GraduationCap class="h-5 w-5" aria-hidden="true" />
           </div>
-          <div class="flex-1">
-            <h3 class="text-sm font-semibold text-gray-800">Kenaikan Kelas Otomatis</h3>
-            <p class="mt-0.5 text-xs text-gray-500">
-              Promosikan semua siswa (angka depan kelas ditambah 1, misal 1A → 2A). Kelas berawalan 6 → lulus & nonaktif. Snapshot riwayat kelas akan disimpan.
+          <div class="min-w-0 flex-1">
+            <h3 class="text-[15px] font-semibold text-slate-900">Kenaikan Kelas Otomatis</h3>
+            <p class="mt-1 text-[13px] leading-relaxed text-slate-500">
+              Menaikkan angka depan kelas seluruh siswa (misal 1A → 2A). Kelas berawalan 6 diluluskan &amp; dinonaktifkan.
+              Snapshot riwayat kelas disimpan otomatis.
             </p>
-            <button class="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600" @click="showKenaikan = true">
-              <GraduationCap class="h-4 w-4" /> Proses Kenaikan
-            </button>
+            <AppButton variant="warning" size="sm" class="mt-3" @click="showKenaikan = true">
+              <template #icon><GraduationCap class="h-4 w-4" aria-hidden="true" /></template>
+              Proses Kenaikan
+            </AppButton>
           </div>
         </div>
-      </div>
+      </AppCard>
     </div>
 
     <!-- Tab: Pemeliharaan -->
-    <div v-else-if="activeSettingsTab === 'pemeliharaan'" class="space-y-4 animate-in fade-in duration-300">
-        
-        <!-- Pencadangan Database -->
-        <div class="card border border-emerald-200 bg-emerald-50/20">
-          <h3 class="mb-3 text-sm font-semibold text-emerald-700 flex items-center gap-2">
-            <Database class="h-4 w-4" /> Pencadangan Database (Backup)
-          </h3>
-          <p class="mb-4 text-xs text-emerald-600/80">Unduh seluruh data master sekolah (Siswa, Guru, Buku) dan Log Aktivitas dalam 1 file Excel ber-sheet banyak. Sangat disarankan dilakukan tiap bulan.</p>
-          
-          <button 
-            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50" 
-            :disabled="prosesBackup" 
-            @click="jalankanBackup"
-          >
-            <Loader2 v-if="prosesBackup" class="h-4 w-4 animate-spin" />
-            <FileDown v-else class="h-4 w-4" />
-            {{ prosesBackup ? 'Mengekstrak Data...' : 'Download Full Backup (Excel)' }}
-          </button>
-        </div>
+    <div v-else-if="activeSettingsTab === 'pemeliharaan'" class="flex flex-col gap-4">
+      <AppCard title="Pencadangan Database" subtitle="Unduh seluruh data master (Siswa, Guru, Buku) dan Log Aktivitas dalam 1 file Excel multi-sheet. Disarankan tiap bulan.">
+        <template #actions>
+          <Database class="h-5 w-5 text-primary-600" aria-hidden="true" />
+        </template>
+        <AppButton :loading="prosesBackup" @click="jalankanBackup">
+          <template #icon><FileDown class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesBackup ? 'Mengekstrak Data…' : 'Download Full Backup (Excel)' }}
+        </AppButton>
+      </AppCard>
 
-        <!-- Pemeliharaan Database (Danger Zone) -->
-        <div class="card border border-rose-200 bg-rose-50/20">
-          <h3 class="mb-3 text-sm font-semibold text-rose-700 flex items-center gap-2">
-            <AlertTriangle class="h-4 w-4" /> Zona Berbahaya
-          </h3>
-          <p class="mb-4 text-xs text-rose-600/80">Tindakan di bawah ini tidak dapat dibatalkan. Berhati-hatilah dalam menghapus data.</p>
-          
-          <div class="space-y-3">
-            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
-              <div>
-                <p class="text-sm font-semibold text-gray-800">Reset Data Absensi</p>
-                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat presensi siswa dari awal sampai akhir.</p>
-              </div>
-              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetAbsensi = true">
-                <Trash2 class="h-3.5 w-3.5" /> Hapus Absensi
-              </button>
+      <AppCard title="Zona Berbahaya" subtitle="Tindakan di bawah ini tidak dapat dibatalkan." tone="danger">
+        <template #actions>
+          <AlertTriangle class="h-5 w-5 text-rose-500" aria-hidden="true" />
+        </template>
+        <ul class="flex flex-col gap-2.5">
+          <li class="flex flex-col gap-2.5 rounded-xl border border-rose-100 bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Reset Data Absensi</p>
+              <p class="mt-0.5 text-xs text-slate-500">Hapus permanen seluruh riwayat presensi siswa dari awal sampai akhir.</p>
             </div>
-            
-            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
-              <div>
-                <p class="text-sm font-semibold text-gray-800">Bersihkan Log Aktivitas</p>
-                <p class="text-xs text-gray-500">Hapus riwayat aktivitas pengguna (Log App) untuk menghemat ruang.</p>
-              </div>
-              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetLog = true">
-                <Trash2 class="h-3.5 w-3.5" /> Hapus Log
-              </button>
+            <AppButton variant="danger-soft" size="sm" class="shrink-0 self-start sm:self-center" @click="showResetAbsensi = true">
+              <template #icon><Trash2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
+              Hapus Absensi
+            </AppButton>
+          </li>
+          <li class="flex flex-col gap-2.5 rounded-xl border border-rose-100 bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Bersihkan Log Aktivitas</p>
+              <p class="mt-0.5 text-xs text-slate-500">Hapus riwayat aktivitas pengguna untuk menghemat ruang penyimpanan.</p>
             </div>
-            
-            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
-              <div>
-                <p class="text-sm font-semibold text-gray-800">Reset Data Kunjungan Perpustakaan</p>
-                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat buku tamu perpustakaan.</p>
-              </div>
-              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetPerpusKunjungan = true">
-                <Trash2 class="h-3.5 w-3.5" /> Hapus Kunjungan
-              </button>
+            <AppButton variant="danger-soft" size="sm" class="shrink-0 self-start sm:self-center" @click="showResetLog = true">
+              <template #icon><Trash2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
+              Hapus Log
+            </AppButton>
+          </li>
+          <li class="flex flex-col gap-2.5 rounded-xl border border-rose-100 bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Reset Data Kunjungan Perpustakaan</p>
+              <p class="mt-0.5 text-xs text-slate-500">Hapus permanen seluruh riwayat buku tamu perpustakaan.</p>
             </div>
-            
-            <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
-              <div>
-                <p class="text-sm font-semibold text-gray-800">Reset Riwayat Peminjaman Buku</p>
-                <p class="text-xs text-gray-500">Hapus permanen seluruh riwayat sirkulasi peminjaman & pengembalian buku.</p>
-              </div>
-              <button class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100" @click="showResetPerpusPinjaman = true">
-                <Trash2 class="h-3.5 w-3.5" /> Hapus Peminjaman
-              </button>
+            <AppButton variant="danger-soft" size="sm" class="shrink-0 self-start sm:self-center" @click="showResetPerpusKunjungan = true">
+              <template #icon><Trash2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
+              Hapus Kunjungan
+            </AppButton>
+          </li>
+          <li class="flex flex-col gap-2.5 rounded-xl border border-rose-100 bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Reset Riwayat Peminjaman Buku</p>
+              <p class="mt-0.5 text-xs text-slate-500">Hapus permanen seluruh riwayat sirkulasi peminjaman &amp; pengembalian buku.</p>
             </div>
-          </div>
-        </div>
+            <AppButton variant="danger-soft" size="sm" class="shrink-0 self-start sm:self-center" @click="showResetPerpusPinjaman = true">
+              <template #icon><Trash2 class="h-3.5 w-3.5" aria-hidden="true" /></template>
+              Hapus Peminjaman
+            </AppButton>
+          </li>
+        </ul>
+      </AppCard>
     </div>
 
-    <!-- Modals (always available) -->
-    <BaseModal v-model="showPeriodForm" title="Tambah Tahun Ajaran" max-width="max-w-md">
-      <div class="space-y-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Tahun Ajaran</label>
-          <input v-model="periodForm.tahun_ajaran" class="input-field" placeholder="2025/2026" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Semester</label>
-          <select v-model="periodForm.semester" class="input-field">
-            <option value="Ganjil">Ganjil</option>
-            <option value="Genap">Genap</option>
-          </select>
-        </div>
+    <!-- Modals -->
+    <AppModal v-model="showPeriodForm" title="Tambah Tahun Ajaran" max-width="max-w-md">
+      <div class="flex flex-col gap-3">
+        <AppInput v-model="periodForm.tahun_ajaran" label="Tahun Ajaran" placeholder="2025/2026" />
+        <AppSelect v-model="periodForm.semester" label="Semester">
+          <option value="Ganjil">Ganjil</option>
+          <option value="Genap">Genap</option>
+        </AppSelect>
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showPeriodForm = false">Batal</button>
-        <button class="btn-primary" :disabled="savingPeriod" @click="savePeriod">Simpan</button>
+        <AppButton variant="secondary" @click="showPeriodForm = false">Batal</AppButton>
+        <AppButton :loading="savingPeriod" @click="savePeriod">Simpan</AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal konfirmasi kenaikan -->
-    <BaseModal v-model="showKenaikan" title="Konfirmasi Kenaikan Kelas" max-width="max-w-md">
-      <div class="space-y-2 text-sm text-gray-600">
-        <p>Aksi ini akan, untuk periode aktif <strong>{{ periodStore.label }}</strong>:</p>
+    <AppModal v-model="showKenaikan" title="Konfirmasi Kenaikan Kelas" max-width="max-w-md">
+      <div class="flex flex-col gap-3 text-sm text-slate-600">
+        <p>Aksi ini akan — untuk periode aktif <strong class="text-slate-800">{{ periodStore.label }}</strong>:</p>
         <ul class="list-disc space-y-1 pl-5">
           <li>Menyimpan snapshot kelas semua siswa aktif ke <strong>Riwayat Kelas</strong>.</li>
-          <li>Menaikkan angka kelas (misal: 1A menjadi 2A, 2 menjadi 3).</li>
-          <li>Menandai siswa berkelas awalan 6 sebagai <strong>lulus</strong> & nonaktif.</li>
+          <li>Menaikkan angka kelas (misal: 1A → 2A, 2 → 3).</li>
+          <li>Menandai siswa berkelas awalan 6 sebagai <strong>lulus</strong> &amp; nonaktif.</li>
         </ul>
-        <p class="rounded-lg bg-amber-50 px-3 py-2 text-amber-700">
-          Pastikan periode aktif sudah benar sebelum melanjutkan. Aksi ini sebaiknya dijalankan sekali di akhir tahun ajaran.
-        </p>
+        <AppAlert tone="warning" title="Jalankan sekali di akhir tahun ajaran">
+          Pastikan periode aktif sudah benar sebelum melanjutkan.
+        </AppAlert>
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showKenaikan = false">Batal</button>
-        <button class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600" :disabled="prosesKenaikan" @click="jalankanKenaikan">
-          <Loader2 v-if="prosesKenaikan" class="h-4 w-4 animate-spin" />
-          <GraduationCap v-else class="h-4 w-4" />
-          {{ prosesKenaikan ? 'Memproses...' : 'Ya, Proses' }}
-        </button>
+        <AppButton variant="secondary" @click="showKenaikan = false">Batal</AppButton>
+        <AppButton variant="warning" :loading="prosesKenaikan" @click="jalankanKenaikan">
+          <template #icon><GraduationCap class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesKenaikan ? 'Memproses…' : 'Ya, Proses' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal Konfirmasi Reset Absensi -->
-    <BaseModal v-model="showResetAbsensi" title="Peringatan Keras!" max-width="max-w-md">
-      <div class="space-y-4">
-        <div class="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">
-          <p class="font-bold mb-1">Anda akan MENGHAPUS SELURUH data presensi!</p>
-          <p>Tindakan ini akan mengosongkan tabel presensi dari awal aplikasi ini digunakan. Data yang sudah dihapus tidak dapat dikembalikan lagi.</p>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-600">Ketik "HAPUS SEMUA" untuk konfirmasi:</label>
-          <input v-model="konfirmasiResetAbsensi" class="input-field border-rose-200 focus:border-rose-500 focus:ring-rose-500" placeholder="HAPUS SEMUA" />
-        </div>
+    <AppModal v-model="showResetAbsensi" title="Peringatan Keras!" max-width="max-w-md">
+      <div class="flex flex-col gap-4">
+        <AppAlert tone="danger" title="Anda akan MENGHAPUS SELURUH data presensi!">
+          Tabel presensi akan dikosongkan dari awal aplikasi digunakan. Data yang dihapus tidak dapat dikembalikan.
+        </AppAlert>
+        <AppInput v-model="konfirmasiResetAbsensi" label="Ketik &quot;HAPUS SEMUA&quot; untuk konfirmasi" placeholder="HAPUS SEMUA" />
       </div>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetAbsensi = false">Batal</button>
-        <button 
-          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50" 
-          :disabled="prosesResetAbsensi || konfirmasiResetAbsensi !== 'HAPUS SEMUA'" 
-          @click="jalankanResetAbsensi"
-        >
-          <Loader2 v-if="prosesResetAbsensi" class="h-4 w-4 animate-spin" />
-          <Trash2 v-else class="h-4 w-4" />
-          {{ prosesResetAbsensi ? 'Menghapus...' : 'Ya, Hapus Permanen' }}
-        </button>
+        <AppButton variant="secondary" @click="showResetAbsensi = false">Batal</AppButton>
+        <AppButton variant="danger" :loading="prosesResetAbsensi" :disabled="konfirmasiResetAbsensi !== 'HAPUS SEMUA'" @click="jalankanResetAbsensi">
+          <template #icon><Trash2 class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesResetAbsensi ? 'Menghapus…' : 'Ya, Hapus Permanen' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal Konfirmasi Reset Log -->
-    <BaseModal v-model="showResetLog" title="Bersihkan Log Aktivitas" max-width="max-w-sm">
-      <div class="text-sm text-gray-600">
-        <p>Apakah Anda yakin ingin menghapus seluruh rekaman log aktivitas aplikasi? Ini tidak akan menghapus data master (siswa, guru, absensi, dll) dan murni hanya riwayat saja.</p>
-      </div>
+    <AppModal v-model="showResetLog" title="Bersihkan Log Aktivitas" max-width="max-w-sm">
+      <p class="text-sm leading-relaxed text-slate-600">
+        Hapus seluruh rekaman log aktivitas aplikasi? Data master (siswa, guru, absensi, dll) tidak ikut terhapus.
+      </p>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetLog = false">Batal</button>
-        <button 
-          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
-          :disabled="prosesResetLog" 
-          @click="jalankanResetLog"
-        >
-          <Loader2 v-if="prosesResetLog" class="h-4 w-4 animate-spin" />
-          <Trash2 v-else class="h-4 w-4" />
-          {{ prosesResetLog ? 'Membersihkan...' : 'Bersihkan' }}
-        </button>
+        <AppButton variant="secondary" @click="showResetLog = false">Batal</AppButton>
+        <AppButton variant="danger" :loading="prosesResetLog" @click="jalankanResetLog">
+          <template #icon><Trash2 class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesResetLog ? 'Membersihkan…' : 'Bersihkan' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal Konfirmasi Reset Perpus Kunjungan -->
-    <BaseModal v-model="showResetPerpusKunjungan" title="Reset Kunjungan Perpustakaan" max-width="max-w-sm">
-      <div class="text-sm text-gray-600">
-        <p>Anda akan menghapus SELURUH riwayat buku tamu perpustakaan. Apakah Anda yakin melanjutkan?</p>
-      </div>
+    <AppModal v-model="showResetPerpusKunjungan" title="Reset Kunjungan Perpustakaan" max-width="max-w-sm">
+      <p class="text-sm leading-relaxed text-slate-600">
+        Anda akan menghapus SELURUH riwayat buku tamu perpustakaan. Lanjutkan?
+      </p>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetPerpusKunjungan = false">Batal</button>
-        <button 
-          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
-          :disabled="prosesResetPerpusKunjungan" 
-          @click="jalankanResetPerpusKunjungan"
-        >
-          <Loader2 v-if="prosesResetPerpusKunjungan" class="h-4 w-4 animate-spin" />
-          <Trash2 v-else class="h-4 w-4" />
-          {{ prosesResetPerpusKunjungan ? 'Menghapus...' : 'Ya, Hapus' }}
-        </button>
+        <AppButton variant="secondary" @click="showResetPerpusKunjungan = false">Batal</AppButton>
+        <AppButton variant="danger" :loading="prosesResetPerpusKunjungan" @click="jalankanResetPerpusKunjungan">
+          <template #icon><Trash2 class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesResetPerpusKunjungan ? 'Menghapus…' : 'Ya, Hapus' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
 
-    <!-- Modal Konfirmasi Reset Perpus Pinjaman -->
-    <BaseModal v-model="showResetPerpusPinjaman" title="Reset Sirkulasi Peminjaman" max-width="max-w-sm">
-      <div class="text-sm text-gray-600">
-        <p>Anda akan menghapus SELURUH riwayat peminjaman buku (termasuk yang sedang dipinjam). Buku yang dihapus riwayatnya akan otomatis berstatus tersedia kembali. Lanjutkan?</p>
-      </div>
+    <AppModal v-model="showResetPerpusPinjaman" title="Reset Sirkulasi Peminjaman" max-width="max-w-sm">
+      <p class="text-sm leading-relaxed text-slate-600">
+        Anda akan menghapus SELURUH riwayat peminjaman buku (termasuk yang sedang dipinjam).
+        Buku terdampak otomatis kembali berstatus tersedia. Lanjutkan?
+      </p>
       <template #footer>
-        <button class="rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-100" @click="showResetPerpusPinjaman = false">Batal</button>
-        <button 
-          class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" 
-          :disabled="prosesResetPerpusPinjaman" 
-          @click="jalankanResetPerpusPinjaman"
-        >
-          <Loader2 v-if="prosesResetPerpusPinjaman" class="h-4 w-4 animate-spin" />
-          <Trash2 v-else class="h-4 w-4" />
-          {{ prosesResetPerpusPinjaman ? 'Menghapus...' : 'Ya, Hapus' }}
-        </button>
+        <AppButton variant="secondary" @click="showResetPerpusPinjaman = false">Batal</AppButton>
+        <AppButton variant="danger" :loading="prosesResetPerpusPinjaman" @click="jalankanResetPerpusPinjaman">
+          <template #icon><Trash2 class="h-4 w-4" aria-hidden="true" /></template>
+          {{ prosesResetPerpusPinjaman ? 'Menghapus…' : 'Ya, Hapus' }}
+        </AppButton>
       </template>
-    </BaseModal>
+    </AppModal>
   </div>
 </template>

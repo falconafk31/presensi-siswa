@@ -1,10 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
-import { RefreshCw, ScrollText } from 'lucide-vue-next'
-import PageHeader from '@/components/PageHeader.vue'
+import { RefreshCw, ScrollText, X } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { formatWaktu, todayISO } from '@/lib/dates'
+import {
+  AppPageHeader, AppFilterBar, AppSelect, AppInput, AppTable,
+  AppBadge, AppEmptyState, AppSkeleton, AppButton,
+} from '@/components/ui'
 
 const logs = ref([])
 const users = ref([])
@@ -39,8 +42,16 @@ async function load() {
   }
 }
 
+function resetFilter() {
+  filterUser.value = ''
+  filterDate.value = ''
+  load()
+}
+
+const hasFilter = () => filterUser.value !== '' || filterDate.value !== ''
+
 function ringkasDetail(d) {
-  if (!d) return ''
+  if (!d) return '–'
   try {
     return Object.entries(d)
       .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
@@ -57,59 +68,63 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Log Aktivitas" subtitle="Audit trail: siapa mengubah apa dan kapan">
+  <div class="page-stack">
+    <AppPageHeader title="Log Aktivitas" subtitle="Jejak audit — siapa mengubah apa dan kapan (200 terbaru)">
       <template #actions>
-        <button class="btn-primary" :disabled="loading" @click="load">
-          <RefreshCw class="h-4 w-4" :class="loading ? 'animate-spin' : ''" /> Muat Ulang
-        </button>
+        <AppButton size="sm" :loading="loading" @click="load">
+          <template #icon><RefreshCw class="h-4 w-4" aria-hidden="true" /></template>
+          Muat Ulang
+        </AppButton>
       </template>
-    </PageHeader>
+    </AppPageHeader>
 
-    <div class="card mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <div>
-        <label class="mb-1 block text-xs font-medium text-gray-600">Pengguna</label>
-        <select v-model="filterUser" class="input-field" @change="load">
-          <option value="">Semua</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.nama }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal</label>
-        <input v-model="filterDate" type="date" :max="todayISO()" class="input-field" @change="load" />
-      </div>
+    <AppFilterBar columns="sm:grid-cols-3">
+      <AppSelect v-model="filterUser" label="Pengguna" @change="load">
+        <option value="">Semua pengguna</option>
+        <option v-for="u in users" :key="u.id" :value="u.id">{{ u.nama }}</option>
+      </AppSelect>
+      <AppInput v-model="filterDate" type="date" label="Tanggal" :max="todayISO()" @change="load" />
       <div class="flex items-end">
-        <button class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50" @click="filterUser = ''; filterDate = ''; load()">
+        <AppButton variant="secondary" class="w-full sm:w-auto" @click="resetFilter">
+          <template #icon><X class="h-4 w-4" aria-hidden="true" /></template>
           Reset Filter
-        </button>
+        </AppButton>
       </div>
-    </div>
+    </AppFilterBar>
 
-    <div class="card overflow-x-auto">
-      <table class="min-w-full text-sm">
-        <thead>
-          <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
-            <th class="px-3 py-2">Waktu</th>
-            <th class="px-3 py-2">Pengguna</th>
-            <th class="px-3 py-2">Aksi</th>
-            <th class="px-3 py-2">Tabel</th>
-            <th class="px-3 py-2">Detail</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-          <tr v-if="loading"><td colspan="5" class="py-6 text-center text-gray-400">Memuat...</td></tr>
-          <tr v-else-if="!logs.length"><td colspan="5" class="py-6 text-center text-gray-400">Tidak ada aktivitas.</td></tr>
-          <tr v-for="l in logs" :key="l.id" class="hover:bg-gray-50">
-            <td class="whitespace-nowrap px-3 py-2 text-gray-500">{{ formatWaktu(l.created_at) }}</td>
-            <td class="px-3 py-2 font-medium text-gray-800">{{ l.users?.nama || '—' }}</td>
-            <td class="px-3 py-2">
-              <span class="rounded-full bg-primary-accent px-2 py-0.5 text-xs font-medium text-primary">{{ l.aksi }}</span>
-            </td>
-            <td class="px-3 py-2 text-gray-500">{{ l.tabel_terkait || '-' }}</td>
-            <td class="px-3 py-2 text-xs text-gray-500">{{ ringkasDetail(l.detail) }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="loading" class="card-flat p-4">
+      <AppSkeleton type="table" :rows="8" />
     </div>
+    <div v-else-if="!logs.length" class="card-flat p-4">
+      <AppEmptyState
+        title="Tidak ada aktivitas"
+        :description="hasFilter() ? 'Tidak ada aktivitas yang cocok dengan filter.' : 'Belum ada aktivitas tercatat.'"
+        :icon="ScrollText"
+      >
+        <template v-if="hasFilter()" #action>
+          <AppButton size="sm" variant="secondary" @click="resetFilter">Reset Filter</AppButton>
+        </template>
+      </AppEmptyState>
+    </div>
+    <AppTable v-else caption="Log aktivitas pengguna">
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Pengguna</th>
+          <th>Aksi</th>
+          <th>Tabel</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="l in logs" :key="l.id">
+          <td class="whitespace-nowrap text-slate-500 tnum">{{ formatWaktu(l.created_at) }}</td>
+          <td class="cell-main whitespace-nowrap">{{ l.users?.nama || '—' }}</td>
+          <td><AppBadge :label="l.aksi" tone="primary" dot /></td>
+          <td class="text-slate-500">{{ l.tabel_terkait || '–' }}</td>
+          <td class="max-w-[320px] truncate text-xs text-slate-400" :title="ringkasDetail(l.detail)">{{ ringkasDetail(l.detail) }}</td>
+        </tr>
+      </tbody>
+    </AppTable>
   </div>
 </template>

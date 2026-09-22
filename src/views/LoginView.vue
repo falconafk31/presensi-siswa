@@ -2,9 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { LogIn, User, Lock, Eye, EyeOff, Loader2 } from 'lucide-vue-next'
+import { LogIn, User, Lock, Eye, EyeOff, ClipboardCheck, Library, BarChart3 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
+import { AppInput, AppButton } from '@/components/ui'
 
 const router = useRouter()
 const route = useRoute()
@@ -16,6 +17,12 @@ const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const sekolah = ref(null)
+
+const highlights = [
+  { icon: ClipboardCheck, text: 'Presensi harian per kelas dalam hitungan detik' },
+  { icon: BarChart3, text: 'Rekap bulanan & semester siap cetak PDF/Excel' },
+  { icon: Library, text: 'Sirkulasi perpustakaan + kartu anggota QR' },
+]
 
 onMounted(async () => {
   try {
@@ -45,100 +52,87 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-gray-50">
-    <!-- Left Panel (Branding / Illustration) - Hidden on mobile -->
-    <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 items-center justify-center">
-      <!-- Decorative circles -->
-      <div class="absolute top-20 left-20 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-20 right-20 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl"></div>
-      
-      <div class="relative z-10 p-12 text-center text-white max-w-lg">
-        <div class="mx-auto mb-8 flex h-32 w-32 items-center justify-center overflow-hidden rounded-3xl bg-white/10 p-4 shadow-2xl ring-1 ring-white/20 backdrop-blur-md">
-          <img
-            v-if="sekolah?.logo_url"
-            :src="sekolah.logo_url"
-            alt="Logo"
-            class="h-full w-full object-contain drop-shadow-md"
-          />
-          <!-- Ubah teks "EDU" di bawah ini jika ingin mengganti inisial logo secara hardcode (misal: "MIN") -->
-          <span v-else class="text-3xl font-bold text-white tracking-wider">EDU</span>
+  <div class="flex min-h-screen bg-base">
+    <!-- Panel branding — desktop -->
+    <div class="relative hidden w-1/2 flex-col justify-center overflow-hidden bg-primary-900 px-12 text-white lg:flex">
+      <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary-700/50" aria-hidden="true" />
+      <div class="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-primary-800/60" aria-hidden="true" />
+      <div class="relative z-10 mx-auto w-full max-w-md">
+        <div class="mb-8 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white/10 p-2.5 ring-1 ring-white/20">
+          <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo madrasah" class="h-full w-full object-contain" />
+          <span v-else class="text-2xl font-bold tracking-wider">EDU</span>
         </div>
-        <h1 class="text-4xl font-bold mb-4 tracking-tight">Sistem Terpadu</h1>
-        <p class="text-lg text-emerald-100/80 font-light leading-relaxed">
-          Kelola presensi siswa, administrasi akademik, dan sirkulasi perpustakaan dalam satu portal modern yang cepat dan aman.
+        <h1 class="text-3xl font-bold tracking-tight">Sistem Terpadu Madrasah</h1>
+        <p class="mt-3 text-[15px] leading-relaxed text-emerald-100/80">
+          Presensi siswa, administrasi akademik, dan sirkulasi perpustakaan dalam satu portal yang cepat dan aman.
         </p>
+        <ul class="mt-8 flex flex-col gap-3.5">
+          <li v-for="h in highlights" :key="h.text" class="flex items-center gap-3 text-sm text-emerald-50/90">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+              <component :is="h.icon" class="h-4 w-4" aria-hidden="true" />
+            </span>
+            {{ h.text }}
+          </li>
+        </ul>
       </div>
     </div>
 
-    <!-- Right Panel (Login Form) -->
-    <div class="flex w-full lg:w-1/2 items-center justify-center px-4 py-10 sm:px-6 lg:px-8 relative bg-white">
-      <!-- Mobile Background Decoration -->
-      <div class="absolute inset-0 lg:hidden bg-gradient-to-br from-emerald-50/50 to-white"></div>
-      
-      <div class="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div class="mb-10 text-center lg:text-left">
-          <div class="lg:hidden mx-auto mb-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg p-2">
-            <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo" class="h-full w-full object-contain drop-shadow-sm" />
-            <!-- Ubah teks "EDU" di bawah ini jika ingin mengganti logo mobile secara hardcode -->
-            <span v-else class="text-2xl font-bold text-white">EDU</span>
+    <!-- Panel form -->
+    <div class="flex w-full items-center justify-center bg-white px-4 py-10 sm:px-6 lg:w-1/2 lg:px-12">
+      <div class="w-full max-w-sm">
+        <div class="mb-8 text-center lg:text-left">
+          <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary-700 p-2 lg:hidden">
+            <img v-if="sekolah?.logo_url" :src="sekolah.logo_url" alt="Logo madrasah" class="h-full w-full object-contain" />
+            <span v-else class="text-xl font-bold text-white">EDU</span>
           </div>
-          <!-- Ubah tulisan "Sistem Manajemen Sekolah" di bawah ini jika ingin mengganti judul form secara hardcode -->
-          <h2 class="text-2xl font-bold text-gray-900 tracking-tight">
-            {{ sekolah?.nama_sekolah || 'Sistem Manajemen Presensi Siswa MIN Blora' }}
+          <h2 class="text-xl font-bold tracking-tight text-slate-900">
+            {{ sekolah?.nama_sekolah || 'Sistem Presensi Siswa' }}
           </h2>
-          <p class="mt-2 text-sm text-gray-500">Silakan masukkan kredensial Anda untuk melanjutkan</p>
+          <p class="mt-1.5 text-sm text-slate-500">Masuk untuk melanjutkan ke dashboard</p>
         </div>
 
-        <form class="space-y-5" @submit.prevent="handleLogin">
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700">Username</label>
-            <div class="relative">
-              <User class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                v-model="username"
-                type="text"
-                autocomplete="username"
-                class="input-field pl-10"
-                placeholder="Masukkan username"
-              />
-            </div>
-          </div>
+        <form class="flex flex-col gap-4" novalidate @submit.prevent="handleLogin">
+          <AppInput
+            v-model="username"
+            label="Username"
+            type="text"
+            autocomplete="username"
+            placeholder="Masukkan username"
+          >
+            <template #leading><User class="h-4 w-4" aria-hidden="true" /></template>
+          </AppInput>
 
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
-            <div class="relative">
-              <Lock class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                autocomplete="current-password"
-                class="input-field pl-10 pr-10"
-                placeholder="••••••••"
-              />
+          <AppInput
+            v-model="password"
+            label="Password"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            placeholder="••••••••"
+          >
+            <template #leading><Lock class="h-4 w-4" aria-hidden="true" /></template>
+            <template #trailing>
               <button
                 type="button"
-                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                class="trailing-action"
+                :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
                 @click="showPassword = !showPassword"
               >
-                <EyeOff v-if="showPassword" class="h-4 w-4" />
-                <Eye v-else class="h-4 w-4" />
+                <EyeOff v-if="showPassword" class="h-4 w-4" aria-hidden="true" />
+                <Eye v-else class="h-4 w-4" aria-hidden="true" />
               </button>
-            </div>
-          </div>
+            </template>
+          </AppInput>
 
-          <button
-            type="submit"
-            :disabled="loading"
-            class="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow disabled:opacity-70 active:scale-[0.98]"
-          >
-            <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-            <LogIn v-else class="h-4 w-4" />
-            {{ loading ? 'Sedang Memeriksa...' : 'Masuk Sekarang' }}
-          </button>
+          <AppButton type="submit" block :loading="loading" class="mt-2 !py-3">
+            <template #icon><LogIn class="h-4 w-4" aria-hidden="true" /></template>
+            {{ loading ? 'Memeriksa…' : 'Masuk Sekarang' }}
+          </AppButton>
         </form>
-        
-        <p class="mt-8 text-center text-xs text-gray-400 lg:text-left">
-          &copy; {{ new Date().getFullYear() }} <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-600 transition-colors font-medium">Sistem Presensi Open Source</a> &bull; <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="hover:text-gray-600 underline">GitHub</a>
+
+        <p class="mt-8 text-center text-xs text-slate-400 lg:text-left">
+          &copy; {{ new Date().getFullYear() }}
+          <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="font-medium transition-colors hover:text-primary-700">Sistem Presensi Open Source</a>
+          &middot; <a href="https://github.com/falconafk31/presensi-siswa" target="_blank" rel="noopener noreferrer" class="underline">GitHub</a>
         </p>
       </div>
     </div>

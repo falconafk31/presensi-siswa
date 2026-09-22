@@ -1,226 +1,163 @@
 <script setup>
 import { ref } from 'vue'
-import PageHeader from '@/components/PageHeader.vue'
-import { GraduationCap, Library, ShieldCheck, CheckCircle2, AlertTriangle, Book, Bookmark, Github, Heart } from 'lucide-vue-next'
+import { GraduationCap, Library, ShieldCheck, CheckCircle2, Book, Bookmark, Github, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import { AppPageHeader, AppCard, AppTabs, AppAlert, AppButton } from '@/components/ui'
 
 const auth = useAuthStore()
 
-// Tentukan tab aktif pertama berdasarkan role user
 const defaultTab = auth.isAdmin ? 'admin' : (auth.canManagePerpus && !auth.kelas ? 'perpus' : 'guru')
 const activeTab = ref(defaultTab)
 
 const tabs = [
-  { id: 'guru', label: 'Panduan Guru & Wali Kelas', icon: GraduationCap },
-  { id: 'perpus', label: 'Panduan Pustakawan', icon: Library },
-  { id: 'admin', label: 'Panduan Administrator', icon: ShieldCheck },
+  { value: 'guru', label: 'Guru & Wali Kelas', icon: GraduationCap },
+  { value: 'perpus', label: 'Pustakawan', icon: Library },
+  { value: 'admin', label: 'Administrator', icon: ShieldCheck },
 ]
 </script>
 
 <template>
-  <div>
-    <PageHeader 
-      title="Panduan Penggunaan Aplikasi" 
-      subtitle="Pusat bantuan interaktif untuk setiap peran di madrasah"
+  <div class="page-stack">
+    <AppPageHeader
+      title="Panduan Penggunaan"
+      subtitle="Pusat bantuan untuk setiap peran di madrasah"
     />
 
-    <div class="card p-0 overflow-hidden mb-6">
-      <!-- Tab Navigation -->
-      <div class="border-b border-gray-200 bg-gray-50/50">
-        <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
-          <button 
-            v-for="tab in tabs" 
-            :key="tab.id"
-            @click="activeTab = tab.id"
-            :class="[
-              activeTab === tab.id
-                ? 'border-emerald-500 text-emerald-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-              'group inline-flex items-center border-b-2 py-4 px-1 text-sm font-medium transition-colors'
-            ]"
-          >
-            <component 
-              :is="tab.icon" 
-              :class="[
-                activeTab === tab.id ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500',
-                '-ml-0.5 mr-2 h-5 w-5'
-              ]" 
-              aria-hidden="true" 
-            />
-            <span>{{ tab.label }}</span>
-          </button>
-        </nav>
-      </div>
+    <AppTabs v-model="activeTab" :options="tabs" variant="underline" ariaLabel="Panduan per peran" />
 
-      <!-- Tab Contents -->
-      <div class="p-6 sm:p-8">
-        
-        <!-- PANDUAN GURU -->
-        <div v-if="activeTab === 'guru'" class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <CheckCircle2 class="w-5 h-5 text-emerald-500"/> Alur Presensi Harian
-            </h3>
-            <div class="bg-emerald-50/50 rounded-xl p-5 text-sm text-gray-700 space-y-4 border border-emerald-100">
-              <p>Sebagai Wali Kelas, rutinitas Anda adalah mencatat kehadiran siswa setiap pagi. Sistem ini menganut sistem <strong>Pengecualian (Sparse)</strong>, artinya Anda tidak perlu memanggil siswa satu persatu. Semua siswa dianggap "Hadir" secara otomatis.</p>
-              <ol class="list-decimal pl-5 space-y-2 font-medium">
-                <li>Buka menu <span class="text-emerald-700">Input Presensi</span>.</li>
-                <li>Tanyakan kepada ketua kelas: <em>"Siapa yang tidak masuk hari ini?"</em></li>
-                <li>Hanya klik status (Izin/Sakit/Alfa) pada nama siswa yang <strong>tidak masuk</strong> saja.</li>
-                <li>Klik tombol <span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs">Simpan Presensi</span>. Selesai!</li>
-              </ol>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <CheckCircle2 class="w-5 h-5 text-emerald-500"/> Mencetak Laporan (PDF/Excel)
-            </h3>
-            <p class="text-sm text-gray-600 mb-4">Setiap akhir bulan atau akhir semester, Anda ditugaskan mencetak laporan untuk diserahkan ke Kepala Madrasah.</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="border border-gray-200 rounded-xl p-4">
-                <h4 class="font-bold text-gray-800 mb-2">Rekap Bulanan</h4>
-                <p class="text-sm text-gray-600 mb-3">Pilih menu <strong>Rekap Bulanan</strong>, tentukan bulan dan tahun. Klik cetak PDF atau Download Excel. Laporan akan otomatis mencantumkan transparansi hari efektif, hari libur, dan rumus perhitungan persentase kehadiran.</p>
-              </div>
-              <div class="border border-gray-200 rounded-xl p-4">
-                <h4 class="font-bold text-gray-800 mb-2">Rekap Semester</h4>
-                <p class="text-sm text-gray-600 mb-3">Pilih menu <strong>Rekap Semester</strong> (Ganjil/Genap). Sistem akan merangkum 6 bulan ke belakang sesuai dengan tanggal semester berjalan. Klik Cetak PDF untuk format standar rapot.</p>
-              </div>
-            </div>
-          </div>
-          
-          <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm flex gap-3 items-start">
-            <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
-            <p><strong>Penting:</strong> Anda hanya dapat mengisi presensi dan melihat laporan untuk kelas yang ditugaskan kepada Anda (Kelas yang Anda Walikan). Jika Anda mengajar lebih dari satu kelas, silakan hubungi Admin.</p>
-          </div>
-        </div>
-
-        <!-- PANDUAN PUSTAKAWAN -->
-        <div v-if="activeTab === 'perpus'" class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <Book class="w-5 h-5 text-indigo-500"/> Mengelola Katalog Buku
-            </h3>
-            <p class="text-sm text-gray-600 mb-4">Sebelum siswa dapat meminjam buku, buku tersebut harus terdaftar di sistem.</p>
-            <ol class="list-decimal pl-5 text-sm text-gray-700 space-y-2">
-              <li>Pilih menu <strong>Katalog Buku</strong> di bawah kategori Perpustakaan.</li>
-              <li>Klik <span class="bg-indigo-600 text-white px-2 py-0.5 rounded text-xs">+ Tambah Buku</span>.</li>
-              <li>Masukkan Judul Buku, Penerbit, Tahun, dan <strong>Jumlah Stok</strong> fisik yang ada.</li>
-              <li>Jika stok buku rusak/hilang, Anda dapat mengklik tombol "Edit" dan menyesuaikan jumlah stoknya.</li>
-            </ol>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <Bookmark class="w-5 h-5 text-indigo-500"/> Sirkulasi Peminjaman & Kunjungan
-            </h3>
-            <div class="space-y-4 text-sm text-gray-700">
-              <p><strong>1. Kunjungan Harian:</strong> Buka menu <em>Kunjungan Perpus</em>. Cukup pilih nama siswa yang datang mengunjungi perpustakaan pada hari itu lalu simpan. Ini penting untuk laporan akreditasi perpustakaan.</p>
-              <p><strong>2. Peminjaman Buku:</strong> Buka menu <em>Sirkulasi Buku</em>. Klik Tambah Peminjaman. Pilih Siswa dan Buku yang dipinjam. Sistem otomatis mencatat hari ini sebagai tanggal pinjam dan memotong stok buku.</p>
-              <p><strong>3. Pengembalian:</strong> Saat siswa mengembalikan buku, cari namanya di daftar Sirkulasi yang berstatus "Dipinjam". Klik tombol <strong>Selesaikan/Kembalikan</strong>. Stok buku akan kembali otomatis.</p>
-              <p><strong>4. Menggunakan Barcode Scanner:</strong> Di halaman Kunjungan Perpus, terdapat tombol "Buka Scanner QR". Arahkan kamera ke kartu siswa untuk mencatat kunjungan super cepat. Gunakan tombol "⬅️ Kembali" di pojok kanan atas untuk keluar dari mode scanner.</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <Book class="w-5 h-5 text-indigo-500"/> Cetak Kartu Anggota (Bolak-Balik)
-            </h3>
-            <p class="text-sm text-gray-600 mb-3">Anda dapat mencetak kartu anggota perpustakaan yang dilengkapi dengan QR Code NISN.</p>
-            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
-              <li>Pilih menu <strong>Cetak Kartu</strong>. Pilih Kelas untuk memuat data siswa.</li>
-              <li>Aplikasi akan otomatis membuat 2 desain: <strong>Sisi Depan</strong> (Data & QR Code) dan <strong>Sisi Belakang</strong> (Tata Tertib Perpustakaan).</li>
-              <li>Klik tombol <strong>Download PDF</strong> atau gunakan perintah <strong>Ctrl+P</strong>. Aplikasi otomatis menyusun kartu sisi depan dan belakang secara berdampingan.</li>
-              <li>Setelah dicetak di kertas tebal, Anda cukup <strong>memotong kotaknya, melipat bagian tengahnya</strong>, lalu me-laminating kartu tersebut.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- PANDUAN ADMIN -->
-        <div v-if="activeTab === 'admin'" class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <ShieldCheck class="w-5 h-5 text-rose-500"/> Kenaikan Kelas Massal (Akhir Tahun)
-            </h3>
-            <p class="text-sm text-gray-600 mb-3">Pada akhir tahun ajaran, Anda harus menaikkan kelas semua siswa secara otomatis melalui sistem.</p>
-            <div class="bg-rose-50 border border-rose-100 p-4 rounded-xl text-sm text-rose-800 space-y-3">
-              <p><strong>Langkah Kenaikan Kelas:</strong></p>
-              <ol class="list-decimal pl-5 space-y-1 font-medium">
-                <li>Buka menu <strong>Pengaturan</strong>, lalu temukan tab <strong>Manajemen Tahun Ajaran</strong>.</li>
-                <li>Klik tombol <strong>Jalankan Proses Kenaikan Kelas</strong>.</li>
-                <li>Sistem akan menaikkan kelas 1 menjadi 2, 2 menjadi 3, dan seterusnya.</li>
-                <li>Kelas 6 akan otomatis ditandai sebagai <em>"Lulus"</em> dan dinonaktifkan (tidak bisa presensi lagi).</li>
-                <li>Seluruh kelas siswa yang lama dan nama wali kelasnya akan disimpan permanen ke dalam menu <strong>Riwayat Kelas</strong>.</li>
-              </ol>
-              <p class="text-rose-600 italic text-xs mt-2">*Perhatian: Proses ini tidak dapat dibatalkan. Lakukan hanya di akhir tahun ajaran Genap.</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <ShieldCheck class="w-5 h-5 text-amber-500"/> Upload Data via Excel
-            </h3>
-            <p class="text-sm text-gray-600 mb-4">Untuk memasukkan ratusan siswa atau guru secara cepat tanpa mengetik satu persatu, gunakan fitur Upload Excel.</p>
-            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
-              <li>Pilih menu <strong>Data Siswa</strong> atau <strong>Guru & Wali Kelas</strong>.</li>
-              <li>Klik tombol <strong>Upload Excel</strong>.</li>
-              <li><strong>PENTING:</strong> Anda WAJIB mengunduh <em>Template Excel</em> yang disediakan di dalam jendela upload.</li>
-              <li>Isi template tersebut, jangan mengubah nama kolom pada baris pertama.</li>
-              <li>Setelah selesai, unggah file tersebut kembali ke sistem.</li>
-            </ul>
-          </div>
-          
-          <div class="bg-gray-100 p-4 rounded-xl text-sm text-gray-600">
-            <strong>Tips Admin:</strong> Menu <strong>Log Aktivitas</strong> kini merekam semua tindakan tidak hanya tentang presensi, tetapi juga mencatat siapa yang menambah, meminjam, atau mengembalikan buku di perpustakaan. Ini sangat berguna untuk <em>audit trail</em>!
-          </div>
-
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <ShieldCheck class="w-5 h-5 text-indigo-500"/> Solusi Layar Blank (White Screen)
-            </h3>
-            <p class="text-sm text-gray-600 mb-4">Jika ada guru atau perangkat yang mengalami layar putih blank saat membuka aplikasi, itu terjadi karena *Cache* versi lama yang tersangkut di HP mereka.</p>
-            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
-              <li><strong>Solusi 1:</strong> Minta guru tersebut untuk menekan tombol <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-medium">Refresh App (Clear Cache)</span> yang berwarna merah di bagian paling bawah *Sidebar* menu kiri.</li>
-              <li><strong>Solusi 2:</strong> Jika tombol tidak muncul (hanya layar putih utuh), minta guru untuk menghapus *Cache / Site Data* dari pengaturan *Browser* Google Chrome di HP mereka (klik ikon Gembok di sebelah *link* URL).</li>
-            </ul>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Credit & Support Section -->
-    <div class="mt-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div class="inline-flex flex-col items-center bg-white border border-gray-200 rounded-2xl p-6 shadow-sm max-w-xl mx-auto">
-        <h3 class="text-lg font-bold text-gray-900 mb-2">Tentang Aplikasi</h3>
-        <p class="text-sm text-gray-600 mb-6">
-          Sistem Presensi & Perpustakaan Madrasah ini merupakan proyek *Open Source* yang dirancang untuk mempermudah digitalisasi sekolah.
+    <!-- PANDUAN GURU -->
+    <div v-if="activeTab === 'guru'" class="flex flex-col gap-4">
+      <AppCard>
+        <h3 class="mb-2 flex items-center gap-2 text-[15px] font-bold text-slate-900">
+          <CheckCircle2 class="h-5 w-5 text-primary-600" aria-hidden="true" /> Alur Presensi Harian
+        </h3>
+        <p class="text-sm leading-relaxed text-slate-600">
+          Sebagai wali kelas, catat kehadiran siswa setiap pagi. Sistem memakai pola
+          <strong>pengecualian</strong>: semua siswa otomatis dianggap “Hadir” — Anda hanya menandai yang tidak masuk.
         </p>
+        <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm font-medium text-slate-700">
+          <li>Buka menu <span class="text-primary-700">Input Presensi</span>.</li>
+          <li>Tanyakan ke ketua kelas: <em>“Siapa yang tidak masuk hari ini?”</em></li>
+          <li>Klik status (Izin / Sakit / Alfa) hanya pada siswa yang <strong>tidak masuk</strong>.</li>
+          <li>Klik <strong>Simpan Presensi</strong>. Selesai!</li>
+        </ol>
+      </AppCard>
 
-        <div class="flex flex-col sm:flex-row gap-4 w-full">
-          <!-- Github Repo Button -->
-          <a 
-            href="https://github.com/falconafk31/presensi-siswa" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="flex-1 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-3 px-4 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-sm"
-          >
-            <Github class="w-5 h-5" />
-            <span>Source Code (GitHub)</span>
-          </a>
-
-          <!-- Saweria Support Button -->
-          <a 
-            href="https://saweria.co/falconafk31" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="flex-1 flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 py-3 px-4 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 shadow-sm"
-          >
-            <Heart class="w-5 h-5 fill-amber-500 text-amber-600" />
-            <span>Dukung via Saweria</span>
-          </a>
+      <AppCard title="Mencetak Laporan (PDF / Excel)" subtitle="Setiap akhir bulan atau semester untuk Kepala Madrasah">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div class="rounded-xl border border-slate-200 p-4">
+            <h4 class="mb-1.5 text-sm font-bold text-slate-800">Rekap Bulanan</h4>
+            <p class="text-sm leading-relaxed text-slate-600">Buka <strong>Rekap Bulanan</strong>, tentukan bulan &amp; tahun, lalu cetak PDF atau unduh Excel. Laporan otomatis mencantumkan hari efektif, hari libur, dan rumus persentase kehadiran.</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 p-4">
+            <h4 class="mb-1.5 text-sm font-bold text-slate-800">Rekap Semester</h4>
+            <p class="text-sm leading-relaxed text-slate-600">Buka <strong>Rekap Semester</strong> (Ganjil/Genap). Sistem merangkum 6 bulan ke belakang sesuai tanggal semester berjalan. Klik Cetak PDF untuk format standar rapor.</p>
+          </div>
         </div>
-      </div>
+      </AppCard>
+
+      <AppAlert tone="info" title="Batasan akses wali kelas">
+        Anda hanya dapat mengisi presensi dan melihat laporan untuk kelas yang ditugaskan kepada Anda.
+        Jika mengampu lebih dari satu kelas, hubungi admin.
+      </AppAlert>
     </div>
+
+    <!-- PANDUAN PUSTAKAWAN -->
+    <div v-if="activeTab === 'perpus'" class="flex flex-col gap-4">
+      <AppCard title="Mengelola Katalog Buku" subtitle="Buku harus terdaftar sebelum bisa dipinjam">
+        <template #actions><Book class="h-5 w-5 text-library" aria-hidden="true" /></template>
+        <ol class="list-decimal space-y-1.5 pl-5 text-sm text-slate-600">
+          <li>Buka menu <strong>Katalog Buku</strong> di kategori Perpustakaan.</li>
+          <li>Klik <strong>+ Tambah Buku</strong>.</li>
+          <li>Isi judul, penerbit, tahun, dan <strong>jumlah stok</strong> fisik yang ada.</li>
+          <li>Jika ada buku rusak/hilang, klik “Edit” dan sesuaikan jumlah stoknya.</li>
+        </ol>
+      </AppCard>
+
+      <AppCard title="Sirkulasi Peminjaman & Kunjungan">
+        <template #actions><Bookmark class="h-5 w-5 text-library" aria-hidden="true" /></template>
+        <div class="flex flex-col gap-3 text-sm leading-relaxed text-slate-600">
+          <p><strong class="text-slate-800">1. Kunjungan harian:</strong> buka <em>Kunjungan Perpus</em>, pilih nama siswa yang datang, lalu simpan. Penting untuk laporan akreditasi perpustakaan.</p>
+          <p><strong class="text-slate-800">2. Peminjaman buku:</strong> buka <em>Sirkulasi Buku</em> → Tambah Peminjaman → pilih siswa dan buku. Tanggal pinjam tercatat otomatis dan stok berkurang.</p>
+          <p><strong class="text-slate-800">3. Pengembalian:</strong> cari nama siswa di daftar berstatus “Dipinjam”, lalu klik <strong>Selesaikan / Kembalikan</strong>. Stok kembali otomatis.</p>
+          <p><strong class="text-slate-800">4. Scanner QR:</strong> di halaman Kunjungan, klik “Buka Scanner QR” lalu arahkan kamera ke kartu siswa untuk pencatatan super cepat. Klik “Kembali” untuk keluar dari mode scanner.</p>
+        </div>
+      </AppCard>
+
+      <AppCard title="Cetak Kartu Anggota (Bolak-Balik)" subtitle="Kartu dilengkapi QR Code NISN">
+        <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600">
+          <li>Buka <strong>Cetak Kartu</strong>, pilih kelas untuk memuat data siswa.</li>
+          <li>Aplikasi membuat 2 desain otomatis: <strong>sisi depan</strong> (data &amp; QR) dan <strong>sisi belakang</strong> (tata tertib).</li>
+          <li>Klik <strong>Download PDF</strong> atau tekan <strong>Ctrl+P</strong>. Kartu depan-belakang tersusun berdampingan.</li>
+          <li>Cetak di kertas tebal, <strong>potong, lipat bagian tengah</strong>, lalu laminasi.</li>
+        </ul>
+      </AppCard>
+    </div>
+
+    <!-- PANDUAN ADMIN -->
+    <div v-if="activeTab === 'admin'" class="flex flex-col gap-4">
+      <AppCard title="Kenaikan Kelas Massal (Akhir Tahun)" subtitle="Jalankan sekali di akhir tahun ajaran genap">
+        <template #actions><ShieldCheck class="h-5 w-5 text-rose-500" aria-hidden="true" /></template>
+        <ol class="list-decimal space-y-1.5 pl-5 text-sm font-medium text-slate-700">
+          <li>Buka <strong>Pengaturan</strong> → tab <strong>Kenaikan Kelas</strong>.</li>
+          <li>Klik <strong>Proses Kenaikan</strong> dan konfirmasi.</li>
+          <li>Kelas 1 → 2, 2 → 3, dan seterusnya secara otomatis.</li>
+          <li>Kelas 6 ditandai <em>“Lulus”</em> dan dinonaktifkan (tidak bisa presensi lagi).</li>
+          <li>Kelas lama &amp; wali kelas tersimpan permanen di <strong>Riwayat Kelas</strong>.</li>
+        </ol>
+        <AppAlert tone="danger" title="Tidak dapat dibatalkan" class="mt-3">
+          Proses ini permanen. Lakukan hanya di akhir tahun ajaran genap.
+        </AppAlert>
+      </AppCard>
+
+      <AppCard title="Upload Data via Excel" subtitle="Ratusan siswa/guru sekaligus tanpa mengetik satu per satu">
+        <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600">
+          <li>Buka <strong>Data Siswa</strong> atau <strong>Guru &amp; Wali Kelas</strong>.</li>
+          <li>Klik <strong>Upload Excel</strong>.</li>
+          <li><strong>Penting:</strong> unduh <em>template Excel</em> di dalam jendela upload dan isi sesuai format — jangan ubah nama kolom baris pertama.</li>
+          <li>Unggah kembali file tersebut ke sistem.</li>
+        </ul>
+      </AppCard>
+
+      <AppAlert tone="info" title="Tips admin">
+        Menu <strong>Log Aktivitas</strong> merekam semua tindakan — presensi maupun sirkulasi perpustakaan
+        (tambah, pinjam, kembali). Berguna sebagai <em>audit trail</em>.
+      </AppAlert>
+
+      <AppCard title="Solusi Layar Blank (White Screen)" subtitle="Biasanya karena cache versi lama di perangkat">
+        <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600">
+          <li><strong>Solusi 1:</strong> minta guru menekan tombol <strong>Refresh App (Clear Cache)</strong> berwarna merah di bagian paling bawah sidebar kiri.</li>
+          <li><strong>Solusi 2:</strong> jika hanya layar putih, hapus <em>cache / site data</em> dari pengaturan browser Chrome di HP (ikon gembok di samping URL).</li>
+        </ul>
+      </AppCard>
+    </div>
+
+    <!-- Tentang -->
+    <AppCard class="mx-auto w-full max-w-xl text-center">
+      <h3 class="text-base font-bold text-slate-900">Tentang Aplikasi</h3>
+      <p class="mx-auto mb-5 mt-1 max-w-md text-sm text-slate-600">
+        Sistem Presensi &amp; Perpustakaan Madrasah — proyek <em>open source</em> untuk mempermudah digitalisasi sekolah.
+      </p>
+      <div class="flex flex-col gap-2.5 sm:flex-row">
+        <a
+          href="https://github.com/falconafk31/presensi-siswa"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-secondary w-full"
+        >
+          <Github class="h-4 w-4" aria-hidden="true" />
+          Source Code (GitHub)
+        </a>
+        <a
+          href="https://saweria.co/falconafk31"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-warning w-full"
+        >
+          <Heart class="h-4 w-4" aria-hidden="true" />
+          Dukung via Saweria
+        </a>
+      </div>
+    </AppCard>
   </div>
 </template>

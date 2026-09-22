@@ -23,9 +23,10 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
 * **Excel Generation:** `xlsx` (Cetak Rekap Bulanan & Semester ke Excel)
 * **Charts:** `chart.js` & `vue-chartjs`
 * **Icons:** `lucide-vue-next` (tree-shakeable, ringan)
+* **Font:** `Inter Variable` self-host via [@fontsource-variable/inter](https://fontsource.org/fonts/inter) — tanpa CDN eksternal
 * **Notifikasi:** `vue-sonner` (toast ringan, mudah diselaraskan dengan Tailwind)
 * **Utilities:** `@vueuse/core` (composables siap pakai)
-* **UI Primitives:** `radix-vue` / `@headlessui/vue` (modal, dropdown, segmented control yang accessible)
+* **UI Primitives:** Komponen UI kustom berbasis Tailwind CSS (modal, dropdown, segmented control) — tanpa library UI berat
 * **Deployment:** [Vercel](https://vercel.com/)
 
 ## ✨ Fitur Utama
@@ -59,8 +60,51 @@ Aplikasi ini dibangun menggunakan teknologi web terkini:
     * **Reset Database (Wipe):** Fungsi *reset* sekali klik khusus Admin untuk menghapus data absensi/log lama, memastikan database Supabase tier gratis tetap lega.
 4.  **Arsitektur Bersih (Pure SPA):** 
     * Penggunaan *Client-Side Pagination* (25 baris per halaman) pada data statistik mengefisienkan *rendering* tabel.
-    * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, membuat ukuran pemuatan awal halaman menjadi instan.
+    * Penggunaan *Dynamic Import (Lazy Loading)* untuk pustaka berat seperti `xlsx`, `jspdf`, `chart.js`, dan `html5-qrcode`, membuat ukuran pemuatan awal halaman menjadi instan.
     * Sistem bersih dari ketergantungan PWA sehingga terhindar dari konflik *cache* ganda, menjadikan aplikasi jauh lebih stabil sebagai *Single Page Application* standar.
+
+## ⚡ Performa & Strategi Loading (Anti-Kedip)
+
+Urutan boot aplikasi dirancang agar **tidak ada layar putih atau kedipan (*flicker*)** saat pertama dibuka:
+
+1. **Boot Splash Instan (App Shell, Netral & Multi-Sekolah)** — `index.html` memuat splash (spinner + judul generik "Sistem Presensi & Perpustakaan") yang digambar langsung oleh browser via HTML/CSS *inline*, **tanpa menunggu JavaScript** — tanpa nama/logo sekolah bawaan karena aplikasi bersifat global. Logo madrasah yang diunggah melalui menu **Pengaturan → Identitas Madrasah → Unggah Logo** di-cache ke `localStorage` dan di-*inject* ke splash oleh *script inline* — sehingga pada kunjungan berikutnya **splash menampilkan logo madrasah Anda sendiri** sejak frame pertama. Warna latar splash disamakan dengan latar aplikasi (`#f8fafc`) agar pergantian splash → halaman penuh mulus dalam satu frame.
+2. **Mount Setelah Rute Siap** — `main.js` menunggu `router.isReady()` sebelum `app.mount()`, sehingga chunk halaman pertama sudah termuat saat splash hilang (tidak ada urutan "kosong → skeleton → konten").
+3. **Profil User dari Cache Lokal** — setelah login, profil (nama, role, kelas) disimpan di `localStorage`. Pada kunjungan berikutnya profil di-hidrasi sinkron sehingga boot **tidak menunggu round-trip jaringan ke Supabase**; refresh profil berjalan di *background*. Fallback batas waktu boot 5 detik memastikan splash tidak pernah menggantung walau jaringan lambat.
+4. **Font Self-Hosted (Inter Variable)** — tidak ada lagi CDN Google Fonts (tanpa DNS lookup + *render-blocking stylesheet* eksternal). Inter dimuat dari bundle via `@fontsource-variable/inter`: satu file *variable font* untuk semua bobot, `font-display: swap`, dan `unicode-range` (browser hanya mengunduh subset latin ±48 kB).
+5. **Chart.js Lazy-Load** — Chart.js (±266 kB) hanya termuat saat dashboard yang memakai grafik dirender (via `src/lib/chartSetup.js`).
+6. **Supabase Realtime Lazy-Load** — `@supabase/supabase-js` selalu meng-instansiasi `RealtimeClient` di constructornya; melalui *alias* + *shim* `src/lib/lazyRealtime.js`, paket `@supabase/realtime-js` (±57 kB) dipisah menjadi chunk on-demand yang **hanya diunduh saat fitur realtime dipakai** (dashboard presensi). Saat diaktifkan, shim membangun instance `RealtimeClient` **asli** secara normal lalu menggantikan `supabase.realtime` — semua field internal kelas asli terinisialisasi sempurna. Halaman login dan user Pustakawan murni tidak mengunduhnya sama sekali.
+7. **Cache Aset Immutabel** — `vercel.json` mengirim header `Cache-Control: public, max-age=31536000, immutable` untuk semua file di `/assets/*` (nama file ber-*hash* konten), sehingga kunjungan berikutnya memuat aplikasi nyaris instan dari cache browser.
+
+> **Catatan audit bundle:** konfigurasi `manualChunks` object-form lama sempat membuat Rollup meng-hoist *runtime Vue* ke dalam chunk `vendor-chart`, sehingga Chart.js ikut termuat di **setiap halaman** (±178 kB gzip jalur kritis). Setelah perbaikan (chunking default Rollup + font self-host + realtime lazy), jalur kritis boot kini hanya **1 file JS ±96 kB gzip + CSS ±10 kB gzip + 1 file font ±48 kB**, dan seluruh chunk berat (chart.js 186 kB, xlsx 429 kB, jspdf, html5-qrcode, realtime-js) ter-*lazy-load* sesuai kebutuhan halaman.
+
+**Hasil audit layout & kode (sudah dibereskan):** penghapusan 7 file komponen/view yang tidak terpakai (`BaseModal`, `EmptyState`, `PageHeader`, `Pagination`, `SkeletonLoader`, `StatusBadge`, `ComingSoonView`), pembersihan artefak build dari repositori (`dev-dist/` PWA lama, `vite.config.js.timestamp-*.mjs`), penghapusan seluruh *hardcode* nama sekolah ("MIN Blora") dari UI/laporan agar tetap netral untuk multi-madrasah, serta verifikasi bahwa `AppLayout` sudah mengikuti praktik baik: *sticky header*, sidebar responsif + mode collapse, *bottom navigation* mobile dengan *safe-area*, atribut aksesibilitas (ARIA), dukungan `prefers-reduced-motion`, dan target sentuh ≥ 44px di perangkat layar sentuh.
+
+### 📐 Vertical Density (Desktop 1366×768 / 1440×900)
+
+Dashboard & sidebar dirancang agar informasi utama muat **tanpa scroll vertikal pada state normal**:
+
+- **Footer sidebar = identity block compact** — hanya avatar inisial + nama + role (±54 px). Aksi **Refresh** dan **Keluar** sengaja **tidak diduplikasi** di sidebar; keduanya cukup dijangkau lewat menu profil di pojok kanan atas. Pada mode *collapsed*, footer menampilkan **avatar saja** (dengan *tooltip* nama) — tanpa tombol apa pun. Drawer mobile juga hanya menampilkan identitas, tanpa logout duplikat. Footer bersifat *shrink-0 bottom-aligned* sehingga tidak mendorong menu navigasi dan tidak menambah *scrollbar* baru.
+- **Dashboard satu layar penuh (target viewport 640 px / layar 1366×720):** stat cards menjadi **KPI bar** satu kartu (5/4 kolom ber-divider, ±46 px), quick actions menjadi **baris pill** (±32 px), banner "Perlu Perhatian"/libur/belum-absen menjadi **strip 1 baris** (±36 px) dengan chip kelas & nama siswa inline, subtitle *page header* menyatu dengan judul (mode `inline`), chip filter kelas compact 28 px agar 13 kelas muat satu baris, tinggi grafik adaptif `clamp()` (tren presensi 140–220 px, donut 120–180 px, tren perpustakaan 104–150 px), dan daftar panjang memakai *scroll internal kartu*. Estimasi total dashboard ±450–520 px — seluruh section/menu dipertahankan.
+- **Konsistensi warna ikon** — format kotak ikon seragam via token `ICON_CHIP` di `designSystem.js` (`bg-50 + ring-200 + text-600` per tone semantic: emerald/sky/amber/rose/blue/slate), dipakai KPI bar, chip kunjungan, dan aksi cepat.
+- **Filter tren responsif (Dashboard System konsisten)** — desktop: kontrol horizontal di header kartu (tetap compact); mobile: mode di bawah judul lalu tanggal/bulan/tahun sebagai grid 2 kolom full-width — tanpa horizontal scroll. Root cause (`shrink-0` pada wrapper actions `AppCard`) diperbaiki global.
+- **Warna status kehadiran terpusat & exact** — token `ATTENDANCE_COLORS` di `designSystem.js` (Hadir `#047857`, Izin `#0369a1`, Sakit `#d97706`, Alfa `#be123c`, source of truth: header tabel Rekap); dipakai konsisten oleh chart/legend, segmented control Input Presensi, ringkasan H/I/S/A, dan tint kartu siswa.
+- **Safe area mobile global** — padding bawah konten utama = `calc(61px + env(safe-area-inset-bottom) + 16px)` (tinggi bottom-nav + breathing room), diterapkan di satu titik (`AppLayout`) untuk seluruh view; memperbaiki bug konten terakhir tertutup bottom-nav pada rentang 640–1023px (dulu `sm:p-5` menimpa padding) dan perangkat ber-inset (iPhone). Sticky save bar Input Presensi mengikuti offset yang sama.
+- **Verifikasi layout budget** — perhitungan tinggi per-section dan skenario worst-case didokumentasikan di [`docs/layout-budget.md`](docs/layout-budget.md); verifikasi manual + CI otomatis (`.github/workflows/ci.yml`) menjaga guard binding & build produksi di setiap push.
+- **Grafik adaptif tinggi layar** — tinggi chart memakai CSS `clamp()` berbasis `vh` (tren presensi 150–208 px, donut 130–176 px, tren perpustakaan 130–240 px) sehingga menyusut otomatis di layar pendek (1366×768) dan membesar di layar tinggi.
+- **Kartu "Kunjungan" perpustakaan** dipadatkan menjadi 3 *chip* satu baris (ikon + angka + label) dan daftar "Peminjaman Terakhir" memakai *scroll internal kartu* — seluruh informasi utama tetap tersedia, menu/section tidak ada yang diubah.
+- **Guard regresi binding template** — `scripts/check-template-bindings.mjs` meng-compile seluruh SFC dan gagal-build bila ada binding template yang tidak terdefinisi (mencegah error runtime seperti "x is not a function"); terpasang otomatis di `npm run build`.
+
+## 🧭 Backlog Optimasi Lanjutan (Opsional)
+
+Item berikut **tidak mendesak** — aplikasi saat ini sudah ringan dan stabil. Catatan untuk pengembangan selanjutnya:
+
+1. **`html5-qrcode` (±384 kB, hanya di halaman Scan QR)** — sudah *lazy-load* per rute, tetapi jika ingin lebih ringan lagi, pertimbangkan migrasi ke *native* [`BarcodeDetector` API](https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector) dengan fallback `html5-qrcode` untuk browser lama.
+2. **Kompresi logo saat unggah** — kompres/resize gambar logo di sisi klien (mis. maks. 256×256 px, WebP) sebelum masuk Storage, agar splash & sidebar semakin ringan.
+3. **Upgrade `@supabase/supabase-js`** — jika versi baru menyediakan *lazy realtime* bawaan, shim `src/lib/lazyRealtime.js` bisa dilepas.
+4. **Monitoring error runtime** (mis. Sentry/GlitchTip) untuk menangkap error di perangkat sekolah yang tidak terlihat saat development.
+5. **CI + test otomatis** (Vitest + Vue Test Utils) untuk alur kritis: auth, guard rute, dan kalkulasi rekap.
+6. **Virtualisasi tabel** (mis. `@tanstack/vue-virtual`) hanya jika jumlah siswa tumbuh sangat besar — saat ini *client-side pagination* 25 baris per halaman masih sangat efisien.
+
 
 ## 🎨 Design System
 
@@ -95,7 +139,7 @@ Salin `.env.example` ke `.env` dan isi dengan URL serta Anon Key dari proyek Sup
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
 ```
-Pastikan Anda sudah menjalankan seluruh *script* SQL yang berada di dalam folder `scaffold/supabase/` secara berurutan di SQL Editor Supabase Anda untuk membentuk *schema*, *RLS*, dan *Storage*.
+Pastikan Anda sudah menjalankan seluruh *script* SQL yang berada di dalam folder `supabase/` secara berurutan di SQL Editor Supabase Anda untuk membentuk *schema*, *RLS*, dan *Storage*.
 
 ### 4. Jalankan Development Server
 ```bash

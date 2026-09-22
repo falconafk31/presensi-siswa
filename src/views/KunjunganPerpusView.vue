@@ -2,29 +2,31 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'vue-sonner'
-import { useAuthStore } from '@/stores/auth'
-import PageHeader from '@/components/PageHeader.vue'
-import Pagination from '@/components/Pagination.vue'
 import { logActivity } from '@/lib/activityLog'
-import { Users, Search, Plus, Trash2, CalendarDays, ScanLine } from 'lucide-vue-next'
+import { Users, Search, Plus, Trash2, ScanLine, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import {
+  AppPageHeader, AppCard, AppInput, AppTable, AppBadge,
+  AppConfirmDialog, AppEmptyState, AppSkeleton,
+  AppButton, AppPagination,
+} from '@/components/ui'
 
 const router = useRouter()
-const auth = useAuthStore()
 const loading = ref(true)
 
 const visits = ref([])
 const students = ref([])
 
-// Form
 const todayStr = new Date().toISOString().split('T')[0]
 const tanggalKunjungan = ref(todayStr)
 const searchSiswa = ref('')
 const selectedNisn = ref(null)
 
 const saving = ref(false)
+const showDeleteConfirm = ref(false)
+const visitToDelete = ref(null)
+const deleting = ref(false)
 
-// Pagination
 const itemsPerPage = 20
 const currentPage = ref(1)
 
@@ -32,13 +34,18 @@ const filteredStudents = computed(() => {
   if (!searchSiswa.value) return []
   const q = searchSiswa.value.toLowerCase()
   return students.value
-    .filter(s => s.nama.toLowerCase().includes(q) || s.kelas.toLowerCase().includes(q))
-    .slice(0, 5) // Batasi hanya 5 hasil pencarian
+    .filter((s) => s.nama.toLowerCase().includes(q) || (s.kelas || '').toLowerCase().includes(q))
+    .slice(0, 5)
 })
 
 function selectStudent(s) {
   selectedNisn.value = s.nisn
   searchSiswa.value = `${s.nama} (${s.kelas})`
+}
+
+function clearSelection() {
+  selectedNisn.value = null
+  searchSiswa.value = ''
 }
 
 async function fetchMaster() {
@@ -57,7 +64,7 @@ async function fetchVisits() {
 
     if (error) throw error
     visits.value = data || []
-  } catch (e) {
+  } catch {
     toast.error('Gagal memuat data kunjungan')
   } finally {
     loading.value = false
@@ -69,12 +76,17 @@ watch(tanggalKunjungan, () => {
   fetchVisits()
 })
 
-// const totalPages = computed(() => Math.ceil(visits.value.length / itemsPerPage))
-
 const paginatedVisits = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return visits.value.slice(start, start + itemsPerPage)
 })
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+function formatDateID(iso) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 async function catatKunjungan() {
   if (!selectedNisn.value) {
@@ -86,20 +98,14 @@ async function catatKunjungan() {
   try {
     const { error } = await supabase
       .from('library_visits')
-      .insert({
-        student_nisn: selectedNisn.value,
-        tanggal: tanggalKunjungan.value
-      })
+      .insert({ student_nisn: selectedNisn.value, tanggal: tanggalKunjungan.value })
 
     if (error) throw error
 
     toast.success('Kunjungan berhasil dicatat')
     logActivity({ aksi: 'catat_kunjungan_perpus', tabel_terkait: 'library_visits', detail: { nisn: selectedNisn.value } })
-    
-    // Reset form
-    searchSiswa.value = ''
-    selectedNisn.value = null
-    
+
+    clearSelection()
     await fetchVisits()
   } catch (e) {
     toast.error('Gagal mencatat: ' + e.message)
@@ -108,16 +114,25 @@ async function catatKunjungan() {
   }
 }
 
-async function hapusKunjungan(id) {
-  if (!confirm('Hapus rekam kunjungan ini?')) return
-  
+function confirmHapus(v) {
+  visitToDelete.value = v
+  showDeleteConfirm.value = true
+}
+
+async function hapusKunjungan() {
+  if (!visitToDelete.value) return
+  deleting.value = true
   try {
-    const { error } = await supabase.from('library_visits').delete().eq('id', id)
+    const { error } = await supabase.from('library_visits').delete().eq('id', visitToDelete.value.id)
     if (error) throw error
-    toast.success('Berhasil dihapus')
+    toast.success('Rekam kunjungan dihapus')
+    showDeleteConfirm.value = false
+    visitToDelete.value = null
     await fetchVisits()
-  } catch(e) {
+  } catch {
     toast.error('Gagal menghapus')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -128,131 +143,138 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <PageHeader title="Data Pengunjung" subtitle="Pencatatan log tamu dan pengunjung perpustakaan harian">
+  <div class="page-stack">
+    <AppPageHeader
+      title="Data Pengunjung"
+      subtitle="Pencatatan kunjungan perpustakaan harian"
+    >
       <template #actions>
-        <button class="btn-primary flex items-center gap-2" @click="router.push({ name: 'scan-qr' })">
-          <ScanLine class="w-4 h-4" /> Buka Scanner QR
-        </button>
+        <AppButton variant="library" @click="router.push({ name: 'scan-qr' })">
+          <template #icon><ScanLine class="h-4 w-4" aria-hidden="true" /></template>
+          Buka Scanner QR
+        </AppButton>
       </template>
-    </PageHeader>
+    </AppPageHeader>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Panel Input -->
-      <div class="lg:col-span-1">
-        <div class="card p-5">
-          <h3 class="mb-4 font-semibold text-gray-800">Catat Pengunjung</h3>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="mb-1 block text-xs font-medium text-gray-600">Tanggal Kunjungan</label>
-              <input type="date" v-model="tanggalKunjungan" class="input-field" />
-            </div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <!-- Input panel -->
+      <AppCard title="Catat Pengunjung" subtitle="Manual — atau gunakan scanner QR">
+        <div class="flex flex-col gap-3.5">
+          <AppInput v-model="tanggalKunjungan" type="date" label="Tanggal kunjungan" :max="todayStr" />
 
+          <div class="relative">
+            <label class="input-label" for="kunjungan-siswa">Cari siswa</label>
             <div class="relative">
-              <label class="mb-1 block text-xs font-medium text-gray-600">Cari Siswa</label>
-              <div class="relative">
-                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input 
-                  type="text" 
-                  v-model="searchSiswa" 
-                  @input="selectedNisn = null"
-                  placeholder="Ketik nama atau kelas..." 
-                  class="input-field pl-9"
-                />
-              </div>
-
-              <!-- Dropdown Search Siswa -->
-              <div v-if="searchSiswa && !selectedNisn && filteredStudents.length" class="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg">
-                <ul class="max-h-60 overflow-y-auto p-1 text-sm">
-                  <li 
-                    v-for="s in filteredStudents" 
-                    :key="s.nisn"
-                    @click="selectStudent(s)"
-                    class="cursor-pointer rounded-lg px-3 py-2 hover:bg-emerald-50"
-                  >
-                    <div class="font-medium text-gray-800">{{ s.nama }}</div>
-                    <div class="text-xs text-gray-500">Kelas {{ s.kelas }} • NISN: {{ s.nisn }}</div>
-                  </li>
-                </ul>
-              </div>
-              <div v-else-if="searchSiswa && !selectedNisn" class="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white p-3 text-center text-sm text-gray-500 shadow-lg">
-                Tidak ada siswa yang cocok.
-              </div>
+              <input
+                id="kunjungan-siswa"
+                v-model="searchSiswa"
+                type="text"
+                placeholder="Ketik nama atau kelas…"
+                class="input-field pl-9"
+                autocomplete="off"
+                role="combobox"
+                @input="selectedNisn = null"
+              />
+              <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+              <button v-if="searchSiswa" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100" aria-label="Hapus pencarian" @click="clearSelection">
+                <X class="h-4 w-4" />
+              </button>
             </div>
 
-            <button 
-              class="btn-primary w-full justify-center" 
-              :disabled="saving || !selectedNisn"
-              @click="catatKunjungan"
+            <ul
+              v-if="searchSiswa && !selectedNisn && filteredStudents.length"
+              class="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-modal"
+              role="listbox"
             >
-              <Plus class="h-4 w-4" /> 
-              {{ saving ? 'Menyimpan...' : 'Catat Kehadiran' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Panel Riwayat -->
-      <div class="lg:col-span-2">
-        <div class="card p-0">
-          <div class="border-b border-gray-100 p-5 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 class="font-bold text-gray-800">Daftar Pengunjung</h3>
-              <p class="text-sm text-gray-500">Menampilkan pengunjung pada {{ tanggalKunjungan }}</p>
-            </div>
-            <div class="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-              <Users class="h-4 w-4" />
-              {{ visits.length }} Orang
-            </div>
+              <li v-for="s in filteredStudents" :key="s.nisn">
+                <button class="dropdown-item !min-h-[3rem] flex-col !items-start !gap-0.5" role="option" @click="selectStudent(s)">
+                  <span class="font-medium text-slate-800">{{ s.nama }}</span>
+                  <span class="text-xs text-slate-400">Kelas {{ s.kelas }} · {{ s.nisn }}</span>
+                </button>
+              </li>
+            </ul>
+            <p v-else-if="searchSiswa && !selectedNisn" class="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-center text-[13px] text-slate-500 shadow-modal">
+              Tidak ada siswa yang cocok.
+            </p>
           </div>
 
-          <div v-if="loading" class="flex justify-center p-8">
-            <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
-          </div>
-          <div v-else-if="!visits.length" class="p-8 text-center text-gray-500">
-            <CalendarDays class="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p>Belum ada kunjungan yang dicatat pada hari ini.</p>
-          </div>
-          <div v-else class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-gray-50 text-xs text-gray-500">
-                <tr>
-                  <th class="px-5 py-3 font-medium">No</th>
-                  <th class="px-5 py-3 font-medium">Waktu</th>
-                  <th class="px-5 py-3 font-medium">Nama Siswa</th>
-                  <th class="px-5 py-3 font-medium">Kelas</th>
-                  <th class="px-5 py-3 text-right font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
-                <tr v-for="(v, i) in paginatedVisits" :key="v.id" class="hover:bg-gray-50/50">
-                  <td class="px-5 py-3 text-gray-500">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
-                  <td class="px-5 py-3 font-medium text-gray-700">
-                    {{ new Date(v.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}
-                  </td>
-                  <td class="px-5 py-3 font-medium text-gray-800">{{ v.students?.nama }}</td>
-                  <td class="px-5 py-3 text-gray-600">{{ v.students?.kelas }}</td>
-                  <td class="px-5 py-3 text-right">
-                    <button class="rounded-lg p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600" @click="hapusKunjungan(v.id)">
-                      <Trash2 class="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            
-            <!-- Pagination Component -->
-            <Pagination
-              v-if="!loading && visits.length > 0"
-              v-model="currentPage"
-              :total-items="visits.length"
-              :items-per-page="itemsPerPage"
-            />
-            
-          </div>
+          <AppButton variant="library" block :loading="saving" :disabled="!selectedNisn" @click="catatKunjungan">
+            <template #icon><Plus class="h-4 w-4" aria-hidden="true" /></template>
+            {{ saving ? 'Menyimpan…' : 'Catat Kunjungan' }}
+          </AppButton>
         </div>
-      </div>
+      </AppCard>
+
+      <!-- History panel -->
+      <AppCard
+        class="lg:col-span-2"
+        title="Daftar Pengunjung"
+        :subtitle="formatDateID(tanggalKunjungan)"
+        :padded="false"
+      >
+        <template #actions>
+          <AppBadge :label="`${visits.length} orang`" tone="library" :icon="Users" />
+        </template>
+
+        <div v-if="loading" class="p-4">
+          <AppSkeleton type="table" :rows="5" />
+        </div>
+        <div v-else-if="!visits.length" class="p-4">
+          <AppEmptyState
+            title="Belum ada kunjungan"
+            description="Belum ada kunjungan yang dicatat pada tanggal ini."
+            :icon="Users"
+          >
+            <template #action>
+              <AppButton size="sm" variant="library" @click="router.push({ name: 'scan-qr' })">
+                <template #icon><ScanLine class="h-4 w-4" aria-hidden="true" /></template>
+                Scan QR Pengunjung
+              </AppButton>
+            </template>
+          </AppEmptyState>
+        </div>
+        <AppTable v-else caption="Daftar pengunjung perpustakaan">
+          <thead>
+            <tr>
+              <th class="w-12 !text-center">No</th>
+              <th>Waktu</th>
+              <th>Nama Siswa</th>
+              <th>Kelas</th>
+              <th class="!text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(v, i) in paginatedVisits" :key="v.id">
+              <td class="!text-center text-slate-400">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
+              <td class="font-medium tnum">{{ formatTime(v.created_at) }}</td>
+              <td class="cell-main">{{ v.students?.nama }}</td>
+              <td>{{ v.students?.kelas }}</td>
+              <td class="!text-right">
+                <button class="btn-icon !h-8 !w-8 hover:!bg-rose-50 hover:!text-rose-600" title="Hapus rekam" :aria-label="`Hapus kunjungan ${v.students?.nama}`" @click="confirmHapus(v)">
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+          <template #footer>
+            <AppPagination v-model="currentPage" :total-items="visits.length" :items-per-page="itemsPerPage" />
+          </template>
+        </AppTable>
+      </AppCard>
     </div>
+
+    <AppConfirmDialog
+      v-model="showDeleteConfirm"
+      title="Hapus Rekam Kunjungan?"
+      tone="danger"
+      confirm-label="Hapus"
+      :loading="deleting"
+      @confirm="hapusKunjungan"
+    >
+      <template v-if="visitToDelete">
+        Kunjungan <strong>{{ visitToDelete.students?.nama }}</strong> pada
+        {{ formatTime(visitToDelete.created_at) }} akan dihapus.
+      </template>
+    </AppConfirmDialog>
   </div>
 </template>

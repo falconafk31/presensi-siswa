@@ -1,13 +1,20 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { Book, BookOpen, AlertTriangle, CheckCircle2, Library, Users, CalendarDays, BarChart2, TrendingUp } from 'lucide-vue-next'
+import { Book, BookOpen, TriangleAlert, Library, Users, CalendarDays, BarChart2, ArrowRight, UsersRound, FileSpreadsheet } from 'lucide-vue-next'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Title, Tooltip, Legend, Filler } from 'chart.js'
-import PageHeader from '@/components/PageHeader.vue'
 import { supabase } from '@/lib/supabase'
 import { namaBulan } from '@/lib/dates'
+import { CHART_COLORS } from '@/config/designSystem'
+import {
+  AppPageHeader, AppCard, AppTabs, AppBadge, AppButton, AppEmptyState,
+} from '@/components/ui'
+import { ICON_CHIP } from '@/config/designSystem'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Title, Tooltip, Legend, Filler)
+ChartJS.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif'
+ChartJS.defaults.font.size = 11
+ChartJS.defaults.color = '#64748b'
 
 const loading = ref(true)
 
@@ -22,49 +29,92 @@ const kunjunganTahunIni = ref(0)
 
 const recentLoans = ref([])
 
-// Filter options
 const now = new Date()
-const filterMode = ref('monthly') // 'daily', 'monthly', 'yearly'
+const filterMode = ref('monthly')
 const selectedDate = ref(now.toISOString().slice(0, 10))
 const selectedMonth = ref(now.getMonth() + 1)
 const selectedYear = ref(now.getFullYear())
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
 const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i)
+const filterModes = [
+  { value: 'daily', label: 'Harian' },
+  { value: 'monthly', label: 'Bulanan' },
+  { value: 'yearly', label: 'Tahunan' },
+]
 
-// Data for chart
 const chartLabels = ref([])
 const chartDataVisits = ref([])
 const chartDataLoans = ref([])
 
+const todayStr = new Date().toISOString().split('T')[0]
+
+const overviewStats = computed(() => [
+  { label: 'Total Judul', value: totalBukuJudul.value, icon: Book, tone: 'library', sub: 'koleksi' },
+  { label: 'Total Eksemplar', value: totalBukuStok.value, icon: Library, tone: 'neutral', sub: 'buku fisik' },
+  { label: 'Sedang Dipinjam', value: bukuDipinjam.value, icon: BookOpen, tone: 'info', sub: 'aktif' },
+  { label: 'Terlambat', value: bukuTerlambat.value, icon: TriangleAlert, tone: 'danger', sub: 'perlu ditagih' },
+])
+
+const quickActions = [
+  { label: 'Sirkulasi', desc: 'Pinjam & kembali', icon: BookOpen, to: { name: 'peminjaman' } },
+  { label: 'Data Koleksi', desc: 'Kelola buku', icon: Book, to: { name: 'buku' } },
+  { label: 'Pengunjung', desc: 'Catat kunjungan', icon: UsersRound, to: { name: 'kunjungan-perpus' } },
+  { label: 'Laporan', desc: 'Statistik & cetak', icon: FileSpreadsheet, to: { name: 'rekap-perpus' } },
+]
+
+function loanTone(l) {
+  if (l.status === 'dikembalikan') return 'success'
+  if (l.tanggal_kembali_seharusnya < todayStr) return 'danger'
+  return 'info'
+}
+function loanLabel(l) {
+  if (l.status === 'dikembalikan') return 'Selesai'
+  if (l.tanggal_kembali_seharusnya < todayStr) return 'Terlambat'
+  return 'Dipinjam'
+}
+
+let dashRun = 0 // token anti-balapan: hanya fetch terakhir yang commit
+
 async function fetchDashboardData() {
+  // Tangkap mode & filter di awal panggilan. Fetch dapat tumpang-tindih saat
+  // pengguna berpindah mode/tanggal cepat; pembacaan ulang ref setelah await
+  // akan mencampur label satu mode dengan grouping mode lain (chart salah).
+  const mode = filterMode.value
+  const selDate = selectedDate.value || todayStr // input tanggal yang dikosongkan → fallback hari ini
+  const selMonth = selectedMonth.value
+  const selYear = selectedYear.value
+  const run = ++dashRun
+
   loading.value = true
   try {
-    // 1. Get global stats
     const { data: books } = await supabase.from('books').select('stok')
     let sumStok = 0
     if (books) {
       totalBukuJudul.value = books.length
-      books.forEach(b => sumStok += b.stok)
+      books.forEach((b) => { sumStok += b.stok })
     }
 
     const { data: allActiveLoans } = await supabase.from('book_loans').select('tanggal_kembali_seharusnya').eq('status', 'dipinjam')
     bukuDipinjam.value = allActiveLoans ? allActiveLoans.length : 0
     totalBukuStok.value = sumStok
-    
-    const todayStr = new Date().toISOString().split('T')[0]
-    bukuTerlambat.value = (allActiveLoans || []).filter(l => l.tanggal_kembali_seharusnya < todayStr).length
 
-    // Global visit stats
+    bukuTerlambat.value = (allActiveLoans || []).filter((l) => l.tanggal_kembali_seharusnya < todayStr).length
+
     const currentYearStr = todayStr.substring(0, 4)
     const currentMonthStr = todayStr.substring(0, 7)
-    
+    const currentMonth = Number(todayStr.substring(5, 7))
+    // Hari terakhir bulan berjalan — jangan hardcode -31 (bukan tanggal nyata
+    // untuk bulan < 31 hari; Postgres menolaknya → HTTP 400 setiap fetch).
+    const lastDayOfMonth = new Date(Number(currentYearStr), currentMonth, 0).getDate()
+    const currentMonthEnd = `${currentMonthStr}-${String(lastDayOfMonth).padStart(2, '0')}`
+
     const [{ count: cTahun }, { count: cBulan }, { count: cHari }] = await Promise.all([
       supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentYearStr}-01-01`),
-      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentMonthStr}-01`).lte('tanggal', `${currentMonthStr}-31`),
-      supabase.from('library_visits').select('*', { count: 'exact', head: true }).eq('tanggal', todayStr)
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).gte('tanggal', `${currentMonthStr}-01`).lte('tanggal', currentMonthEnd),
+      supabase.from('library_visits').select('*', { count: 'exact', head: true }).eq('tanggal', todayStr),
     ])
-    
+
     kunjunganTahunIni.value = cTahun || 0
     kunjunganBulanIni.value = cBulan || 0
     kunjunganHariIni.value = cHari || 0
@@ -76,74 +126,69 @@ async function fetchDashboardData() {
       .limit(5)
     recentLoans.value = recents || []
 
-    // 2. Build Chart Data based on filter
     let startQuery = ''
     let endQuery = ''
-    let dateGrouper = (dateStr) => dateStr // Default grouping
+    let dateGrouper = (dateStr) => dateStr
 
-    if (filterMode.value === 'daily') {
-      startQuery = selectedDate.value
-      endQuery = selectedDate.value
-      // Generate hours 07:00 to 16:00
+    if (mode === 'daily') {
+      startQuery = selDate
+      endQuery = selDate
       chartLabels.value = Array.from({ length: 10 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`)
-      // Note: we can't easily group by hour without created_at, but we'll use created_at
       dateGrouper = (isoStr) => {
         const hour = new Date(isoStr).getHours()
         return `${String(hour).padStart(2, '0')}:00`
       }
-    } else if (filterMode.value === 'monthly') {
-      const mStr = String(selectedMonth.value).padStart(2, '0')
-      const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
-      startQuery = `${selectedYear.value}-${mStr}-01`
-      endQuery = `${selectedYear.value}-${mStr}-${String(lastDay).padStart(2, '0')}`
-      
-      chartLabels.value = Array.from({ length: lastDay }, (_, i) => `${i + 1} ${namaBulan(selectedMonth.value).substring(0,3)}`)
+    } else if (mode === 'monthly') {
+      const mStr = String(selMonth).padStart(2, '0')
+      const lastDay = new Date(selYear, selMonth, 0).getDate()
+      startQuery = `${selYear}-${mStr}-01`
+      endQuery = `${selYear}-${mStr}-${String(lastDay).padStart(2, '0')}`
+
+      chartLabels.value = Array.from({ length: lastDay }, (_, i) => `${i + 1} ${namaBulan(selMonth).substring(0, 3)}`)
       dateGrouper = (dateStr) => {
         const d = new Date(dateStr)
-        return `${d.getDate()} ${namaBulan(selectedMonth.value).substring(0,3)}`
+        return `${d.getDate()} ${namaBulan(selMonth).substring(0, 3)}`
       }
     } else {
-      // Yearly
-      startQuery = `${selectedYear.value}-01-01`
-      endQuery = `${selectedYear.value}-12-31`
-      chartLabels.value = monthOptions.map(m => namaBulan(m))
+      startQuery = `${selYear}-01-01`
+      endQuery = `${selYear}-12-31`
+      chartLabels.value = monthOptions.map((m) => namaBulan(m))
       dateGrouper = (dateStr) => namaBulan(new Date(dateStr).getMonth() + 1)
     }
 
-    // Fetch visits for chart
-    let visitsQuery = supabase.from('library_visits').select('tanggal, created_at').gte('tanggal', startQuery).lte('tanggal', endQuery)
+    const visitsQuery = supabase.from('library_visits').select('tanggal, created_at').gte('tanggal', startQuery).lte('tanggal', endQuery)
     const { data: chartV } = await visitsQuery
-    
-    // Fetch loans for chart
-    let loansQuery = supabase.from('book_loans').select('tanggal_pinjam, created_at').gte('tanggal_pinjam', startQuery).lte('tanggal_pinjam', endQuery)
+
+    const loansQuery = supabase.from('book_loans').select('tanggal_pinjam, created_at').gte('tanggal_pinjam', startQuery).lte('tanggal_pinjam', endQuery)
     const { data: chartL } = await loansQuery
 
-    // Aggregate
+    // Abaikan respons basi: hanya panggilan terbaru yang boleh menulis hasil.
+    if (run !== dashRun) return
+
     const visitCounts = {}
     const loanCounts = {}
-    chartLabels.value.forEach(l => { visitCounts[l] = 0; loanCounts[l] = 0 })
+    chartLabels.value.forEach((l) => { visitCounts[l] = 0; loanCounts[l] = 0 })
 
     if (chartV) {
-      chartV.forEach(v => {
-        const key = filterMode.value === 'daily' ? dateGrouper(v.created_at) : dateGrouper(v.tanggal)
+      chartV.forEach((v) => {
+        const key = mode === 'daily' ? dateGrouper(v.created_at) : dateGrouper(v.tanggal)
         if (visitCounts[key] !== undefined) visitCounts[key]++
       })
     }
-    
+
     if (chartL) {
-      chartL.forEach(l => {
-        const key = filterMode.value === 'daily' ? dateGrouper(l.created_at) : dateGrouper(l.tanggal_pinjam)
+      chartL.forEach((l) => {
+        const key = mode === 'daily' ? dateGrouper(l.created_at) : dateGrouper(l.tanggal_pinjam)
         if (loanCounts[key] !== undefined) loanCounts[key]++
       })
     }
 
-    chartDataVisits.value = chartLabels.value.map(l => visitCounts[l])
-    chartDataLoans.value = chartLabels.value.map(l => loanCounts[l])
-
+    chartDataVisits.value = chartLabels.value.map((l) => visitCounts[l])
+    chartDataLoans.value = chartLabels.value.map((l) => loanCounts[l])
   } catch (e) {
     console.error(e)
   } finally {
-    loading.value = false
+    if (run === dashRun) loading.value = false
   }
 }
 
@@ -151,71 +196,53 @@ watch([filterMode, selectedDate, selectedMonth, selectedYear], () => {
   fetchDashboardData()
 })
 
-const mixedChartData = computed(() => {
-  return {
-    labels: chartLabels.value,
-    datasets: [
-      {
-        type: 'line',
-        label: 'Kunjungan Siswa',
-        data: chartDataVisits.value,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        borderWidth: 3,
-        tension: 0.4,
-        fill: true,
-        yAxisID: 'y'
-      },
-      {
-        type: 'bar',
-        label: 'Peminjaman Buku',
-        data: chartDataLoans.value,
-        backgroundColor: '#3b82f6',
-        borderRadius: 4,
-        yAxisID: 'y1'
-      }
-    ]
-  }
-})
+const mixedChartData = computed(() => ({
+  labels: chartLabels.value,
+  datasets: [
+    {
+      type: 'line',
+      label: 'Kunjungan',
+      data: chartDataVisits.value,
+      borderColor: CHART_COLORS.libraryLine,
+      backgroundColor: CHART_COLORS.libraryFill,
+      borderWidth: 2.5,
+      tension: 0.35,
+      fill: true,
+      pointRadius: 2,
+      yAxisID: 'y',
+    },
+    {
+      type: 'bar',
+      label: 'Peminjaman',
+      data: chartDataLoans.value,
+      backgroundColor: '#10b981',
+      borderRadius: 4,
+      yAxisID: 'y1',
+    },
+  ],
+}))
 
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  interaction: {
-    mode: 'index',
-    intersect: false,
-  },
+  interaction: { mode: 'index', intersect: false },
   plugins: {
-    legend: { position: 'bottom' },
-    tooltip: {
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-      titleColor: '#1f2937',
-      bodyColor: '#4b5563',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      padding: 10,
-    }
+    legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, borderRadius: 5, useBorderRadius: true, padding: 14 } },
+    tooltip: { padding: 10, cornerRadius: 8 },
   },
   scales: {
     x: { grid: { display: false } },
     y: {
-      type: 'linear',
-      display: true,
-      position: 'left',
-      title: { display: true, text: 'Jumlah Kunjungan' },
-      beginAtZero: true,
-      ticks: { precision: 0 }
+      type: 'linear', display: true, position: 'left',
+      title: { display: true, text: 'Kunjungan' },
+      beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' },
     },
     y1: {
-      type: 'linear',
-      display: true,
-      position: 'right',
-      title: { display: true, text: 'Jumlah Buku Dipinjam' },
-      beginAtZero: true,
-      ticks: { precision: 0 },
-      grid: { drawOnChartArea: false }
-    }
-  }
+      type: 'linear', display: true, position: 'right',
+      title: { display: true, text: 'Peminjaman' },
+      beginAtZero: true, ticks: { precision: 0 }, grid: { drawOnChartArea: false },
+    },
+  },
 }
 
 onMounted(() => {
@@ -224,178 +251,173 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Beranda Perpustakaan" subtitle="Ikhtisar korelasi sirkulasi pustaka dan kunjungan pengunjung" />
+  <div class="flex flex-col gap-2.5 sm:gap-3">
+    <AppPageHeader
+      inline
+      title="Beranda Perpustakaan"
+      subtitle="Sirkulasi koleksi dan kunjungan pengunjung"
+    >
+      <template #actions>
+        <AppButton variant="library" :to="{ name: 'peminjaman' }">
+          <template #icon><BookOpen class="h-4 w-4" aria-hidden="true" /></template>
+          Sirkulasi
+        </AppButton>
+      </template>
+    </AppPageHeader>
 
-    <div v-if="loading && !chartLabels.length" class="flex justify-center py-12">
-      <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
+    <div v-if="loading && !chartLabels.length" aria-live="polite" aria-busy="true" class="flex flex-col gap-3">
+      <div class="h-12 animate-pulse rounded-xl bg-slate-200/70" />
+      <div class="h-40 animate-pulse rounded-xl bg-slate-200/50" />
     </div>
 
-    <div v-else class="space-y-6">
-      
-      <!-- Filter Section -->
-      <div class="card flex flex-wrap items-center gap-4 bg-white/50 backdrop-blur-sm border-emerald-100/50">
-        <div class="flex items-center gap-2">
-          <TrendingUp class="h-5 w-5 text-emerald-600" />
-          <span class="text-sm font-semibold text-gray-700">Analisis Tren:</span>
+    <template v-else>
+      <!-- Library overview: KPI bar satu kartu -->
+      <section aria-label="Ringkasan perpustakaan">
+        <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 sm:grid-cols-4">
+          <div v-for="st in overviewStats" :key="st.label" class="flex min-h-[60px] items-center gap-2.5 bg-white px-3 py-2.5">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP[st.tone]">
+              <component :is="st.icon" class="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div class="min-w-0">
+              <p class="truncate text-[11px] leading-tight text-slate-500">{{ st.label }}</p>
+              <p class="truncate text-lg font-bold leading-tight text-slate-900 tnum">{{ st.value }}</p>
+            </div>
+            <span class="ml-auto hidden shrink-0 text-[11px] text-slate-400 lg:block">{{ st.sub }}</span>
+          </div>
         </div>
-        
-        <select v-model="filterMode" class="input w-36 py-1.5 text-sm border-gray-200">
-          <option value="daily">Harian</option>
-          <option value="monthly">Bulanan</option>
-          <option value="yearly">Tahunan</option>
-        </select>
+      </section>
 
-        <div v-if="filterMode === 'daily'" class="flex items-center gap-2">
-          <input type="date" v-model="selectedDate" class="input py-1.5 text-sm border-gray-200" />
+      <!-- Quick actions: baris pill ramping -->
+      <section aria-label="Aksi cepat perpustakaan">
+        <div class="flex flex-wrap gap-2">
+          <RouterLink
+            v-for="a in quickActions"
+            :key="a.label"
+            :to="a.to"
+            class="group inline-flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+          >
+            <component :is="a.icon" class="h-4 w-4 text-slate-400 transition-colors group-hover:text-blue-700" aria-hidden="true" />
+            <span class="whitespace-nowrap">{{ a.label }}</span>
+            <ArrowRight class="h-3.5 w-3.5 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" aria-hidden="true" />
+          </RouterLink>
         </div>
+      </section>
 
-        <div v-if="filterMode === 'monthly'" class="flex items-center gap-2">
-          <select v-model="selectedMonth" class="input w-32 py-1.5 text-sm border-gray-200">
-            <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
-          </select>
-          <select v-model="selectedYear" class="input w-24 py-1.5 text-sm border-gray-200">
-            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
 
-        <div v-if="filterMode === 'yearly'" class="flex items-center gap-2">
-          <select v-model="selectedYear" class="input w-24 py-1.5 text-sm border-gray-200">
-            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-          </select>
+      <div class="grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3">
+        <!-- Main: Trend (2/3) + Kunjungan (1/3) -->
+      <!-- Trend -->
+      <AppCard class="lg:col-span-2" title="Tren Kunjungan & Peminjaman" subtitle="Perbandingan antusiasme kunjungan dengan sirkulasi buku">
+        <template #actions>
+          <!-- Desktop: mode + filter horizontal di header (posisi tetap) -->
+          <div class="hidden flex-wrap items-center justify-end gap-1.5 lg:flex">
+            <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
+            <input v-if="filterMode === 'daily'" id="library-trend-date" v-model="selectedDate" type="date" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tanggal" />
+            <template v-if="filterMode === 'monthly'">
+              <select id="library-trend-month" v-model.number="selectedMonth" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih bulan">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select id="library-trend-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </template>
+            <select v-if="filterMode === 'yearly'" id="library-trend-annual-year" v-model.number="selectedYear" class="input-field !w-auto !py-1.5 !text-xs" aria-label="Pilih tahun">
+              <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+        </template>
+        <!-- Mobile: mode di atas, tanggal/bulan/tahun grid 2 kolom (tanpa horizontal scroll) -->
+        <div class="mb-2 flex flex-col gap-2 lg:hidden">
+          <AppTabs v-model="filterMode" :options="filterModes" ariaLabel="Mode tren" />
+          <div class="grid grid-cols-2 gap-2">
+            <input v-if="filterMode === 'daily'" id="library-trend-date-m" v-model="selectedDate" type="date" class="input-field col-span-2 w-full !py-1.5 !text-xs" aria-label="Pilih tanggal" />
+            <template v-if="filterMode === 'monthly'">
+              <select id="library-trend-month-m" v-model.number="selectedMonth" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih bulan">
+                <option v-for="m in monthOptions" :key="m" :value="m">{{ namaBulan(m) }}</option>
+              </select>
+              <select id="library-trend-year-m" v-model.number="selectedYear" class="input-field w-full !py-1.5 !text-xs" aria-label="Pilih tahun">
+                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </template>
+            <select v-if="filterMode === 'yearly'" id="library-trend-annual-year-m" v-model.number="selectedYear" class="input-field col-span-2 w-full !py-1.5 !text-xs" aria-label="Pilih tahun">
+              <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
         </div>
-      </div>
-
-      <!-- Main Chart Correlation -->
-      <div class="card shadow-lg shadow-emerald-500/5 border-none">
-        <div class="mb-4">
-          <h3 class="font-bold text-gray-800">Korelasi Kunjungan & Peminjaman</h3>
-          <p class="text-xs text-gray-500">Perbandingan antusiasme kehadiran siswa dengan sirkulasi peminjaman buku.</p>
-        </div>
-        
-        <div class="relative h-80 w-full">
-          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
-            <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
+        <div class="relative h-[clamp(150px,26vh,240px)]" role="img" aria-label="Grafik tren kunjungan dan peminjaman">
+          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60">
+            <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" role="status" aria-label="Memuat grafik" />
           </div>
           <Line :data="mixedChartData" :options="chartOptions" />
         </div>
+      </AppCard>
+        <!-- Visit stats -->
+        <AppCard title="Kunjungan" subtitle="Akumulasi pengunjung">
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.library">
+                <Users class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganHariIni }}</span> orang · Hari ini
+              </p>
+            </div>
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.neutral">
+                <CalendarDays class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganBulanIni }}</span> orang · Bulan ini
+              </p>
+            </div>
+            <div class="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1" :class="ICON_CHIP.neutral">
+                <BarChart2 class="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <p class="min-w-0 truncate text-[12.5px] text-slate-500">
+                <span class="text-[15px] font-bold text-slate-900 tnum">{{ kunjunganTahunIni }}</span> orang · Tahun ini
+              </p>
+            </div>
+          </div>
+        </AppCard>
       </div>
 
-      <!-- 4 Cards Stat (Buku) -->
-      <h3 class="font-bold text-gray-800 -mb-2 mt-4">Status Koleksi Fisik</h3>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="card flex items-center gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
-            <Library class="h-6 w-6 text-emerald-600" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500">Total Eksemplar</p>
-            <p class="text-2xl font-bold text-gray-800">{{ totalBukuStok }} <span class="text-xs font-normal text-gray-500">Buku</span></p>
-          </div>
-        </div>
 
-        <div class="card flex items-center gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-100">
-            <Book class="h-6 w-6 text-purple-600" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500">Koleksi Judul</p>
-            <p class="text-2xl font-bold text-gray-800">{{ totalBukuJudul }} <span class="text-xs font-normal text-gray-500">Judul</span></p>
-          </div>
-        </div>
-
-        <div class="card flex items-center gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-100">
-            <BookOpen class="h-6 w-6 text-sky-600" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500">Sedang Dipinjam</p>
-            <p class="text-2xl font-bold text-gray-800">{{ bukuDipinjam }} <span class="text-xs font-normal text-gray-500">Buku</span></p>
-          </div>
-        </div>
-
-        <div class="card flex items-center gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-100">
-            <AlertTriangle class="h-6 w-6 text-rose-600" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500">Terlambat</p>
-            <p class="text-2xl font-bold text-rose-600">{{ bukuTerlambat }} <span class="text-xs font-normal text-gray-500">Buku</span></p>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- 3 Cards Kunjungan -->
-        <div class="lg:col-span-1 space-y-4">
-          <h3 class="font-bold text-gray-800">Statistik Kunjungan (Tahun Ini)</h3>
-          
-          <div class="card flex items-center gap-4 bg-gradient-to-r from-emerald-50 to-white">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80">
-              <Users class="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-600">Hari Ini</p>
-              <p class="text-2xl font-bold text-gray-800">{{ kunjunganHariIni }} <span class="text-xs font-normal text-gray-500">Orang</span></p>
-            </div>
-          </div>
-          
-          <div class="card flex items-center gap-4 bg-gradient-to-r from-blue-50 to-white">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100/80">
-              <CalendarDays class="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-600">Bulan Ini</p>
-              <p class="text-2xl font-bold text-gray-800">{{ kunjunganBulanIni }} <span class="text-xs font-normal text-gray-500">Orang</span></p>
-            </div>
-          </div>
-
-          <div class="card flex items-center gap-4 bg-gradient-to-r from-indigo-50 to-white">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100/80">
-              <BarChart2 class="h-6 w-6 text-indigo-600" />
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-600">Tahun Ini</p>
-              <p class="text-2xl font-bold text-gray-800">{{ kunjunganTahunIni }} <span class="text-xs font-normal text-gray-500">Orang</span></p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="card lg:col-span-2">
-          <div class="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
-            <h3 class="font-bold text-gray-800">5 Peminjaman Terakhir</h3>
-            <RouterLink :to="{ name: 'peminjaman' }" class="text-xs font-medium text-emerald-600 hover:text-emerald-700">Lihat Semua</RouterLink>
-          </div>
-          
-          <ul class="space-y-3">
-            <li v-for="l in recentLoans" :key="l.id" class="flex items-center justify-between rounded-xl border border-gray-100 p-3 hover:bg-gray-50 transition">
-              <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                  <BookOpen class="h-5 w-5 text-gray-500" />
+      <!-- Secondary: Peminjaman Terakhir (full width, tetap 5 transaksi) -->
+      <AppCard title="Peminjaman Terakhir" subtitle="5 transaksi terbaru">
+          <template #actions>
+            <RouterLink :to="{ name: 'peminjaman' }" class="link text-[13px]">Lihat semua</RouterLink>
+          </template>
+          <AppEmptyState
+            v-if="!recentLoans.length"
+            title="Belum ada transaksi"
+            description="Transaksi peminjaman akan muncul di sini."
+            :icon="BookOpen"
+          />
+          <ul v-else class="grid max-h-[clamp(110px,15vh,190px)] gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
+            <li
+              v-for="l in recentLoans"
+              :key="l.id"
+              class="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-slate-100 p-2 transition-colors hover:bg-slate-50/70"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                  <BookOpen class="h-[18px] w-[18px]" aria-hidden="true" />
                 </div>
-                <div>
-                  <div class="font-semibold text-gray-800">{{ l.students?.nama }} <span class="text-xs font-normal text-gray-500">(Kelas {{ l.students?.kelas }})</span></div>
-                  <div class="text-sm text-gray-600">{{ l.books?.judul }}</div>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-slate-800">
+                    {{ l.students?.nama }} <span class="text-xs font-normal text-slate-400">(Kelas {{ l.students?.kelas }})</span>
+                  </p>
+                  <p class="truncate text-[13px] text-slate-500">{{ l.books?.judul }}</p>
                 </div>
               </div>
-              <div class="text-right">
-                <div v-if="l.status === 'dikembalikan'" class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                  <CheckCircle2 class="h-3 w-3" /> Selesai
-                </div>
-                <div v-else-if="l.tanggal_kembali_seharusnya < new Date().toISOString().split('T')[0]" class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
-                  <AlertTriangle class="h-3 w-3" /> Terlambat
-                </div>
-                <div v-else class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">
-                  Aktif
-                </div>
-                <div class="mt-1 text-xs text-gray-400">{{ l.tanggal_pinjam }}</div>
+              <div class="shrink-0 text-right">
+                <AppBadge :label="loanLabel(l)" :tone="loanTone(l)" dot />
+                <p class="mt-1 text-xs text-slate-400 tnum">{{ l.tanggal_pinjam }}</p>
               </div>
             </li>
-            <li v-if="!recentLoans.length" class="text-center text-sm text-gray-500 py-4">Belum ada transaksi perpustakaan.</li>
           </ul>
-        </div>
-      </div>
-    </div>
+        </AppCard>
+    </template>
   </div>
 </template>

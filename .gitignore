@@ -9,3 +9,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .agents/
+
+# Artefak build/dev yang tidak perlu di-track
+dev-dist/
+*.timestamp-*

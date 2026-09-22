@@ -99,7 +99,7 @@ export async function exportPdfKunjungan({
   // ---------- JUDUL LAPORAN ----------
   doc.setFont('times', 'bold')
   doc.setFontSize(12)
-  const namaPerpus = settings?.nama_perpustakaan || 'MIN Blora'
+  const namaPerpus = settings?.nama_perpustakaan || 'Perpustakaan Madrasah'
   doc.text(`LAPORAN KUNJUNGAN PERPUSTAKAAN ${namaPerpus.toUpperCase()}`, pageWidth / 2, lineY + 8.5, { align: 'center' })
   
   doc.setFontSize(10)
