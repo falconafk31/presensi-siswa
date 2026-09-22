@@ -1,0 +1,193 @@
+/* ============================================================
+   FIXED16:9 STAGE — berbasis prinsip viewport-base.css
+   (frontend-slides): author1920×1080, scale seluruh stage.
+   Diadaptasi untuk Vue router app (bukan file HTML tunggal).
+   ============================================================ */
+
+html.deck-html,
+html.deck-html body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.deck-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.deck-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: #f8fafc;
+}
+
+/* Slide menumpuk di dalam stage TETAP.
+   visibility/opacity/pointer-events — BUKAN display:none
+   (agar layout slide tidak pernah "dibuka" oleh kelas lain). */
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background: #f8fafc;
+  transition: opacity 0.32s ease, visibility 0s linear 0.32s;
+}
+.slide.active {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+  transition: opacity 0.32s ease, visibility 0s;
+}
+
+/* Progressive disclosure — reveal bertahap saat slide aktif */
+.slide .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.slide.active .reveal {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: calc(var(--i, 0) * 65ms);
+}
+
+/* Mode staging export (/tutorial/presentation?export=1): scroll normal */
+.export-staging {
+  position: relative;
+}
+.export-staging .slide {
+  position: relative;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+.export-staging .slide .reveal {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+/* Mode cetak / export: semua slide aktif & berurutan per halaman */
+.deck-stage.export-mode {
+  position: static;
+  width: 1920px;
+  height: auto;
+  transform: none !important;
+}
+.deck-stage.export-mode .slide {
+  position: relative;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  break-after: page;
+  page-break-after: always;
+  transition: none;
+}
+.deck-stage.export-mode .slide:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+.deck-stage.export-mode .slide .reveal {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+@media print {
+  @page {
+    size: 20in 11.25in; /* =1920×1080 px @96dpi —1 halaman =1 slide */
+    margin: 0;
+  }
+  html.deck-html,
+  html.deck-html body {
+    width: auto;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  .deck-viewport {
+    position: static;
+    overflow: visible;
+    background: #fff;
+  }
+  .deck-stage {
+    position: static;
+    width: 1920px;
+    height: auto;
+    transform: none !important;
+    background: #fff;
+  }
+  .slide {
+    position: relative;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    width: 1920px;
+    height: 1080px;
+    break-after: page;
+    page-break-after: always;
+    transition: none !important;
+  }
+  .slide:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .slide .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .deck-controls,
+  .deck-progress {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .slide .reveal {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Layar demo (ScreenFrame, kanvas tetap 1280×800)                      */
+/* Aplikasi asli memakai tinggi halaman yang tumbuh; di kanvas tetap    */
+/* tabel dikemas lebih ringkas dan footer daftar wajib tetap terlihat.  */
+/* ------------------------------------------------------------------ */
+.screen-frame .table-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.screen-frame .table-card .table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.screen-frame .table-card .table thead th {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.screen-frame .table-card .table tbody td {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}

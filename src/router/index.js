@@ -8,6 +8,47 @@ const routes = [
     component: () => import('@/views/LoginView.vue'),
     meta: { public: true },
   },
+  // ============================================================
+  // TUTORIAL / DOKUMENTASI PUBLIK (tanpa login — lihat docs/presentation).
+  // Route produksi di bawah TIDAK berubah; jalur ini murni penambahan.
+  // ============================================================
+  {
+    path: '/tutorial',
+    component: () => import('@/presentation/components/TutorialLayout.vue'),
+    meta: { public: true },
+    children: [
+      {
+        path: '',
+        name: 'tutorial',
+        component: () => import('@/presentation/components/TutorialView.vue'),
+        meta: { public: true },
+      },
+      {
+        path: 'admin',
+        name: 'tutorial-admin',
+        component: () => import('@/presentation/components/TutorialView.vue'),
+        meta: { public: true },
+      },
+      {
+        path: 'guru',
+        name: 'tutorial-guru',
+        component: () => import('@/presentation/components/TutorialView.vue'),
+        meta: { public: true },
+      },
+      {
+        path: 'pustakawan',
+        name: 'tutorial-pustakawan',
+        component: () => import('@/presentation/components/TutorialView.vue'),
+        meta: { public: true },
+      },
+    ],
+  },
+  {
+    path: '/tutorial/presentation',
+    name: 'tutorial-presentation',
+    component: () => import('@/presentation/components/PresentationView.vue'),
+    meta: { public: true },
+  },
   {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
@@ -183,6 +224,11 @@ router.afterEach((to) => {
       'rekap-perpus': 'Laporan Perpustakaan',
       'kunjungan-perpus': 'Kunjungan Perpustakaan',
       'panduan': 'Panduan Penggunaan',
+      'tutorial': 'Tutorial',
+      'tutorial-admin': 'Tutorial Admin',
+      'tutorial-guru': 'Tutorial Guru',
+      'tutorial-pustakawan': 'Tutorial Perpustakaan',
+      'tutorial-presentation': 'Presentasi Tutorial',
     }
     const pageTitle = titleMap[to.name] || 'App'
     document.title = `${pageTitle} | Sistem Presensi & Perpustakaan`

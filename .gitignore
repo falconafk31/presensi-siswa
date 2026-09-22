@@ -13,3 +13,6 @@ dist-ssr
 # Artefak build/dev yang tidak perlu di-track
 dev-dist/
 *.timestamp-*
+
+# Artefak ekspor tutorial (PDF/PPTX hasil generate)
+out/
