@@ -5,6 +5,12 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Diubah (Changed)
+- **Restrukturisasi dokumentasi repository:** README ditulis ulang sebagai entry point ringkas (status, overview, fitur terverifikasi source, matriks role, arsitektur, quick start); dokumentasi detail dipindah ke `docs/` (`architecture`, `tech-stack`, `project-structure`, `development`, `deployment`, `authentication`, `database`, `testing`, `performance`, `design-system`, `troubleshooting`, `decisions/`); `ROADMAP.md`, `CONTRIBUTING.md`, `SECURITY.md`, dan template PR/issue GitHub ditambahkan. Tidak ada perubahan kode aplikasi, database, RLS, maupun perilaku auth.
+- **Koreksi klaim dokumentasi:** kredensial demo dihapus dari README (tidak ada kredensial default di repo); klaim "Glassmorphism"/gradient diluruskan mengikuti source (desain calm institutional); klaim PWA tidak lagi dicantumkan (sudah dilepas); `radix-vue` dicatat sebagai dependensi tak terpakai; `SETUP.md` (scaffold usang) dihapus dan isinya dilebur ke `docs/development.md`.
+
 ## [0.2.19] - 2026-09-22
 
 ### Diperbaiki (Fixed)
