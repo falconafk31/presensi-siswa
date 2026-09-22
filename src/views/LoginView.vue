@@ -5,7 +5,8 @@ import { toast } from 'vue-sonner'
 import { LogIn, User, Lock, Eye, EyeOff, ClipboardCheck, Library, BarChart3 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-import { AppInput, AppButton } from '@/components/ui'
+import { supabase } from '@/lib/supabase'
+import { AppInput, AppButton, AppAlert } from '@/components/ui'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,6 +18,30 @@ const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const sekolah = ref(null)
+
+// ——— Self-recovery "Pulihkan Sesi" (login hang / sesi bermasalah) ———
+// Di sebagian Chrome mobile, proses masuk bisa menggantung tanpa batas
+// (fetch signInWithPassword / fetchProfile tanpa timeout, ditambah state
+// sesi lokal yang stale). Panel recovery di bawah HANYA muncul setelah
+// timeout — alur login normal tidak berubah sama sekali.
+const LOGIN_TIMEOUT_MS = 12000 // ±12 detik (rentang 10–15 detik)
+const RECOVERY_STEP_TIMEOUT_MS = 3000
+// Harus sama dengan USER_CACHE_KEY di stores/auth.js
+const USER_CACHE_KEY = 'presensi.user'
+
+const showRecovery = ref(false)
+const recovering = ref(false)
+// Token attempt: setiap login baru / recovery membatalkan attempt lama,
+// sehingga hasil login yang datang terlambat diabaikan (anti race condition).
+let loginAttempt = 0
+
+// Membatasi langkah pemulihan yang bisa menggantung (mis. signOut saat
+// jaringan mati). Sengaja resolve — bukan reject — saat timeout agar alur
+// recovery tetap lanjut ke langkah berikutnya.
+function withTimeout(promise, ms) {
+  const safe = Promise.resolve(promise).catch(() => {})
+  return Promise.race([safe, new Promise((resolve) => setTimeout(resolve, ms))])
+}
 
 const highlights = [
   { icon: ClipboardCheck, text: 'Presensi harian per kelas dalam hitungan detik' },
@@ -33,20 +58,88 @@ onMounted(async () => {
 })
 
 async function handleLogin() {
+  if (recovering.value) return
   if (!username.value || !password.value) {
     toast.error('Username dan password wajib diisi')
     return
   }
+  const attempt = ++loginAttempt
   loading.value = true
+  showRecovery.value = false
+
+  const timer = setTimeout(() => {
+    if (attempt !== loginAttempt) return
+    // Login belum selesai dalam batas wajar → hentikan loading, tawarkan
+    // pemulihan. Promise login yang masih pending dibiarkan; hasilnya hanya
+    // diproses bila user belum menekan "Pulihkan Sesi".
+    loading.value = false
+    showRecovery.value = true
+  }, LOGIN_TIMEOUT_MS)
+
   try {
     const user = await auth.login(username.value.trim(), password.value)
+    if (attempt !== loginAttempt) return // dibatalkan oleh recovery / attempt baru
     toast.success(`Selamat datang, ${user.nama}`)
+    showRecovery.value = false
     const redirect = route.query.redirect || { name: 'dashboard' }
     router.replace(redirect)
   } catch (e) {
+    if (attempt !== loginAttempt) return
+    // Hasil nyata (mis. password salah) — bukan kondisi hang: tanpa panel recovery
+    showRecovery.value = false
     toast.error(e.message || 'Gagal masuk')
   } finally {
-    loading.value = false
+    clearTimeout(timer)
+    if (attempt === loginAttempt) loading.value = false
+  }
+}
+
+async function handleRecoverSession() {
+  if (recovering.value) return
+  recovering.value = true
+  // Batalkan login yang masih pending — hasil terlambat tidak boleh lagi
+  // menulis state atau menavigasi (anti race dengan pemulihan).
+  loginAttempt += 1
+  loading.value = false
+
+  try {
+    // 1) Bersihkan cache profil lokal — hanya key ini (bukan localStorage.clear()).
+    try {
+      localStorage.removeItem(USER_CACHE_KEY)
+    } catch {
+      /* abaikan: storage penuh / private mode */
+    }
+
+    // 2) Bersihkan persisted Supabase Auth session via API resmi.
+    //    scope 'local' = hanya sesi di perangkat ini. Diberi batas waktu
+    //    karena signOut bisa menggantung pada jaringan yang bermasalah —
+    //    kondisi yang justru sedang dipulihkan.
+    await withTimeout(supabase.auth.signOut({ scope: 'local' }), RECOVERY_STEP_TIMEOUT_MS)
+
+    // 3) Unregister Service Worker lama bila masih ada.
+    if ('serviceWorker' in navigator) {
+      const registrations =
+        (await withTimeout(navigator.serviceWorker.getRegistrations(), RECOVERY_STEP_TIMEOUT_MS)) || []
+      await Promise.all(registrations.map((r) => withTimeout(r.unregister(), RECOVERY_STEP_TIMEOUT_MS)))
+    }
+  } finally {
+    // 4) Fallback lokal terarah + jaminan anti-race (public API tetap langkah #2):
+    //    signOut hanya menghapus sesi lokal SETELAH panggilan jaringan /logout —
+    //    saat jaringan macet (kondisi yang dipulihkan) ia bisa menggantung atau
+    //    gagal TANPA sempat menghapus sesi, dan login yang masih pending bisa
+    //    menulis ulang storage sesaat sebelum reload. Blob sesi dari konfigurasi
+    //    resmi `auth.storageKey` (satu key — bukan localStorage.clear) dibersihkan
+    //    sinkron TEPAT sebelum reload, tanpa await di antaranya. Key turunan
+    //    (-user / -code-verifier) sengaja tidak disentuh: inert pada app ini
+    //    (userStorage tidak dikonfigurasi; login password tanpa PKCE).
+    try {
+      localStorage.removeItem(USER_CACHE_KEY)
+      const key = supabase.auth.storageKey
+      if (key) localStorage.removeItem(key)
+    } catch {
+      /* abaikan */
+    }
+    window.location.reload()
   }
 }
 </script>
@@ -123,11 +216,27 @@ async function handleLogin() {
             </template>
           </AppInput>
 
-          <AppButton type="submit" block :loading="loading" class="mt-2 !py-3">
+          <AppButton type="submit" block :loading="loading" :disabled="recovering" class="mt-2 !py-3">
             <template #icon><LogIn class="h-4 w-4" aria-hidden="true" /></template>
             {{ loading ? 'Memeriksa…' : 'Masuk Sekarang' }}
           </AppButton>
         </form>
+
+        <!-- Self-recovery: hanya muncul bila login melewati batas waktu (hang / sesi bermasalah) -->
+        <AppAlert v-if="showRecovery" tone="warning" title="Mengalami masalah?" class="mt-4">
+          <p>Proses masuk membutuhkan waktu lebih lama dari biasanya.</p>
+          <AppButton
+            type="button"
+            variant="warning"
+            size="sm"
+            block
+            class="mt-2.5"
+            :loading="recovering"
+            @click="handleRecoverSession"
+          >
+            Pulihkan Sesi
+          </AppButton>
+        </AppAlert>
 
         <p class="mt-8 text-center text-xs text-slate-400 lg:text-left">
           &copy; {{ new Date().getFullYear() }}
