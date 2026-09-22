@@ -5,6 +5,11 @@ Semua perubahan yang signifikan pada proyek ini akan didokumentasikan dalam file
 Format changelog berdasarkan pedoman [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini akan mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.19] - 2026-09-22
+
+### Diperbaiki (Fixed)
+- **Self-recovery "Pulihkan Sesi" pada Login:** menangani proses masuk yang menggantung selamanya di loading "Memeriksa…" (terutama Chrome mobile dengan state sesi lokal yang stale). `handleLogin` kini ber-timeout ±12 detik; bila melewati batas, loading dihentikan dan tampil panel **"Mengalami masalah?"** — "Proses masuk membutuhkan waktu lebih lama dari biasanya." — dengan tombol **Pulihkan Sesi**: membersihkan key `presensi.user`, membersihkan persisted Supabase Auth session via API resmi `supabase.auth.signOut({ scope: 'local' })`, unregister Service Worker lama bila masih ada, lalu reload halaman login. UI recovery hanya muncul setelah timeout; hasil login yang datang terlambat setelah tombol ditekan diabaikan (token attempt anti race condition). Alur login normal, pesan "Username atau password salah", role/permission, router guard, database/RLS, dan business logic tidak berubah.
+
 ## [0.2.18] - 2026-09-22
 
 ### Diperbaiki (Fixed)
